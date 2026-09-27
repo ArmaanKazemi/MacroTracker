@@ -5,7 +5,7 @@ import * as fooddb from './fooddb.js';
 import { mountToday } from './today.js';
 import { mountNutrients, mountFoods, mountSettings } from './views.js';
 
-window.APP_VERSION = '1.1.0';
+window.APP_VERSION = '1.1.1';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), microMode: 'day', foodsTab: 'fav' };

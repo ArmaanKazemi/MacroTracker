@@ -53,6 +53,10 @@ Your data lives only on that phone, inside the installed app. Use **Settings →
 
 Every deploy stamps a new service-worker version. When you next open the app online, a toast appears saying **Update available → Reload**.
 
+### Checking the CoFID build
+
+The **Check CoFID build** workflow runs whenever the converter changes, and you can also start it by hand from the Actions tab. It downloads the spreadsheet, prints each sheet's layout and lists how many foods have data for each nutrient. Nothing is deployed. If a nutrient suddenly shows 0 foods, gov.uk has changed the spreadsheet's layout.
+
 ### CoFID fallback
 
 If the workflow can't fetch the spreadsheet (for example, if gov.uk changes its page), the deploy still succeeds but uses the bundled starter set. To add the full dataset yourself:

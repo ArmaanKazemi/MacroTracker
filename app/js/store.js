@@ -56,22 +56,28 @@ export async function seedIfNeeded() {
       await db.put('foods', { source: 'preset', favourite: true, createdAt: Date.now(), ...p });
     }
     await db.put('kv', true, 'seeded');
-    await db.put('kv', 2, 'dataVersion');
+    await db.put('kv', DATA_VERSION, 'dataVersion');
   }
 }
 
+const DATA_VERSION = 3;
+
 /**
- * v2 added nutrients (B12, iodine, selenium, omega-3s, sodium). Fill them in on
- * existing preset foods and on already-logged entries, without touching any value
- * that was already there. Needs the food database loaded.
+ * Upgrades stored data. Needs the food database loaded.
+ * v2: new nutrients (B12, iodine, selenium, omega-3s, sodium) added to preset foods.
+ * v3: fill "no data" gaps in logged entries from the (fixed) food database - the
+ *     first CoFID build had no minerals. Values that already exist are never changed.
  */
 export async function migrateIfNeeded() {
-  if (((await db.get('kv', 'dataVersion')) || 1) >= 2) return;
-  for (const p of PRESETS) {
-    const f = await db.get('foods', p.id);
-    if (!f || !f.per100 || !p.per100) continue;
-    f.per100 = { ...p.per100, ...Object.fromEntries(Object.entries(f.per100).filter(([, v]) => v !== null && v !== undefined)) };
-    await db.put('foods', f);
+  const from = (await db.get('kv', 'dataVersion')) || 1;
+  if (from >= DATA_VERSION) return;
+  if (from < 2) {
+    for (const p of PRESETS) {
+      const f = await db.get('foods', p.id);
+      if (!f || !f.per100 || !p.per100) continue;
+      f.per100 = { ...p.per100, ...Object.fromEntries(Object.entries(f.per100).filter(([, v]) => v !== null && v !== undefined)) };
+      await db.put('foods', f);
+    }
   }
   for (const e of await db.getAll('entries')) {
     if (!e.foodId) continue;
@@ -80,15 +86,18 @@ export async function migrateIfNeeded() {
     const r = resolve(f);
     let changed = false;
     for (const k of ALL_KEYS) {
-      if (e.per100[k] === undefined) {
+      if ((e.per100[k] === null || e.per100[k] === undefined) && r.per100[k] !== null && r.per100[k] !== undefined) {
         e.per100[k] = r.per100[k];
-        if (r.estimated.includes(k)) e.estimated = [...(e.estimated || []), k];
+        if (r.estimated.includes(k)) e.estimated = [...new Set([...(e.estimated || []), k])];
+        changed = true;
+      } else if (e.per100[k] === undefined) {
+        e.per100[k] = null;
         changed = true;
       }
     }
     if (changed) await db.put('entries', e);
   }
-  await db.put('kv', 2, 'dataVersion');
+  await db.put('kv', DATA_VERSION, 'dataVersion');
 }
 
 // ---------- foods ----------
