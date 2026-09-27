@@ -19,7 +19,8 @@ const prox = [
   ['11-999', 'Mystery food no energy', '', 'AA', '', '', '', 1, 'N', 'N', 'N', 'N', 'N', '', '', '', '', ''],
 ];
 const inorg = [
-  [...meta, 'Sodium (mg)', 'Potassium (mg)', 'Calcium (mg)', 'Magnesium (mg)', 'Phosphorus (mg)', 'Iron (mg)', 'Copper (mg)', 'Zinc (mg)', 'Chloride (mg)', 'Manganese (mg)', 'Selenium (µg)', 'Iodine (µg)'],
+  // Real CoFID 2021 quirk: this sheet's "Food Code" header cell is blank.
+  [' ', ...meta.slice(1), 'Sodium (mg)', 'Potassium (mg)', 'Calcium (mg)', 'Magnesium (mg)', 'Phosphorus (mg)', 'Iron (mg)', 'Copper (mg)', 'Zinc (mg)', 'Chloride (mg)', 'Manganese (mg)', 'Selenium (µg)', 'Iodine (µg)'],
   [null, null, null, null, null, null, null, 'NA', 'K', 'CA', 'MG', 'P', 'FE', 'CU', 'ZN', 'CL', 'MN', 'SE', 'I'],
   ['14-319', 'Raspberries, raw', '', 'FA', '', '', '', 3, 170, 25, 19, 31, 0.7, 0.1, 0.4, 10, 0.4, 'Tr', 'N'],
   ['14-101', 'Blueberries, raw', '', 'FA', '', '', '', 6, 'N', 10, 6, 12, 'Tr', 0.1, 0.2, 5, 0.3, 0.1, ''],
@@ -38,10 +39,10 @@ const faPerFA = [
   ['13-500', 'Peanut butter, smooth', '', 'GA', '', '', '', 1, 0, 0],
 ];
 const faPerFood = [
-  [...meta, 'cis n-3 C18:3 /100g food (g)', 'cis n-3 C20:5 /100g food (g)', 'cis n-3 C22:6 /100g food (g)'],
-  ['14-319', 'Raspberries, raw', '', 'FA', '', '', '', 0.13, 0, 0],
-  ['13-500', 'Peanut butter, smooth', '', 'GA', '', '', '', 'Tr', 'N', 'N'],
-  ['17-100', 'Salmon, grilled', '', 'JC', '', '', '', 0.3, 0.8, 1.2],
+  [...meta, 'C18:3 /100g food (g)', 'cis n-3 C18:3 /100g food (g)', 'C20:5 /100g food (g)', 'cis n-3 C20:5 /100g food (g)', 'C22:6 /100g food (g)'],
+  ['14-319', 'Raspberries, raw', '', 'FA', '', '', '', 0.2, 0.13, 0, 0, 0],
+  ['13-500', 'Peanut butter, smooth', '', 'GA', '', '', '', 0.1, 'Tr', 'N', 'N', 'N'],
+  ['17-100', 'Salmon, grilled', '', 'JC', '', '', '', 0.4, 0.3, 0.9, 0.8, 1.2],
 ];
 
 const wb = XLSX.utils.book_new();
@@ -66,6 +67,13 @@ assert.deepEqual(byCode['14-319'], ['14-319', 'Raspberries, raw', 'Fruit', 25, 1
 const pb = byCode['13-500'];
 assert.deepEqual(pb.slice(18), [350, 0, 3, 4, 0, null], 'PB: sodium, B12 Tr, iodine, selenium, ALA Tr (per food, not per FA), EPA+DHA N');
 const bb = byCode['14-101'];
+assert.equal(bb[18], 6, 'minerals read from the sheet with a blank Food Code header');
+// salmon row only exists in the FA sheet (no energy) so it's dropped, but check EPA+DHA maths via a food with energy:
+{
+  const f = parseWorkbook(buf).get('17-100');
+  assert.equal(f.epa, 0.8);
+  assert.equal(f.dha, 1.2, 'DHA read from the unlabelled C22:6 column');
+}
 assert.equal(bb[7], null, 'blueberry fibre N/blank -> no data');
 assert.equal(bb[8], null, 'potassium N -> no data');
 assert.equal(bb[14], 0, 'iron Tr -> 0');
