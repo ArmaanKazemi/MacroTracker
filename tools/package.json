@@ -1,0 +1,18 @@
+{
+  "name": "macrotracker-tools",
+  "private": true,
+  "type": "module",
+  "description": "Build helpers for MacroTracker (CoFID conversion, icons, tests)",
+  "scripts": {
+    "starter": "node build-cofid.mjs",
+    "cofid": "node build-cofid.mjs --download",
+    "icons": "node make-icons.mjs",
+    "test": "node ../tests/e2e.mjs"
+  },
+  "dependencies": {
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0"
+  }
+}

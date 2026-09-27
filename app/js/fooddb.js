@@ -1,0 +1,146 @@
+// Generic food database (CoFID, or the bundled starter set) + Open Food Facts.
+import { normNutrients, MICRO_KEYS } from './nutrients.js';
+
+let loaded = null;
+const state = { full: false, rows: [], byId: new Map(), aliases: {}, source: '' };
+
+function rowToFood(fields, row) {
+  const [id, name, group, ...vals] = row;
+  const n = {};
+  fields.forEach((k, i) => (n[k] = vals[i]));
+  return { id, name, group, per100: normNutrients(n), lower: name.toLowerCase() };
+}
+
+async function fetchJson(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+
+export function load() {
+  if (loaded) return loaded;
+  loaded = (async () => {
+    const starter = await fetchJson('data/starter.json');
+    const starterFoods = starter.foods.map((r) => rowToFood(starter.fields, r));
+    for (const f of starterFoods) state.byId.set(f.id, f);
+    let cofid = null;
+    try {
+      cofid = await fetchJson('data/cofid.json');
+    } catch {
+      /* not built yet - fall back to the starter set */
+    }
+    if (cofid && cofid.foods?.length) {
+      state.full = true;
+      state.source = cofid.source;
+      state.aliases = cofid.aliases || {};
+      state.rows = cofid.foods.map((r) => rowToFood(cofid.fields, r));
+      for (const f of state.rows) state.byId.set(f.id, f);
+    } else {
+      state.source = starter.source;
+      state.rows = starterFoods;
+    }
+    return state;
+  })();
+  return loaded;
+}
+
+export function info() {
+  return { full: state.full, count: state.rows.length, source: state.source };
+}
+
+/** Look up a generic food by id; starter ids resolve to their CoFID match when available. */
+export function lookup(id) {
+  if (!id) return null;
+  const alias = state.aliases[id];
+  return (alias && state.byId.get(alias)) || state.byId.get(id) || null;
+}
+
+/** Simple ranked token search. Every query word must appear in the name. */
+export function search(q, limit = 60) {
+  const words = q.toLowerCase().split(/[\s,]+/).filter(Boolean);
+  if (!words.length) return [];
+  const out = [];
+  for (const f of state.rows) {
+    if (!words.every((w) => f.lower.includes(w))) continue;
+    let score = 0;
+    const first = f.lower.split(/[\s,]+/)[0];
+    if (f.lower.startsWith(words[0])) score -= 20;
+    if (first === words[0] || first === words[0] + 's') score -= 10;
+    if (/\braw\b/.test(f.lower)) score -= 3;
+    score += f.lower.length / 10;
+    out.push([score, f]);
+  }
+  out.sort((a, b) => a[0] - b[0]);
+  return out.slice(0, limit).map((x) => x[1]);
+}
+
+export function microCount(per100) {
+  return MICRO_KEYS.filter((k) => per100[k] !== null).length;
+}
+
+// ---------------- Open Food Facts ----------------
+const OFF = 'https://world.openfoodfacts.org';
+const OFF_FIELDS = 'code,product_name,product_name_en,brands,nutriments,serving_size,serving_quantity,quantity,product_quantity_unit,nutrition_data_per';
+
+// OFF stores minerals/vitamins in grams per 100 g. Convert to our units.
+const OFF_MAP = [
+  ['fibre', 'fiber', 1],
+  ['potassium', 'potassium', 1000],
+  ['magnesium', 'magnesium', 1000],
+  ['calcium', 'calcium', 1000],
+  ['iron', 'iron', 1000],
+  ['zinc', 'zinc', 1000],
+  ['vitC', 'vitamin-c', 1000],
+  ['folate', 'folates', 1e6],
+  ['vitA', 'vitamin-a', 1e6],
+  ['vitK', 'vitamin-k', 1e6],
+  ['vitD', 'vitamin-d', 1e6],
+];
+
+export function offToFood(p) {
+  const n = p.nutriments || {};
+  const num = (k) => {
+    const v = n[k];
+    return v === undefined || v === null || v === '' ? null : Number(v);
+  };
+  let kcal = num('energy-kcal_100g');
+  if (kcal === null && num('energy_100g') !== null) kcal = num('energy_100g') / 4.184;
+  const per100 = { kcal, protein: num('proteins_100g'), carbs: num('carbohydrates_100g'), fat: num('fat_100g') };
+  for (const [ours, theirs, mult] of OFF_MAP) {
+    let v = num(`${theirs}_100g`);
+    if (v === null && theirs === 'folates') v = num('vitamin-b9_100g');
+    per100[ours] = v === null ? null : v * mult;
+  }
+  const isMl = /ml|cl|l\b/i.test(p.product_quantity_unit || '') || /\bml\b|\bcl\b|\d\s*l\b/i.test(p.quantity || '');
+  const servings = [];
+  const sq = Number(p.serving_quantity);
+  if (sq > 0) servings.push({ label: p.serving_size ? `Serving (${p.serving_size})` : 'Serving', amount: sq });
+  return {
+    name: (p.product_name_en || p.product_name || 'Unnamed product').trim(),
+    brand: (p.brands || '').split(',')[0].trim(),
+    barcode: p.code,
+    unit: isMl ? 'ml' : 'g',
+    per100: normNutrients(per100),
+    servings,
+    source: 'off',
+  };
+}
+
+export async function offSearch(q, signal) {
+  const url = `${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=30&fields=${OFF_FIELDS}&tagtype_0=countries&tag_contains_0=contains&tag_0=united-kingdom`;
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`Open Food Facts error ${res.status}`);
+  const json = await res.json();
+  return (json.products || [])
+    .filter((p) => p.nutriments && (p.nutriments['energy-kcal_100g'] !== undefined || p.nutriments['energy_100g'] !== undefined))
+    .map(offToFood);
+}
+
+export async function offBarcode(code) {
+  const res = await fetch(`${OFF}/api/v2/product/${encodeURIComponent(code)}.json?fields=${OFF_FIELDS}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Open Food Facts error ${res.status}`);
+  const json = await res.json();
+  if (json.status !== 1 || !json.product) return null;
+  return offToFood(json.product);
+}
