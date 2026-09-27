@@ -50,10 +50,11 @@ const COLS = {
 
 // Fatty acids (g). CoFID has them both per 100 g food and per 100 g total fatty
 // acids; only the per-food columns are usable.
+// Patterns tried in order. DHA's column has no "n-3" label (C22:6 is always n-3).
 const FA_COLS = {
-  ala: /(18:3.*n-?3)|(n-?3.*18:3)/i,
-  epa: /(20:5.*n-?3)|(n-?3.*20:5)/i,
-  dha: /(22:6.*n-?3)|(n-?3.*22:6)/i,
+  ala: [/(18:3.*n-?3)|(n-?3.*18:3)/i],
+  epa: [/(20:5.*n-?3)|(n-?3.*20:5)/i],
+  dha: [/(22:6.*n-?3)|(n-?3.*22:6)/i, /\bC?22:6\b/i],
 };
 const perFood = (text) => /food/i.test(text) && !/100\s*g\s*(total\s*)?(fa\b|fatty)/i.test(text);
 
@@ -73,10 +74,12 @@ export function parseValue(v) {
   return m ? Number(m[0]) : null;
 }
 
+// Header row = the one with "Food Code" or "Food Name". (In CoFID 2021 the
+// Inorganics sheet has a blank cell where "Food Code" should be.)
 function findHeader(rows) {
   for (let r = 0; r < Math.min(rows.length, 10); r++) {
     const row = rows[r] || [];
-    if (row.some((c) => COLS.code.test(String(c ?? '').trim()))) return r;
+    if (row.some((c) => COLS.code.test(String(c ?? '').trim()) || COLS.name.test(String(c ?? '').trim()))) return r;
   }
   return -1;
 }
@@ -95,10 +98,13 @@ export function parseWorkbook(buf) {
       const i = header.findIndex((c) => re.test(c));
       if (i >= 0) idx[key] = i;
     }
+    if (idx.code === undefined && idx.name > 0) idx.code = idx.name - 1; // unlabelled code column
     if (idx.code === undefined) continue;
-    for (const [key, re] of Object.entries(FA_COLS)) {
-      const i = header.findIndex((c) => re.test(c) && perFood(`${sheetName} ${c}`));
-      if (i >= 0) idx[key] = i;
+    for (const [key, patterns] of Object.entries(FA_COLS)) {
+      for (const re of patterns) {
+        const i = header.findIndex((c) => re.test(c) && perFood(`${sheetName} ${c}`));
+        if (i >= 0) { idx[key] = i; break; }
+      }
     }
     const valueKeys = Object.keys(idx).filter((k) => !['code', 'name', 'group'].includes(k));
     for (let r = h + 1; r < rows.length; r++) {
@@ -184,6 +190,19 @@ function pick(urls) {
   return good[0] || urls[0] || null;
 }
 
+/** Print each sheet's name, detected header row and header cells (for diagnosing layout changes). */
+export function inspectWorkbook(buf) {
+  const wb = XLSX.read(buf, { type: 'buffer' });
+  for (const sheetName of wb.SheetNames) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, raw: true, defval: null });
+    const h = findHeader(rows);
+    console.log(`\n=== Sheet "${sheetName}" (${rows.length} rows), header row: ${h}`);
+    for (let r = 0; r < Math.min(rows.length, 4); r++) {
+      console.log(`  row ${r}:`, JSON.stringify((rows[r] || []).slice(0, 40)).slice(0, 1500));
+    }
+  }
+}
+
 async function main() {
   await mkdir(outDir, { recursive: true });
   await writeFile(join(outDir, 'starter.json'), JSON.stringify(starterJson()));
@@ -192,11 +211,18 @@ async function main() {
     console.log('Wrote starter.json. Pass --download or a path to the CoFID .xlsx to build cofid.json.');
     return;
   }
-  const buf = arg === '--download' ? await download() : await readFile(arg);
+  const buf = arg === '--download' || arg === '--inspect' ? await download() : await readFile(arg);
+  if (arg === '--inspect' || process.argv.includes('--inspect')) inspectWorkbook(buf);
   const foods = parseWorkbook(buf);
   const rows = toCompact(foods);
   if (rows.length < 500) throw new Error(`Only parsed ${rows.length} foods - the spreadsheet layout may have changed.`);
   const aliases = buildAliases(rows);
+  if (process.argv.includes('--inspect')) {
+    const kw = /blueberr|raspberr|linseed|flax|oat.*(drink|milk)|spirulina|granola|muesli|peanut|greek|yog.*fat free|whey/i;
+    console.log('\nCandidate foods for favourite links:');
+    for (const r of rows.filter((r) => kw.test(r[1]))) console.log(`  ${r[0]}  ${r[1]}`);
+    for (const [id, code] of Object.entries(aliases)) console.log(`  alias ${id} -> ${code} ${rows.find((r) => r[0] === code)?.[1]}`);
+  }
   const json = { source: 'CoFID (McCance & Widdowson), UK Government', fields: FIELDS, foods: rows, aliases };
   await writeFile(join(outDir, 'cofid.json'), JSON.stringify(json));
   console.log(`Wrote cofid.json: ${rows.length} foods. Aliases:`, aliases);

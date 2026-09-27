@@ -1,0 +1,28 @@
+name: Check CoFID build
+
+# Runs the parser test and a real CoFID download/convert on pushes that touch the
+# converter, printing the spreadsheet layout and per-nutrient coverage. Nothing is deployed.
+on:
+  push:
+    paths: ['tools/**', 'tests/cofid-parser.test.mjs', '.github/workflows/check-cofid.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install build tools
+        working-directory: tools
+        run: npm install --no-audit --no-fund --omit=dev
+      - name: Parser unit test
+        run: node tests/cofid-parser.test.mjs
+      - name: Download, inspect and convert CoFID
+        working-directory: tools
+        run: node build-cofid.mjs --download --inspect

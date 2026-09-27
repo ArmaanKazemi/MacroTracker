@@ -462,6 +462,7 @@ await step('upgrade from v1: old targets replaced, new nutrients filled into old
   // Morrisons 100% PB now has 5 mg sodium/100 g from the label.
   assert.equal(await p.locator('[data-k="sodium"] [data-v]').textContent(), '5');
   assert.ok(Number(await p.locator('[data-k="selenium"] [data-v]').textContent()) > 0, 'selenium estimated for old entry');
+  assert.ok(Number((await p.locator('[data-k="potassium"] [data-v]').textContent()).replace(/,/g, '')) > 0, 'old "no data" potassium filled in');
   await c.close();
 });
 
