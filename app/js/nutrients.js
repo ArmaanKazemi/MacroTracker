@@ -8,20 +8,32 @@ export const MACROS = [
   { key: 'fat', label: 'Fat', unit: 'g', kcalPerG: 9 },
 ];
 
-// UK reference values (editable in Settings).
+// Default daily targets and upper limits (all editable in Settings).
+// kind 'target' = aim to reach it; kind 'limit' = stay under it (sodium).
+// upperNote marks upper limits that only apply to supplements / fortified /
+// preformed sources: food totals can't tell those apart, so they're shown but
+// never flagged red.
 export const MICROS = [
-  { key: 'fibre', label: 'Fibre', unit: 'g', target: 30 },
-  { key: 'potassium', label: 'Potassium', unit: 'mg', target: 3500 },
-  { key: 'magnesium', label: 'Magnesium', unit: 'mg', target: 300 },
-  { key: 'folate', label: 'Folate', unit: 'µg', target: 200 },
-  { key: 'vitC', label: 'Vitamin C', unit: 'mg', target: 40 },
-  { key: 'vitA', label: 'Vitamin A', unit: 'µg', target: 700 },
-  { key: 'vitK', label: 'Vitamin K', unit: 'µg', target: 70 },
-  { key: 'iron', label: 'Iron', unit: 'mg', target: 8.7 },
-  { key: 'zinc', label: 'Zinc', unit: 'mg', target: 9.5 },
-  { key: 'calcium', label: 'Calcium', unit: 'mg', target: 700 },
-  { key: 'vitD', label: 'Vitamin D', unit: 'µg', target: 10 },
+  { key: 'fibre', label: 'Fibre', unit: 'g', target: 38, upper: null },
+  { key: 'potassium', label: 'Potassium', unit: 'mg', target: 3400, upper: null },
+  { key: 'magnesium', label: 'Magnesium', unit: 'mg', target: 400, upper: 350, upperNote: 'from supplements only' },
+  { key: 'folate', label: 'Folate', unit: 'µg', target: 400, upper: 1000, upperNote: 'from supplements / fortified foods' },
+  { key: 'vitC', label: 'Vitamin C', unit: 'mg', target: 90, upper: 2000 },
+  { key: 'vitA', label: 'Vitamin A', unit: 'µg', target: 900, upper: 3000, upperNote: 'preformed vitamin A only' },
+  { key: 'vitK', label: 'Vitamin K', unit: 'µg', target: 120, upper: null },
+  { key: 'iron', label: 'Iron', unit: 'mg', target: 8, upper: 45 },
+  { key: 'zinc', label: 'Zinc', unit: 'mg', target: 11, upper: 40 },
+  { key: 'calcium', label: 'Calcium', unit: 'mg', target: 1000, upper: 2500 },
+  { key: 'vitD', label: 'Vitamin D', unit: 'µg', target: 15, upper: 100 },
+  { key: 'vitB12', label: 'Vitamin B12', unit: 'µg', target: 2.4, upper: null },
+  { key: 'iodine', label: 'Iodine', unit: 'µg', target: 150, upper: 1100 },
+  { key: 'selenium', label: 'Selenium', unit: 'µg', target: 55, upper: 400 },
+  { key: 'ala', label: 'Omega-3 ALA', unit: 'g', target: 1.6, upper: null },
+  { key: 'epadha', label: 'EPA + DHA', unit: 'mg', target: 250, upper: null },
+  { key: 'sodium', label: 'Sodium', unit: 'mg', target: null, upper: 2300, kind: 'limit' },
 ];
+// Bump when the default targets change so saved settings pick up the new values.
+export const MICROS_VERSION = 2;
 
 export const MICRO_KEYS = MICROS.map((m) => m.key);
 export const ALL_KEYS = ['kcal', 'protein', 'carbs', 'fat', ...MICRO_KEYS];
@@ -41,7 +53,29 @@ export function defaultSettings() {
     fat: 75,
     water: 2500,
     micros: Object.fromEntries(MICROS.map((m) => [m.key, m.target])),
+    upper: Object.fromEntries(MICROS.map((m) => [m.key, m.upper])),
+    microsVersion: MICROS_VERSION,
   };
+}
+
+/**
+ * Status of a micronutrient total against its target / upper limit.
+ * Returns { status: 'red'|'amber'|'green', pill: 'low'|'mid'|'ok', label }.
+ */
+export function microStatus(def, value, target, upper) {
+  if (def.kind === 'limit') {
+    if (!upper) return { status: 'green', pill: 'ok', label: 'OK' };
+    const p = value / upper;
+    if (p >= 1) return { status: 'red', pill: 'low', label: 'Over limit' };
+    if (p >= 0.9) return { status: 'amber', pill: 'mid', label: 'Near limit' };
+    return { status: 'green', pill: 'ok', label: `${Math.round(p * 100)}% of limit` };
+  }
+  if (upper && !def.upperNote && value >= upper) return { status: 'red', pill: 'low', label: 'Over upper limit' };
+  if (!target) return { status: 'green', pill: 'ok', label: 'Met' };
+  const p = value / target;
+  if (p >= 1) return { status: 'green', pill: 'ok', label: 'Met' };
+  if (p >= 0.5) return { status: 'amber', pill: 'mid', label: `${Math.round(p * 100)}%` };
+  return { status: 'red', pill: 'low', label: 'Low' };
 }
 
 export function macroKcal(p, c, f) {

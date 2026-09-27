@@ -526,7 +526,9 @@ export function openFoodForm(food, { onSaved } = {}) {
       <p class="note" data-basis-note>Enter values exactly as on the label. They're converted to per 100 when saved.</p>
       <div class="grid2">${numField('kcal', 'Calories', 'kcal')}${numField('protein', 'Protein', 'g')}${numField('carbs', 'Carbs', 'g')}${numField('fat', 'Fat', 'g')}</div>
       <div class="list-h">Micronutrients <span style="text-transform:none;letter-spacing:0;font-weight:600">· leave blank if unknown</span></div>
-      <div class="grid2">${MICROS.map((m) => numField(m.key, m.label, m.unit)).join('')}</div>
+      <div class="grid2">
+        <label class="field"><span>Salt <i class="unit">(g)</i></span><input class="input num" type="number" inputmode="decimal" step="any" min="0" data-salt placeholder="fills sodium" value="${f.per100?.sodium != null ? Math.round((f.per100.sodium / 400) * 100) / 100 : ''}"></label>
+        ${MICROS.map((m) => numField(m.key, m.label, m.unit)).join('')}</div>
       <div class="list-h">Serving sizes</div>
       <div data-servings></div>
       <button type="button" class="btn sm" data-add-serv style="margin-top:6px">${icons.plus} Add serving</button>
@@ -559,6 +561,11 @@ export function openFoodForm(food, { onSaved } = {}) {
   const basisNote = () => ($(body, '[data-basis-note]').textContent = `Enter values per ${$(body, '[data-basis]').value || 100} ${unitSel.value}, exactly as on the label. They're converted to per 100 ${unitSel.value} when saved.`);
   unitSel.onchange = basisNote;
   $(body, '[data-basis]').oninput = basisNote;
+  // UK labels show salt; sodium (mg) = salt (g) × 1000 / 2.5.
+  const saltIn = $(body, '[data-salt]');
+  const naIn = $(body, '[data-n="sodium"]');
+  saltIn.oninput = () => { naIn.value = saltIn.value === '' ? '' : Math.round(Number(saltIn.value) * 400 * 10) / 10; };
+  naIn.addEventListener('input', () => { saltIn.value = naIn.value === '' ? '' : Math.round((Number(naIn.value) / 400) * 100) / 100; });
 
   $(foot, '[data-save]').onclick = async () => {
     const name = $(body, '[data-f="name"]').value.trim();

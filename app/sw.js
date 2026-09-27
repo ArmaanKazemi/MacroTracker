@@ -1,6 +1,6 @@
 // Service worker: precache the app shell + food database so everything works offline.
 // Bump VERSION whenever you change any app file so phones pick up the update.
-const VERSION = 'fuel-v1.0.0';
+const VERSION = 'fuel-v1.1.0';
 
 const SHELL = [
   './',

@@ -6,7 +6,7 @@
 // When the full CoFID file is built, `match` patterns map these starter IDs
 // to the real CoFID food so links resolve to official values automatically.
 
-export const FIELDS = ['kcal', 'protein', 'carbs', 'fat', 'fibre', 'potassium', 'magnesium', 'folate', 'vitC', 'vitA', 'vitK', 'iron', 'zinc', 'calcium', 'vitD'];
+export const FIELDS = ['kcal', 'protein', 'carbs', 'fat', 'fibre', 'potassium', 'magnesium', 'folate', 'vitC', 'vitA', 'vitK', 'iron', 'zinc', 'calcium', 'vitD', 'sodium', 'vitB12', 'iodine', 'selenium', 'ala', 'epadha'];
 
 // [id, name, group, [match patterns for CoFID], kcal, P, C, F, fibre, K, Mg, folate, vitC, vitA, vitK, Fe, Zn, Ca, vitD]
 export const STARTER = [
@@ -87,10 +87,40 @@ export const STARTER = [
   ['S75', 'Tea, black, infusion', 'Drinks', [], 1, 0.1, 0, 0, 0, 37, 3, 5, 0, 0, 0, 0, 0, 0, 0],
 ];
 
+
+// Added in v2, per 100 g: [sodium mg, B12 µg, iodine µg, selenium µg, omega-3 ALA g, EPA+DHA mg]
+const EXTRA = {
+  S01: [3, 0, null, 0.2, 0.13, 0], S02: [1, 0, null, 0.1, 0.06, 0], S03: [36, 0.75, 30, 9.7, 0, 0],
+  S04: [30, 0, null, 25.4, 22.8, 0], S05: [350, 0, null, 4.1, 0.03, 0], S06: [180, 0, null, 7, 0, 0],
+  S07: [1048, null, null, 7.2, null, 0], S08: [40, 0, null, null, null, 0], S09: [200, 1.2, null, null, 0, 0],
+  S10: [100, 0, null, 5, null, 0], S11: [5, 0, null, 3, 0.1, 0], S12: [44, 0.9, 31, 1, 0.01, 0],
+  S13: [42, 0.9, 31, 1, 0.02, 0], S14: [44, 0.9, 31, 1, 0, 0], S15: [140, 2.5, 52, 23, 0.1, 60],
+  S16: [60, 0.3, null, 17, 0.02, 20], S17: [60, 3, 15, 24, 0.35, 2000], S18: [320, 3, 14, 76, 0, 270],
+  S19: [80, 2, 150, 38, 0, 190], S20: [80, 2.5, null, 10, 0.1, 20], S21: [60, 2, null, 10, 0.1, 20],
+  S22: [60, 0.7, null, 17, 0.05, 0], S23: [7, 0, null, 9, 0.4, 0], S24: [5, 0, null, 3, 0.04, 0],
+  S25: [220, 0, null, 2, 0.1, 0], S26: [240, 0, null, 2, 0.1, 0], S27: [180, 0, null, 1, 0.1, 0],
+  S28: [1, 0, null, 7, 0, 0], S29: [3, 0, null, 6, 0.02, 0], S30: [1, 0, null, 10, 0.02, 0],
+  S31: [400, 0, null, 7, 0.1, 0], S32: [400, 0, null, 6, 0.05, 0], S33: [5, 0, null, 10, 0.02, 0],
+  S34: [7, 0, null, 2.8, 0.1, 0], S35: [7, 0, null, 0.3, 0.01, 0], S36: [36, 0, null, 0.2, 0, 0],
+  S37: [8, 0, null, 1.6, 0.1, 0], S38: [79, 0, null, 1, 0.14, 0], S39: [43, 0, null, 0.9, 0.2, 0],
+  S40: [40, 0, null, 0.1, 0, 0], S41: [5, 0, null, 0, 0, 0], S42: [4, 0, null, 0.1, 0.03, 0],
+  S43: [4, 0, null, 0.5, 0, 0], S44: [5, 0, null, 9.3, 0, 0], S45: [2, 0, null, 0.3, 0.01, 0],
+  S46: [10, 0, null, 0.1, 0.03, 0], S47: [2, 0, null, 1, 0.02, 0], S48: [200, 0, null, 0.6, 0.02, 0],
+  S49: [2, 0, null, 0.2, 0.04, 0], S50: [6, 0, null, 0.4, 0.1, 0], S51: [1, 0, null, 1, 0.03, 0],
+  S52: [1, 0, null, 0, 0.01, 0], S53: [5, 0, null, 0.5, 0.01, 0], S54: [1, 0, null, 0.4, 0.07, 0],
+  S55: [3, 0, null, 0.2, 0.04, 0], S56: [2, 0, null, 0.6, 0.05, 0], S57: [2, 0, null, 0.1, 0.01, 0],
+  S58: [3, 0, null, 0.1, 0, 0], S59: [10, 0, null, 3, 0, 0], S60: [20, 0, null, 0.6, 0, 0],
+  S61: [700, 1.1, 30, 12, 0.3, 0], S62: [300, 0.7, 25, 8, 0.02, 0], S63: [80, 0.2, 63, 2, 0.03, 0],
+  S64: [600, 0.3, 38, 1, 0.3, null], S65: [0, 0, 0, 0, 0.7, 0], S66: [1, 0, null, 4.1, 0, 0],
+  S67: [2, 0, null, 4.9, 9.1, 0], S68: [18, 0, null, 7, 0, 0], S69: [7, 0, null, 9.4, 0.12, 0],
+  S70: [16, 0, null, 55, 17.8, 0], S71: [20, 0.3, null, 6.8, 0.03, 0], S72: [4, 0, null, 0.8, 0, 0],
+  S73: [1, 0, null, 0.1, 0.01, 0], S74: [2, 0, null, 0, 0, 0], S75: [3, 0, null, 0, 0, 0],
+};
+
 export function starterJson() {
   return {
     source: 'Starter set (approximate values)',
     fields: FIELDS,
-    foods: STARTER.map(([id, name, group, _m, ...vals]) => [id, name, group, ...vals]),
+    foods: STARTER.map(([id, name, group, _m, ...vals]) => [id, name, group, ...vals, ...(EXTRA[id] || Array(6).fill(null))]),
   };
 }

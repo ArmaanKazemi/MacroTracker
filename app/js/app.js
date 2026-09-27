@@ -5,7 +5,7 @@ import * as fooddb from './fooddb.js';
 import { mountToday } from './today.js';
 import { mountNutrients, mountFoods, mountSettings } from './views.js';
 
-window.APP_VERSION = '1.0.0';
+window.APP_VERSION = '1.1.0';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), microMode: 'day', foodsTab: 'fav' };
@@ -57,7 +57,7 @@ async function start() {
     console.error(e);
     toast('Storage unavailable — data may not be saved');
   }
-  fooddb.load().catch(() => {});
+  fooddb.load().then(() => store.migrateIfNeeded()).then(() => current?.refresh()).catch((e) => console.error(e));
   window.addEventListener('hashchange', route);
   route();
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});

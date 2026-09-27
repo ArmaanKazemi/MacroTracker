@@ -1,6 +1,6 @@
 // App-level data operations on top of IndexedDB.
 import * as db from './db.js';
-import { defaultSettings, normNutrients, applyLink, MICROS } from './nutrients.js';
+import { defaultSettings, normNutrients, applyLink, MICROS, MICROS_VERSION, ALL_KEYS } from './nutrients.js';
 import { lookup } from './fooddb.js';
 
 // ---------- settings ----------
@@ -9,7 +9,16 @@ export async function getSettings() {
   if (settingsCache) return settingsCache;
   const saved = (await db.get('kv', 'settings')) || {};
   const d = defaultSettings();
-  settingsCache = { ...d, ...saved, micros: { ...d.micros, ...(saved.micros || {}) } };
+  // Targets changed in v2: older saved targets are replaced by the new defaults.
+  const fresh = (saved.microsVersion || 1) < MICROS_VERSION;
+  settingsCache = {
+    ...d,
+    ...saved,
+    micros: { ...d.micros, ...(fresh ? {} : saved.micros || {}) },
+    upper: { ...d.upper, ...(fresh ? {} : saved.upper || {}) },
+    microsVersion: MICROS_VERSION,
+  };
+  if (fresh && saved.micros) await db.put('kv', settingsCache, 'settings');
   return settingsCache;
 }
 export async function saveSettings(s) {
@@ -21,18 +30,19 @@ export function resetCache() {
 }
 
 // ---------- seed ----------
-const per = (amount, kcal, protein, carbs, fat) => {
+// Label values per `amount` g/ml -> per 100. `extra` values are already per 100.
+const per = (amount, kcal, protein, carbs, fat, extra = {}) => {
   const f = 100 / amount;
   const r = (v) => Math.round(v * f * 100) / 100;
-  return normNutrients({ kcal: r(kcal), protein: r(protein), carbs: r(carbs), fat: r(fat) });
+  return normNutrients({ kcal: r(kcal), protein: r(protein), carbs: r(carbs), fat: r(fat), ...extra });
 };
 
 export const PRESETS = [
-  { id: 'p-fage0', name: 'Fage Total 0% Greek yoghurt', brand: 'Fage', unit: 'g', per100: per(100, 57, 10.3, 3, 0), link: 'S03', servings: [] },
+  { id: 'p-fage0', name: 'Fage Total 0% Greek yoghurt', brand: 'Fage', unit: 'g', per100: per(100, 57, 10.3, 3, 0, { sodium: 40 }), link: 'S03', servings: [] },
   { id: 'p-impact', name: 'Impact Whey + Collagen protein powder', brand: '', unit: 'g', per100: per(25, 96, 20, 2.6, 0.7), link: 'S09', servings: [{ label: '1 scoop', amount: 25 }] },
   { id: 'p-lizis', name: "Lizi's protein granola", brand: "Lizi's", unit: 'g', per100: per(100, 442, 26.9, 40.7, 17.6), link: 'S10', servings: [] },
   { id: 'p-flax', name: 'Ground flaxseed', brand: '', unit: 'g', per100: per(100, 514, 18.3, 1.6, 42.2), link: 'S04', servings: [{ label: '3 tsp', amount: 7 }] },
-  { id: 'p-pb', name: 'Morrisons 100% smooth peanut butter', brand: 'Morrisons', unit: 'g', per100: per(32, 196, 6.4, 6.4, 15), link: 'S05', servings: [{ label: '1 portion', amount: 32 }] },
+  { id: 'p-pb', name: 'Morrisons 100% smooth peanut butter', brand: 'Morrisons', unit: 'g', per100: per(32, 196, 6.4, 6.4, 15, { sodium: 5 }), link: 'S05', servings: [{ label: '1 portion', amount: 32 }] },
   { id: 'p-pbpowder', name: 'Peanut butter powder', brand: '', unit: 'g', per100: per(16, 71, 8, 5, 2), link: 'S06', servings: [{ label: '2 tbsp', amount: 16 }] },
   { id: 'p-spirulina', name: 'Naturya spirulina powder', brand: 'Naturya', unit: 'g', per100: per(100, 345, 67, 15, 0.9), link: 'S07', servings: [{ label: '1 tsp', amount: 3 }] },
   { id: 'p-oatmilk', name: 'Plenish oat milk', brand: 'Plenish', unit: 'ml', per100: per(100, 33, 0.6, 6.6, 0.3), link: 'S08', servings: [] },
@@ -41,11 +51,44 @@ export const PRESETS = [
 ];
 
 export async function seedIfNeeded() {
-  if (await db.get('kv', 'seeded')) return;
-  for (const p of PRESETS) {
-    await db.put('foods', { source: 'preset', favourite: true, createdAt: Date.now(), ...p });
+  if (!(await db.get('kv', 'seeded'))) {
+    for (const p of PRESETS) {
+      await db.put('foods', { source: 'preset', favourite: true, createdAt: Date.now(), ...p });
+    }
+    await db.put('kv', true, 'seeded');
+    await db.put('kv', 2, 'dataVersion');
   }
-  await db.put('kv', true, 'seeded');
+}
+
+/**
+ * v2 added nutrients (B12, iodine, selenium, omega-3s, sodium). Fill them in on
+ * existing preset foods and on already-logged entries, without touching any value
+ * that was already there. Needs the food database loaded.
+ */
+export async function migrateIfNeeded() {
+  if (((await db.get('kv', 'dataVersion')) || 1) >= 2) return;
+  for (const p of PRESETS) {
+    const f = await db.get('foods', p.id);
+    if (!f || !f.per100 || !p.per100) continue;
+    f.per100 = { ...p.per100, ...Object.fromEntries(Object.entries(f.per100).filter(([, v]) => v !== null && v !== undefined)) };
+    await db.put('foods', f);
+  }
+  for (const e of await db.getAll('entries')) {
+    if (!e.foodId) continue;
+    const f = await db.get('foods', e.foodId);
+    if (!f) continue;
+    const r = resolve(f);
+    let changed = false;
+    for (const k of ALL_KEYS) {
+      if (e.per100[k] === undefined) {
+        e.per100[k] = r.per100[k];
+        if (r.estimated.includes(k)) e.estimated = [...(e.estimated || []), k];
+        changed = true;
+      }
+    }
+    if (changed) await db.put('entries', e);
+  }
+  await db.put('kv', 2, 'dataVersion');
 }
 
 // ---------- foods ----------

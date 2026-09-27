@@ -19,22 +19,37 @@ const prox = [
   ['11-999', 'Mystery food no energy', '', 'AA', '', '', '', 1, 'N', 'N', 'N', 'N', 'N', '', '', '', '', ''],
 ];
 const inorg = [
-  [...meta, 'Sodium (mg)', 'Potassium (mg)', 'Calcium (mg)', 'Magnesium (mg)', 'Phosphorus (mg)', 'Iron (mg)', 'Copper (mg)', 'Zinc (mg)'],
-  [null, null, null, null, null, null, null, 'NA', 'K', 'CA', 'MG', 'P', 'FE', 'CU', 'ZN'],
-  ['14-319', 'Raspberries, raw', '', 'FA', '', '', '', 3, 170, 25, 19, 31, 0.7, 0.1, 0.4],
-  ['14-101', 'Blueberries, raw', '', 'FA', '', '', '', 6, 'N', 10, 6, 12, 'Tr', 0.1, 0.2],
+  [...meta, 'Sodium (mg)', 'Potassium (mg)', 'Calcium (mg)', 'Magnesium (mg)', 'Phosphorus (mg)', 'Iron (mg)', 'Copper (mg)', 'Zinc (mg)', 'Chloride (mg)', 'Manganese (mg)', 'Selenium (µg)', 'Iodine (µg)'],
+  [null, null, null, null, null, null, null, 'NA', 'K', 'CA', 'MG', 'P', 'FE', 'CU', 'ZN', 'CL', 'MN', 'SE', 'I'],
+  ['14-319', 'Raspberries, raw', '', 'FA', '', '', '', 3, 170, 25, 19, 31, 0.7, 0.1, 0.4, 10, 0.4, 'Tr', 'N'],
+  ['14-101', 'Blueberries, raw', '', 'FA', '', '', '', 6, 'N', 10, 6, 12, 'Tr', 0.1, 0.2, 5, 0.3, 0.1, ''],
+  ['13-500', 'Peanut butter, smooth', '', 'GA', '', '', '', 350, 700, 37, 180, 330, 2.1, 0.7, 3.0, 500, 1.7, 4, 3],
 ];
 const vits = [
-  [...meta, 'Retinol (µg)', 'Carotene (µg)', 'Retinol Equivalent (µg)', 'Vitamin D (µg)', 'Vitamin E (mg)', 'Vitamin K1 (µg)', 'Thiamin (mg)', 'Folate (µg)', 'Vitamin C (mg)'],
-  [null, null, null, null, null, null, null, 'RETOL', 'CAROT', 'RETEQU', 'VITD', 'VITE', 'VITK1', 'THIA', 'FOLT', 'VITC'],
-  ['14-319', 'Raspberries, raw', '', 'FA', '', '', '', 0, 6, 1, 0, 0.5, 7.8, 0.03, 33, 32],
-  ['13-500', 'Peanut butter, smooth', '', 'GA', '', '', '', 0, 0, 0, 0, 5, 0.3, 0.2, 53, 0],
+  [...meta, 'Retinol (µg)', 'Carotene (µg)', 'Retinol Equivalent (µg)', 'Vitamin D (µg)', 'Vitamin E (mg)', 'Vitamin K1 (µg)', 'Thiamin (mg)', 'Vitamin B12 (µg)', 'Folate (µg)', 'Vitamin C (mg)'],
+  [null, null, null, null, null, null, null, 'RETOL', 'CAROT', 'RETEQU', 'VITD', 'VITE', 'VITK1', 'THIA', 'VITB12', 'FOLT', 'VITC'],
+  ['14-319', 'Raspberries, raw', '', 'FA', '', '', '', 0, 6, 1, 0, 0.5, 7.8, 0.03, 0, 33, 32],
+  ['13-500', 'Peanut butter, smooth', '', 'GA', '', '', '', 0, 0, 0, 0, 5, 0.3, 0.2, 'Tr', 53, 0],
+];
+// Omega-3s per 100 g of total fatty acids (must be ignored) and per 100 g food (used).
+const faPerFA = [
+  [...meta, 'cis n-3 C18:3 /100g FA (g)', 'cis n-3 C20:5 /100g FA (g)', 'cis n-3 C22:6 /100g FA (g)'],
+  ['14-319', 'Raspberries, raw', '', 'FA', '', '', '', 45, 0, 0],
+  ['13-500', 'Peanut butter, smooth', '', 'GA', '', '', '', 1, 0, 0],
+];
+const faPerFood = [
+  [...meta, 'cis n-3 C18:3 /100g food (g)', 'cis n-3 C20:5 /100g food (g)', 'cis n-3 C22:6 /100g food (g)'],
+  ['14-319', 'Raspberries, raw', '', 'FA', '', '', '', 0.13, 0, 0],
+  ['13-500', 'Peanut butter, smooth', '', 'GA', '', '', '', 'Tr', 'N', 'N'],
+  ['17-100', 'Salmon, grilled', '', 'JC', '', '', '', 0.3, 0.8, 1.2],
 ];
 
 const wb = XLSX.utils.book_new();
 XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(prox), '1.3 Proximates');
 XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(inorg), '1.4 Inorganics');
 XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(vits), '1.5 Vitamins');
+XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(faPerFA), '1.9 (PUFA FA)');
+XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(faPerFood), '1.12 (PUFA food)');
 const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
 assert.equal(parseValue('Tr'), 0);
@@ -45,9 +60,11 @@ assert.equal(parseValue('(0.4)'), 0.4);
 const foods = parseWorkbook(buf);
 const rows = toCompact(foods);
 const byCode = Object.fromEntries(rows.map((r) => [r[0], r]));
-assert.equal(rows.length, 3, 'food without energy is dropped');
-// [code, name, group, kcal, P, C, F, fibre, K, Mg, folate, vitC, vitA, vitK, Fe, Zn, Ca, vitD]
-assert.deepEqual(byCode['14-319'], ['14-319', 'Raspberries, raw', 'Fruit', 25, 1.4, 4.6, 0.3, 6.5, 170, 19, 33, 32, 1, 7.8, 0.7, 0.4, 25, 0]);
+assert.equal(rows.length, 3, 'food without energy (and salmon, only in the FA sheet) is dropped');
+// [code, name, group, kcal, P, C, F, fibre, K, Mg, folate, vitC, vitA, vitK, Fe, Zn, Ca, vitD, Na, B12, I, Se, ALA, EPA+DHA]
+assert.deepEqual(byCode['14-319'], ['14-319', 'Raspberries, raw', 'Fruit', 25, 1.4, 4.6, 0.3, 6.5, 170, 19, 33, 32, 1, 7.8, 0.7, 0.4, 25, 0, 3, 0, null, 0, 0.13, 0]);
+const pb = byCode['13-500'];
+assert.deepEqual(pb.slice(18), [350, 0, 3, 4, 0, null], 'PB: sodium, B12 Tr, iodine, selenium, ALA Tr (per food, not per FA), EPA+DHA N');
 const bb = byCode['14-101'];
 assert.equal(bb[7], null, 'blueberry fibre N/blank -> no data');
 assert.equal(bb[8], null, 'potassium N -> no data');

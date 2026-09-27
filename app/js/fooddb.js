@@ -95,6 +95,10 @@ const OFF_MAP = [
   ['vitA', 'vitamin-a', 1e6],
   ['vitK', 'vitamin-k', 1e6],
   ['vitD', 'vitamin-d', 1e6],
+  ['vitB12', 'vitamin-b12', 1e6],
+  ['iodine', 'iodine', 1e6],
+  ['selenium', 'selenium', 1e6],
+  ['ala', 'alpha-linolenic-acid', 1],
 ];
 
 export function offToFood(p) {
@@ -111,6 +115,12 @@ export function offToFood(p) {
     if (v === null && theirs === 'folates') v = num('vitamin-b9_100g');
     per100[ours] = v === null ? null : v * mult;
   }
+  // UK labels give salt; sodium = salt / 2.5.
+  const na = num('sodium_100g') ?? (num('salt_100g') === null ? null : num('salt_100g') / 2.5);
+  per100.sodium = na === null ? null : na * 1000;
+  const epa = num('eicosapentaenoic-acid_100g');
+  const dha = num('docosahexaenoic-acid_100g');
+  per100.epadha = epa === null && dha === null ? null : ((epa || 0) + (dha || 0)) * 1000;
   const isMl = /ml|cl|l\b/i.test(p.product_quantity_unit || '') || /\bml\b|\bcl\b|\d\s*l\b/i.test(p.quantity || '');
   const servings = [];
   const sq = Number(p.serving_quantity);
