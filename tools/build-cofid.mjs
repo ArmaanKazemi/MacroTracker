@@ -184,6 +184,19 @@ function pick(urls) {
   return good[0] || urls[0] || null;
 }
 
+/** Print each sheet's name, detected header row and header cells (for diagnosing layout changes). */
+export function inspectWorkbook(buf) {
+  const wb = XLSX.read(buf, { type: 'buffer' });
+  for (const sheetName of wb.SheetNames) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, raw: true, defval: null });
+    const h = findHeader(rows);
+    console.log(`\n=== Sheet "${sheetName}" (${rows.length} rows), header row: ${h}`);
+    for (let r = 0; r < Math.min(rows.length, 4); r++) {
+      console.log(`  row ${r}:`, JSON.stringify((rows[r] || []).slice(0, 40)).slice(0, 1500));
+    }
+  }
+}
+
 async function main() {
   await mkdir(outDir, { recursive: true });
   await writeFile(join(outDir, 'starter.json'), JSON.stringify(starterJson()));
@@ -192,7 +205,8 @@ async function main() {
     console.log('Wrote starter.json. Pass --download or a path to the CoFID .xlsx to build cofid.json.');
     return;
   }
-  const buf = arg === '--download' ? await download() : await readFile(arg);
+  const buf = arg === '--download' || arg === '--inspect' ? await download() : await readFile(arg);
+  if (arg === '--inspect' || process.argv.includes('--inspect')) inspectWorkbook(buf);
   const foods = parseWorkbook(buf);
   const rows = toCompact(foods);
   if (rows.length < 500) throw new Error(`Only parsed ${rows.length} foods - the spreadsheet layout may have changed.`);
