@@ -42,7 +42,20 @@ const COLS = {
   vitD: /^vitamin\s*d\s*(\(|$)/i,
   vitA: /^retinol\s*equivalent/i,
   vitK: /^vitamin\s*k1\b/i,
+  sodium: /^sodium\b/i,
+  iodine: /^iodine\b/i,
+  selenium: /^selenium\b/i,
+  vitB12: /^vitamin\s*b12\b/i,
 };
+
+// Fatty acids (g). CoFID has them both per 100 g food and per 100 g total fatty
+// acids; only the per-food columns are usable.
+const FA_COLS = {
+  ala: /(18:3.*n-?3)|(n-?3.*18:3)/i,
+  epa: /(20:5.*n-?3)|(n-?3.*20:5)/i,
+  dha: /(22:6.*n-?3)|(n-?3.*22:6)/i,
+};
+const perFood = (text) => /food/i.test(text) && !/100\s*g\s*(total\s*)?(fa\b|fatty)/i.test(text);
 
 const GROUPS = {
   A: 'Cereals', B: 'Milk & dairy', C: 'Eggs', D: 'Vegetables', F: 'Fruit', G: 'Nuts & seeds',
@@ -83,6 +96,11 @@ export function parseWorkbook(buf) {
       if (i >= 0) idx[key] = i;
     }
     if (idx.code === undefined) continue;
+    for (const [key, re] of Object.entries(FA_COLS)) {
+      const i = header.findIndex((c) => re.test(c) && perFood(`${sheetName} ${c}`));
+      if (i >= 0) idx[key] = i;
+    }
+    const valueKeys = Object.keys(idx).filter((k) => !['code', 'name', 'group'].includes(k));
     for (let r = h + 1; r < rows.length; r++) {
       const row = rows[r];
       if (!row) continue;
@@ -91,8 +109,7 @@ export function parseWorkbook(buf) {
       const f = foods.get(code) || { code };
       if (idx.name !== undefined && row[idx.name] && !f.name) f.name = String(row[idx.name]).trim();
       if (idx.group !== undefined && row[idx.group] && !f.group) f.group = String(row[idx.group]).trim();
-      for (const key of Object.keys(COLS)) {
-        if (['code', 'name', 'group'].includes(key) || idx[key] === undefined) continue;
+      for (const key of valueKeys) {
         const v = parseValue(row[idx[key]]);
         if (f[key] === undefined || f[key] === null) f[key] = v;
       }
@@ -110,8 +127,11 @@ export function toCompact(foods) {
   const out = [];
   for (const f of foods.values()) {
     if (!f.name || f.kcal === null || f.kcal === undefined) continue;
-    const fibre = f.fibreAOAC ?? f.fibreNSP ?? null;
-    const vals = FIELDS.map((k) => round(k === 'fibre' ? fibre : f[k]));
+    const derived = {
+      fibre: f.fibreAOAC ?? f.fibreNSP ?? null,
+      epadha: (f.epa ?? null) === null && (f.dha ?? null) === null ? null : ((f.epa || 0) + (f.dha || 0)) * 1000,
+    };
+    const vals = FIELDS.map((k) => round(k in derived ? derived[k] : f[k]));
     const g = GROUPS[(f.group || '').charAt(0).toUpperCase()] || 'Other';
     out.push([f.code, f.name, g, ...vals]);
   }
@@ -179,8 +199,9 @@ async function main() {
   const aliases = buildAliases(rows);
   const json = { source: 'CoFID (McCance & Widdowson), UK Government', fields: FIELDS, foods: rows, aliases };
   await writeFile(join(outDir, 'cofid.json'), JSON.stringify(json));
-  const withMicros = rows.filter((r) => r.slice(7).some((v) => v !== null)).length;
-  console.log(`Wrote cofid.json: ${rows.length} foods (${withMicros} with micronutrient data). Aliases:`, aliases);
+  console.log(`Wrote cofid.json: ${rows.length} foods. Aliases:`, aliases);
+  console.log('Foods with data per nutrient:');
+  FIELDS.forEach((k, i) => console.log(`  ${k.padEnd(10)} ${rows.filter((r) => r[3 + i] !== null).length}`));
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

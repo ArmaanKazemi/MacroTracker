@@ -260,3 +260,13 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 #toast span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .sheet .seg button { padding: 0 6px; font-size: 13.5px; }
 .unit { text-transform: none; font-style: normal; letter-spacing: 0.02em; }
+
+/* ---------- Micronutrient targets table ---------- */
+.mtable { margin-top: 6px; }
+.mrow { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.mrow .input { min-height: 44px; padding: 0 10px; }
+.mhead { border-top: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-bottom: 2px; }
+.mname { font-weight: 700; font-size: 14.5px; line-height: 1.2; }
+.mname .unit { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+.mname small { display: block; font-weight: 500; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.mnone { color: var(--dim); text-align: center; }

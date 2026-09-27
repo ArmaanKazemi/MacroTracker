@@ -23,7 +23,7 @@ delete iphone.defaultBrowserType;
 // ---- Open Food Facts mock (the real API is called in production) ----
 const OFF_PRODUCT = {
   code: '5000000000017', product_name: 'Test Protein Bar', brands: 'TestBrand', serving_size: '60 g', serving_quantity: 60,
-  nutriments: { 'energy-kcal_100g': 350, proteins_100g: 33.3, carbohydrates_100g: 30, fat_100g: 10, fiber_100g: 5 },
+  nutriments: { 'energy-kcal_100g': 350, proteins_100g: 33.3, carbohydrates_100g: 30, fat_100g: 10, fiber_100g: 5, salt_100g: 1.0 },
 };
 async function mockOff(ctx) {
   await ctx.route('https://world.openfoodfacts.org/**', (route) => {
@@ -114,8 +114,9 @@ await step('branded search via Open Food Facts shows "no data" micros and logs a
   await topSheet().locator('.result', { hasText: 'Test Protein Bar' }).click();
   await page.waitForTimeout(450);
   const d = topSheet();
-  assert.match(await d.locator('[data-micro-count]').textContent(), /10 no data/);
-  assert.equal(await d.locator('[data-micros] .pill.na').count(), 10);
+  assert.match(await d.locator('[data-micro-count]').textContent(), /15 no data/);
+  assert.equal(await d.locator('[data-micros] .pill.na').count(), 15);
+  assert.match(await d.locator('[data-micros]').textContent(), /Sodium.*240 mg/); // salt 1 g/100 g → 400 mg/100 g × 60 g
   assert.match(await d.locator('[data-micros]').textContent(), /Fibre.*3 g/);
   await d.locator('[data-save]').click(); // default = 1 serving (60 g) = 210 kcal
   await page.waitForTimeout(450);
@@ -135,8 +136,8 @@ await step('link branded food to similar CoFID food fills estimates (and updates
   await page.waitForTimeout(500);
   const d = topSheet();
   assert.match(await d.locator('[data-link]').textContent(), /estimated from/i);
-  assert.ok((await d.locator('[data-micros] .pill.est').count()) >= 9);
-  assert.equal(await d.locator('[data-micros] .pill.na').count(), 0);
+  assert.ok((await d.locator('[data-micros] .pill.est').count()) >= 13);
+  assert.ok((await d.locator('[data-micros] .pill.na').count()) <= 1); // peanuts: iodine unknown
   await closeTop();
 });
 
@@ -207,6 +208,8 @@ await step('create custom food from per-serving label values with a serving size
   await f.locator('[data-n="carbs"]').fill('30');
   await f.locator('[data-n="fat"]').fill('4');
   await f.locator('[data-n="fibre"]').fill('3');
+  await f.locator('[data-salt]').fill('1.5');
+  assert.equal(await f.locator('[data-n="sodium"]').inputValue(), '600'); // salt → sodium
   await f.locator('[data-add-serv]').click();
   const sv = f.locator('[data-servings] input');
   await sv.nth(0).fill('1 jar');
@@ -218,6 +221,7 @@ await step('create custom food from per-serving label values with a serving size
   assert.equal(await d.locator('h2').textContent(), 'Overnight oats');
   assert.match(await d.locator('[data-preview]').textContent(), /1,000/);
   assert.match(await d.locator('[data-micros]').textContent(), /Fibre.*15 g/);
+  assert.match(await d.locator('[data-micros]').textContent(), /Sodium.*3,000 mg/);
   await d.locator('[data-save]').click();
   await page.waitForTimeout(450);
   await closeTop();
@@ -327,6 +331,11 @@ await step('goals: macro grams show calories they add up to; changes apply to ho
   await page.locator('[data-s="water"]').dispatchEvent('change');
   await page.locator('[data-micro="vitD"]').fill('15');
   await page.locator('[data-micro="vitD"]').dispatchEvent('change');
+  assert.equal(await page.locator('[data-micro="fibre"]').inputValue(), '38');
+  assert.equal(await page.locator('[data-upper="sodium"]').inputValue(), '2300');
+  assert.equal(await page.locator('[data-micro="sodium"]').count(), 0, 'sodium has no target, only a limit');
+  await page.locator('[data-upper="calcium"]').fill('100');
+  await page.locator('[data-upper="calcium"]').dispatchEvent('change');
   await page.waitForTimeout(300);
   await page.goto(BASE + '#/today');
   await settle();
@@ -343,7 +352,15 @@ await step('micronutrients: daily bars flag low nutrients and missing data; week
   assert.equal(await vitD.locator('[data-pill]').textContent(), 'Low');
   const low = await num('[data-low]');
   assert.ok(low >= 1);
-  assert.equal((await num('[data-low]')) + (await num('[data-mid]')) + (await num('[data-ok]')), 11);
+  assert.equal((await num('[data-low]')) + (await num('[data-mid]')) + (await num('[data-ok]')), 17);
+  const na = page.locator('[data-k="sodium"]');
+  assert.equal(await na.locator('[data-pill]').textContent(), 'Over limit');
+  assert.match(await na.locator('.bar-val').textContent(), /\/ max 2,300 mg/);
+  assert.match(await na.locator('.fill').getAttribute('class'), /bg-red/);
+  const ca = page.locator('[data-k="calcium"]');
+  assert.equal(await ca.locator('[data-pill]').textContent(), 'Over upper limit');
+  assert.match(await ca.locator('[data-ul]').textContent(), /Above the upper limit of 100 mg/);
+  for (const k of ['vitB12', 'iodine', 'selenium', 'ala', 'epadha']) assert.equal(await page.locator(`[data-k="${k}"]`).count(), 1);
   await page.locator('[data-m="week"]').click();
   await settle();
   assert.match(await page.locator('[data-foot]').textContent(), /Average of 2 logged days/);
@@ -413,6 +430,39 @@ await step('works offline after first load (service worker)', async () => {
   await page.goto(BASE + '#/nutrients');
   await page.waitForSelector('[data-k="vitC"]');
   await ctx.setOffline(false);
+});
+
+await step('upgrade from v1: old targets replaced, new nutrients filled into old entries', async () => {
+  const c = await browser.newContext({ ...iphone });
+  const p = await c.newPage();
+  await p.goto(BASE + '#/settings');
+  await p.waitForTimeout(800);
+  // Simulate data saved by v1: old UK targets, no dataVersion, entry without the new nutrient keys.
+  await p.evaluate(async () => {
+    const db = await new Promise((r) => { const q = indexedDB.open('macrotracker', 1); q.onsuccess = () => r(q.result); });
+    const put = (store, v, k) => new Promise((r) => { const t = db.transaction(store, 'readwrite'); t.objectStore(store).put(v, k); t.oncomplete = r; });
+    const old = { kcal: 2000, protein: 150, carbs: 200, fat: 70, water: 2500, micros: { fibre: 30, potassium: 3500, magnesium: 300, folate: 200, vitC: 40, vitA: 700, vitK: 70, iron: 8.7, zinc: 9.5, calcium: 700, vitD: 10 } };
+    await put('kv', old, 'settings');
+    await put('kv', 1, 'dataVersion');
+    const d = new Date(); const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const per100 = { kcal: 612.5, protein: 20, carbs: 20, fat: 46.88, fibre: null, potassium: null, magnesium: null, folate: null, vitC: null, vitA: null, vitK: null, iron: null, zinc: null, calcium: null, vitD: null };
+    await put('entries', { id: 'e-old', date: key, meal: 'lunch', foodId: 'p-pb', name: 'Morrisons 100% smooth peanut butter', unit: 'g', amount: 100, per100, estimated: [], ts: 1 });
+    const f = await new Promise((r) => { const q = db.transaction('foods').objectStore('foods').get('p-pb'); q.onsuccess = () => r(q.result); });
+    f.per100 = { kcal: 612.5, protein: 20, carbs: 20, fat: 46.88, fibre: null, potassium: null, magnesium: null, folate: null, vitC: null, vitA: null, vitK: null, iron: null, zinc: null, calcium: null, vitD: null };
+    await put('foods', f);
+    db.close();
+  });
+  await p.reload();
+  await p.waitForTimeout(1200);
+  assert.equal(await p.locator('[data-micro="fibre"]').inputValue(), '38');
+  assert.equal(await p.locator('[data-micro="vitC"]').inputValue(), '90');
+  assert.equal(await p.locator('[data-s="kcal"]').inputValue(), '2000', 'calorie goal kept');
+  await p.goto(BASE + '#/nutrients');
+  await p.waitForTimeout(1300);
+  // Morrisons 100% PB now has 5 mg sodium/100 g from the label.
+  assert.equal(await p.locator('[data-k="sodium"] [data-v]').textContent(), '5');
+  assert.ok(Number(await p.locator('[data-k="selenium"] [data-v]').textContent()) > 0, 'selenium estimated for old entry');
+  await c.close();
 });
 
 await step('no JavaScript errors', async () => {

@@ -3,14 +3,18 @@
 A dark, athletic-looking nutrition tracker that runs entirely in your browser. You can install it to your iPhone home screen and it works offline. There's no backend, no account and no AI. All your data stays on your phone in IndexedDB.
 
 - **Today:** a calorie ring (eaten / goal / remaining), protein, carb and fat bars, an animated water glass, four meal sections and a date switcher.
-- **Nutrients:** 11 micronutrients (UK reference values, which you can edit) shown as progress bars with *Low / % / Met* flags. There's also a 7-day average with a per-day strip, so nutrients that are consistently low stand out.
+- **Nutrients:** 17 nutrients, each with a daily target and an optional upper limit, all editable in Settings. They're shown as progress bars with *Low / % / Met* flags, plus a 7-day average with a per-day strip so nutrients that are consistently low stand out.
+  - Tracked: fibre, potassium, magnesium, folate, vitamins C, A, K, D and B12, iron, zinc, calcium, iodine, selenium, omega-3 ALA, EPA + DHA, and sodium.
+  - Going over an upper limit turns the bar red ("Over upper limit"). The limits for magnesium (supplements only), folate (supplements / fortified foods) and vitamin A (preformed only) can't be judged from food totals, so they're shown but never flagged.
+  - **Sodium works the other way round:** it's a limit (2,300 mg by default). The bar is green below 90%, amber from 90% and red once you reach the limit.
 - **Food search:**
   - UK CoFID (McCance & Widdowson) generic foods, bundled so search works offline.
   - UK branded products from Open Food Facts, plus camera barcode scanning.
   - Missing micronutrients show as **no data**, never as zero. You can link a food to a similar CoFID food to estimate them.
 - **Logging:** by g, ml or custom serving sizes ("1 scoop = 25 g").
 - **Custom foods, favourites and saved meals.** Favourites log in one tap. Saved meals also log in one tap, or you can adjust the amounts before logging.
-- **Settings:** calorie and macro goals (with live "macros add up to X kcal"), water goal, micronutrient targets, and **Export / Import JSON** backups.
+- **Settings:** calorie and macro goals (with live "macros add up to X kcal"), water goal, micronutrient targets and upper limits, and **Export / Import JSON** backups.
+- **Custom foods** have a **Salt** field that fills in sodium for you (sodium = salt ÷ 2.5), since UK labels list salt.
 
 Colours: green = on track, amber = close to the goal, red = over the goal (or a micronutrient that is low).
 
@@ -67,6 +71,8 @@ If the workflow can't fetch the spreadsheet (for example, if gov.uk changes its 
   - Fibre is AOAC fibre where available, otherwise NSP.
   - Vitamin A is retinol equivalents.
   - Vitamin K is K1.
+  - Omega-3s come from the "per 100 g food" fatty-acid columns: ALA is C18:3 n-3; EPA + DHA is C20:5 n-3 + C22:6 n-3.
+  - Folate is total folate in µg, not DFE, and vitamin A is retinol equivalents, not RAE. Your targets are in DFE and RAE, so treat those two as close approximations.
   - "Tr" (trace) counts as 0. "N" or blank counts as **no data**.
 - **Starter set** (`tools/starter-foods.mjs`): about 75 common foods with *approximate* values. It's used for search only until `cofid.json` exists.
 - **Pre-loaded favourites:**
@@ -75,7 +81,7 @@ If the workflow can't fetch the spreadsheet (for example, if gov.uk changes its 
   - Once the full CoFID file is built, these links automatically point at the real CoFID entries (raspberries, blueberries, Greek yoghurt, linseed, peanut butter, oat drink…).
   - Whey protein and peanut powder aren't in CoFID, so they keep the starter estimates.
   - You can change any link from the food's detail sheet.
-- **Open Food Facts:** minerals and vitamins are converted from OFF's grams to mg or µg. When a product doesn't list a value, it shows **no data**.
+- **Open Food Facts:** minerals and vitamins are converted from OFF's grams to mg or µg. Sodium comes from salt ÷ 2.5 when only salt is listed. When a product doesn't list a value, it shows **no data**. Branded products rarely list iodine, selenium or omega-3s.
 - **Totals:** when some logged foods have no data for a nutrient, the Nutrients screen says so ("2 logged foods have no data for Vitamin K — the real total may be higher").
 
 ## Project layout
@@ -101,7 +107,7 @@ There's no build step for the app itself. It's plain HTML, CSS and ES modules.
 node tests/serve.mjs 8080        # then open http://127.0.0.1:8080
 cd tools && npm install          # xlsx + playwright
 node ../tests/cofid-parser.test.mjs
-node ../tests/e2e.mjs            # 20 end-to-end checks on an iPhone-sized viewport
+node ../tests/e2e.mjs            # 21 end-to-end checks on an iPhone-sized viewport
 ```
 
 The e2e suite covers:
@@ -120,6 +126,8 @@ The e2e suite covers:
 - daily and weekly micronutrients
 - export and import (including rejecting a bad file)
 - offline use through the service worker
+- sodium limit, upper-limit flags and salt→sodium conversion
+- upgrading from v1 data (old targets replaced, new nutrients filled into existing entries)
 - no JS errors
 
 If you change app files without going through the workflow, bump `VERSION` in `app/sw.js` so phones pick up the change.

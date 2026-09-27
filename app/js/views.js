@@ -1,6 +1,6 @@
 // Nutrients, Foods and Settings screens.
-import { el, esc, $, $$, icons, animateNumber, setFill, targetStatus, dateSwitcher, toast, addDays, parseKey, todayKey, confirmSheet } from './ui.js';
-import { MICROS, MACROS, totals, fmt, macroKcal, defaultSettings } from './nutrients.js';
+import { el, esc, $, $$, icons, animateNumber, setFill, dateSwitcher, toast, addDays, parseKey, todayKey, confirmSheet } from './ui.js';
+import { MICROS, MACROS, totals, fmt, macroKcal, defaultSettings, microStatus } from './nutrients.js';
 import * as store from './store.js';
 import * as fooddb from './fooddb.js';
 import * as db from './db.js';
@@ -23,15 +23,16 @@ export function mountNutrients(view, state) {
   const top = el('<div class="topbar"><h1 class="title">Nutrients</h1></div>');
   const seg = el(`<div class="seg" role="tablist"><button role="tab" data-m="day">Day</button><button role="tab" data-m="week">7-day average</button></div>`);
   const summary = el(`<div class="micro-sum">
-      <div class="card"><div class="stat-v num c-red" data-low>0</div><div class="stat-l">Low</div></div>
+      <div class="card"><div class="stat-v num c-red" data-low>0</div><div class="stat-l">Low / over</div></div>
       <div class="card"><div class="stat-v num c-amber" data-mid>0</div><div class="stat-l">Getting there</div></div>
       <div class="card"><div class="stat-v num c-green" data-ok>0</div><div class="stat-l">On target</div></div>
     </div>`);
   const card = el(`<section class="card" aria-label="Micronutrients">${MICROS.map((m) => `
     <div class="bar-row" data-k="${m.key}">
-      <div class="bar-head"><span class="bar-name">${m.label} <span class="pill" data-pill></span></span><span class="bar-val num"><b data-v>0</b> / ${'<span data-t></span>'} ${m.unit}</span></div>
+      <div class="bar-head"><span class="bar-name">${m.label} <span class="pill" data-pill></span></span><span class="bar-val num"><b data-v>0</b> / ${m.kind === 'limit' ? 'max ' : ''}<span data-t></span> ${m.unit}</span></div>
       <div class="track thin"><div class="fill"></div></div>
       <div class="days" data-days hidden>${'<i></i>'.repeat(7)}</div>
+      <div class="nodata" data-ul hidden></div>
       <div class="nodata" data-nd hidden></div>
     </div>`).join('')}</section>`);
   const foot = el('<p class="note" data-foot style="padding:0 4px"></p>');
@@ -75,26 +76,37 @@ export function mountNutrients(view, state) {
     let low = 0, mid = 0, ok = 0;
     for (const m of MICROS) {
       const row = $(card, `[data-k="${m.key}"]`);
-      const target = settings.micros[m.key] || m.target;
+      const target = m.kind === 'limit' ? null : settings.micros[m.key] || m.target;
+      const upper = settings.upper?.[m.key] ?? m.upper;
+      const scaleTo = m.kind === 'limit' ? upper : target;
       const { value, missing } = values[m.key];
-      const st = targetStatus(value, target);
+      const st = microStatus(m, value, target, upper);
       const hasData = mode === 'week' ? loggedDays > 0 : true;
-      if (hasData) { if (st === 'red') low++; else if (st === 'amber') mid++; else ok++; }
+      if (hasData) { if (st.status === 'red') low++; else if (st.status === 'amber') mid++; else ok++; }
       animateNumber($(row, '[data-v]'), value, (v) => fmt(v));
-      $(row, '[data-t]').textContent = fmt(target);
-      setFill($(row, '.fill'), value / target, st);
+      $(row, '[data-t]').textContent = scaleTo ? Number(scaleTo).toLocaleString('en-GB') : '—';
+      setFill($(row, '.fill'), scaleTo ? value / scaleTo : 0, st.status);
       const pill = $(row, '[data-pill]');
-      pill.className = `pill ${st === 'red' ? 'low' : st === 'amber' ? 'mid' : 'ok'}`;
-      pill.textContent = st === 'red' ? 'Low' : st === 'amber' ? `${Math.round((value / target) * 100)}%` : 'Met';
+      pill.className = `pill ${st.pill}`;
+      pill.textContent = st.label;
       const nd = $(row, '[data-nd]');
       nd.hidden = !missing;
       nd.textContent = missing ? `${missing} logged ${missing === 1 ? 'food has' : 'foods have'} no data for ${m.label} — the real total may be higher.` : '';
+      // Upper-limit info, shown once the target is met (or always when exceeded).
+      const ul = $(row, '[data-ul]');
+      const ulText = upper ? `${Number(upper).toLocaleString('en-GB')} ${m.unit}` : '';
+      if (m.kind !== 'limit' && upper && (value >= (target || 0) || value >= upper)) {
+        ul.hidden = false;
+        if (m.upperNote) ul.innerHTML = `Upper limit ${ulText} applies ${esc(m.upperNote)} — food totals aren't flagged.`;
+        else if (value >= upper) ul.innerHTML = `<span class="c-red">Above the upper limit of ${ulText}.</span>`;
+        else ul.innerHTML = `Upper limit ${ulText}.`;
+      } else ul.hidden = true;
       const days = $(row, '[data-days]');
       days.hidden = mode !== 'week';
       if (perDay) {
         $$(days, 'i').forEach((cell, i) => {
           const t = perDay[i];
-          cell.className = t ? `bg-${targetStatus(t[m.key].value, target)}` : '';
+          cell.className = t ? `bg-${microStatus(m, t[m.key].value, target, upper).status}` : '';
           cell.title = t ? `${fmt(t[m.key].value)} ${m.unit}` : 'Nothing logged';
         });
       }
@@ -175,9 +187,19 @@ export function mountSettings(view) {
     </section>`);
   const micros = el(`
     <section class="card">
-      <div class="row"><div class="eyebrow">Micronutrient targets</div><span class="spacer"></span><button class="btn sm" type="button" data-reset style="min-height:36px">UK defaults</button></div>
-      <p class="note">Pre-filled with UK reference values. Edit to suit you.</p>
-      <div class="grid2">${MICROS.map((m) => `<label class="field"><span>${m.label} <i class="unit">(${m.unit})</i></span><input class="input num" type="number" inputmode="decimal" min="0" step="any" data-micro="${m.key}"></label>`).join('')}</div>
+      <div class="row"><div class="eyebrow">Micronutrients</div><span class="spacer"></span><button class="btn sm" type="button" data-reset style="min-height:36px">Reset defaults</button></div>
+      <p class="note">Daily target and upper limit for each nutrient. Leave an upper limit blank for none. Sodium is a limit only: it turns amber near it and red once you reach it.</p>
+      <div class="mtable">
+        <div class="mrow mhead"><span>Nutrient</span><span>Target</span><span>Upper limit</span></div>
+        ${MICROS.map((m) => `
+        <div class="mrow">
+          <span class="mname">${m.label} <i class="unit">${m.unit}</i>${m.upperNote ? `<small>UL ${esc(m.upperNote)}</small>` : ''}</span>
+          ${m.kind === 'limit'
+            ? '<span class="mnone">—</span>'
+            : `<input class="input num" type="number" inputmode="decimal" min="0" step="any" data-micro="${m.key}" aria-label="${m.label} target (${m.unit})">`}
+          <input class="input num" type="number" inputmode="decimal" min="0" step="any" data-upper="${m.key}" placeholder="none" aria-label="${m.label} upper limit (${m.unit})">
+        </div>`).join('')}
+      </div>
     </section>`);
   const data = el(`
     <section class="card">
@@ -206,6 +228,7 @@ export function mountSettings(view) {
       if (document.activeElement !== inp) inp.value = k === 'water' ? s.water / 1000 : s[k];
     }
     for (const inp of $$(micros, '[data-micro]')) if (document.activeElement !== inp) inp.value = s.micros[inp.dataset.micro];
+    for (const inp of $$(micros, '[data-upper]')) if (document.activeElement !== inp) inp.value = s.upper[inp.dataset.upper] ?? '';
     updateMacroKcal();
     const [foods, recipes, entries] = await Promise.all([store.getFoods(), store.getRecipes(), db.getAll('entries')]);
     const days = new Set(entries.map((e) => e.date)).size;
@@ -255,10 +278,22 @@ export function mountSettings(view) {
       await save();
     };
   }
+  for (const inp of $$(micros, '[data-upper]')) {
+    inp.onchange = async () => {
+      const key = inp.dataset.upper;
+      const v = Number(inp.value);
+      if (inp.value === '') s.upper[key] = null;
+      else if (v > 0) s.upper[key] = v;
+      else { inp.value = s.upper[key] ?? ''; return; }
+      await save();
+    };
+  }
   $(micros, '[data-reset]').onclick = async () => {
-    s.micros = defaultSettings().micros;
+    const d = defaultSettings();
+    s.micros = d.micros;
+    s.upper = d.upper;
     await save();
-    toast('Reset to UK reference values');
+    toast('Targets and limits reset to defaults');
   };
 
   $(data, '[data-export]').onclick = async () => {
