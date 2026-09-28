@@ -6,7 +6,7 @@ import { mountToday } from './today.js';
 import { mountNutrients, mountFoods, mountSettings, guessMeal } from './views.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.2.1';
+window.APP_VERSION = '2.3.0';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), microMode: 'day', foodsTab: 'fav' };
@@ -28,6 +28,7 @@ function route() {
     window.scrollTo(0, 0);
   }
   $$(document, '.tabbar a').forEach((a) => (a.dataset.tab === key ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
+  syncThemeColor();
   current.refresh();
 }
 
@@ -42,9 +43,16 @@ export function applyTheme(theme) {
   if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
   else delete root.dataset.theme;
   try { localStorage.setItem('fuel-theme', theme || 'system'); } catch { /* private mode */ }
-  const dark = theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
-  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#141311' : '#f4efe6');
+  syncThemeColor();
 }
+
+/** Tint the browser / status-bar area: the hero's top colour on Today, the page colour elsewhere. */
+function syncThemeColor() {
+  const css = getComputedStyle(document.documentElement);
+  const color = css.getPropertyValue(currentName === 'today' ? '--hero-top' : '--bg').trim();
+  if (color) document.querySelector('meta[name="theme-color"]').setAttribute('content', color);
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => syncThemeColor());
 window.addEventListener('theme-change', (e) => applyTheme(e.detail));
 
 let pending = false;
