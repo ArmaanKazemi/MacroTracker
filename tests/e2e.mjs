@@ -790,6 +790,10 @@ await step('swipe a logged food off a meal on Today (with undo)', async () => {
   await settle();
   assert.equal(await rows.count(), n, 'undo puts it back');
   assert.equal(await eaten(), before);
+  // calorie arc: green right up to the goal, red only once it's passed
+  const goal = await num('[data-goal]');
+  const arc = await page.locator('.arc-bar').getAttribute('class');
+  assert.match(arc, before > goal ? /c-red/ : /c-green/);
 });
 
 await step('goals: macros turn red until balanced to the calorie goal', async () => {

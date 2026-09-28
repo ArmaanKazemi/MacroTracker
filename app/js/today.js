@@ -210,7 +210,7 @@ export function mountToday(view, state) {
     const eaten = t.kcal.value;
     const goal = settings.kcal;
     const remaining = goal - eaten;
-    const st = limitStatus(eaten, goal);
+    const st = goal && eaten > goal ? 'red' : 'green'; // green until the goal is passed
     const bar = $(hero, '.arc-bar');
     bar.setAttribute('class', `arc-bar c-${st}`);
     bar.style.strokeDashoffset = 100 * (1 - Math.min(1, goal ? eaten / goal : 0));
