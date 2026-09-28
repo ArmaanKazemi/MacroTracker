@@ -13,6 +13,7 @@
   /* Light — "parchment" */
   --bg: #f4efe6;
   --bg-2: #ebe2d3;
+  --hero-top: #ead2c4; /* faded terracotta */
   --card: #fffcf6;
   --card-2: #f1eadf;
   --line: #e2d8c7;
@@ -44,6 +45,7 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --hero-overlap: 58px; /* about half a macro card */
   --edge: 0px; /* extra room below the status bar, see display-mode rule below */
   --tabbar-h: 76px;
   color-scheme: light;
@@ -51,7 +53,7 @@
 
 /* Dark — "marble night" */
 :root[data-theme="dark"] {
-  --bg: #141311; --bg-2: #1d1b18; --card: #1c1a17; --card-2: #282521; --line: #332f29;
+  --bg: #141311; --bg-2: #1d1b18; --hero-top: #38261e; --card: #1c1a17; --card-2: #282521; --line: #332f29;
   --text: #f2ece2; --muted: #a79d8f; --dim: #7c7367;
   --accent: #dd7c57; --accent-2: #6b3a28; --on-accent: #1a0f0a;
   --green: #93b56d; --amber: #d8a444; --red: #e46a52; --blue: #79aecd; --gold: #c7a56b;
@@ -62,7 +64,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #141311; --bg-2: #1d1b18; --card: #1c1a17; --card-2: #282521; --line: #332f29;
+    --bg: #141311; --bg-2: #1d1b18; --hero-top: #38261e; --card: #1c1a17; --card-2: #282521; --line: #332f29;
     --text: #f2ece2; --muted: #a79d8f; --dim: #7c7367;
     --accent: #dd7c57; --accent-2: #6b3a28; --on-accent: #1a0f0a;
     --green: #93b56d; --amber: #d8a444; --red: #e46a52; --blue: #79aecd; --gold: #c7a56b;
@@ -129,14 +131,10 @@ button { cursor: pointer; }
   position: relative;
   isolation: isolate;
   margin: calc(-10px - var(--safe-top) - var(--edge)) -16px 0;
-  padding: calc(var(--safe-top) + var(--edge) + 6px) 16px 8px;
-  /* faint marble veining is part of the background (no overlay above the text) */
-  background:
-    radial-gradient(60% 40% at 15% 20%, color-mix(in srgb, var(--gold) 6%, transparent), transparent 70%),
-    radial-gradient(50% 35% at 90% 60%, color-mix(in srgb, var(--gold) 5%, transparent), transparent 70%),
-    radial-gradient(90% 55% at 50% 48%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 72%),
-    /* starts at the page colour so it meets the status-bar area (painted in --bg by iOS) without a seam */
-    linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 42%, var(--bg) 100%);
+  /* extra bottom padding: the fade runs on under the macro cards, which overlap it */
+  padding: calc(var(--safe-top) + var(--edge) + 6px) 16px var(--hero-overlap);
+  /* Lifesum-style: faded terracotta at the top, fading to parchment halfway down the macro cards */
+  background: linear-gradient(180deg, var(--hero-top) 0%, color-mix(in srgb, var(--hero-top) 70%, var(--bg)) 55%, var(--bg) 100%);
   overflow: hidden;
 }
 .datebar { display: flex; justify-content: center; }
@@ -173,7 +171,7 @@ button { cursor: pointer; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 12px; box-shadow: var(--shadow); }
 
 /* Macro cards */
-.macro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+.macro-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: calc(14px - var(--hero-overlap)); }
 .macro { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 12px 12px 14px; box-shadow: var(--shadow); min-width: 0; }
 .macro-name { font-weight: 650; font-size: 14.5px; }
 .macro-val { font-family: var(--serif); font-size: 17px; color: var(--muted); margin: 2px 0 9px; white-space: nowrap; }
