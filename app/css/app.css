@@ -434,3 +434,9 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .stat-sub { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
 .of-which { margin-top: -6px; }
 .of-which .field > span { text-transform: none; letter-spacing: 0; font-style: italic; }
+
+/* Serving sizes editor */
+.serv-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.serv-row [data-sl] { flex: 1.5; min-width: 0; }
+.serv-row [data-sa] { flex: 0 0 84px; }
+.iconbtn.danger { color: var(--red); }

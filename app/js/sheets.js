@@ -465,38 +465,54 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     void per100;
   }
 
-  // Remove serving sizes (works for every kind of food, including CoFID ones).
+  // Edit or delete serving sizes (works for every kind of food, including CoFID ones).
   $(body, '[data-edit-servings]').onclick = () => {
     const list = el('<div class="serv-list"></div>');
     const s = openSheet({ title: 'Serving sizes', body: list });
     const render = () => {
       list.innerHTML = servings.length ? '' : '<p class="empty">No serving sizes. You can always log by weight.</p>';
       servings.forEach((sv, i) => {
-        const r = el(`<div class="kv"><span>${esc(sv.label)} <span class="muted">(${fmt(sv.amount)}${unit})</span></span><button type="button" class="btn sm danger" data-rm>Delete</button></div>`);
+        const r = el(`<div class="serv-row">
+          <input class="input" data-sl value="${esc(sv.label)}" aria-label="Serving label" placeholder="1 scoop">
+          <input class="input num" data-sa type="number" inputmode="decimal" step="any" min="0" value="${sv.amount}" aria-label="Serving amount (${unit})">
+          <span class="muted">${unit}</span>
+          <button type="button" class="iconbtn danger" data-rm aria-label="Delete serving">${icons.trash}</button></div>`);
+        const save = () => {
+          const label = $(r, '[data-sl]').value.trim();
+          const a = Number($(r, '[data-sa]').value);
+          if (!label || !(a > 0)) return toast('Enter a label and an amount');
+          if (label === servings[i].label && a === servings[i].amount) return;
+          commit(servings.map((x, j) => (j === i ? { label, amount: a } : x)), (k) => k, false);
+          toast('Serving updated');
+        };
+        $(r, '[data-sl]').onchange = save;
+        $(r, '[data-sa]').onchange = save;
         $(r, '[data-rm]').onclick = () => remove(i);
         list.appendChild(r);
       });
-      list.appendChild(el('<p class="note">Entries you already logged keep their amounts.</p>'));
+      list.appendChild(el('<p class="note">Changes save as you go. Entries you already logged keep their amounts.</p>'));
     };
-    const commit = async (next) => {
+    // mapSel: old index of the selected serving -> new index (-1 = it's gone).
+    const commit = async (next, mapSel, redraw = true) => {
       const saved = await store.persistFood(food);
       saved.servings = next;
       await store.saveFood(saved);
       food = { ...saved };
-      const selLabel = sel === 'unit' ? null : servings[sel]?.label;
       const prevAmount = amount();
       servings = next;
-      const si = selLabel === null ? -1 : servings.findIndex((x) => x.label === selLabel);
-      if (sel !== 'unit' && si < 0) { sel = 'unit'; num = round1(prevAmount || 100); amtInput.value = num; } else if (si >= 0) sel = si;
+      if (sel !== 'unit') {
+        const ni = mapSel(sel);
+        if (ni < 0 || ni >= servings.length) { sel = 'unit'; num = round1(prevAmount || 100); amtInput.value = num; } else sel = ni;
+      }
       renderUnits();
       renderDynamic();
-      render();
+      if (redraw) render(); // not while typing: it would drop focus
       changed();
     };
     const remove = async (i) => {
       const before = servings;
-      await commit(servings.filter((_, j) => j !== i));
-      toast(`Deleted ${before[i].label}`, { label: 'Undo', run: () => commit(before) });
+      await commit(servings.filter((_, j) => j !== i), (k) => (k === i ? -1 : k > i ? k - 1 : k));
+      toast(`Deleted ${before[i].label}`, { label: 'Undo', run: () => commit(before, (k) => (k >= i ? k + 1 : k)) });
       if (!servings.length) s.close();
     };
     render();

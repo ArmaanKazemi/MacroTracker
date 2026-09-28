@@ -700,6 +700,19 @@ await step('serving sizes can be added and deleted on a generic food (with undo)
   await page.locator('#toast button').click();
   await page.waitForTimeout(400);
   assert.match(await detail.locator('select[data-unit]').textContent(), /1 bowl/, 'undo restores it');
+  // edit the serving in place
+  await detail.locator('select[data-unit]').selectOption({ index: 1 });
+  await detail.locator('input.big-input').fill('2');
+  await detail.locator('[data-edit-servings]').click();
+  await page.waitForTimeout(400);
+  await topSheet().locator('[data-sl]').fill('1 big bowl');
+  await topSheet().locator('[data-sa]').fill('250');
+  await topSheet().locator('[data-sa]').blur();
+  await page.waitForTimeout(450);
+  await closeTop(); // back to the food sheet
+  assert.match(await detail.locator('select[data-unit]').textContent(), /1 big bowl \(250g\)/);
+  assert.equal(await detail.locator('select[data-unit]').inputValue(), '0', 'still selected after renaming');
+  assert.match(await detail.locator('[data-preview]').textContent(), /500/, '2 × 250 g = 500 kcal (lentils ~100 kcal/100 g)');
   await closeTop(); await closeTop();
   await settle();
 });
