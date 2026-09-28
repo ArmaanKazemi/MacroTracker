@@ -179,10 +179,11 @@ button { cursor: pointer; }
 
 /* Macro cards */
 .macro-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: calc(14px - var(--hero-overlap)); }
-.macro { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 12px 12px 14px; box-shadow: var(--shadow); min-width: 0; }
-.macro-name { font-weight: 650; font-size: 14.5px; }
-.macro-val { font-family: var(--serif); font-size: 17px; color: var(--muted); margin: 2px 0 9px; white-space: nowrap; }
-.macro-val b { font-size: 25px; font-weight: 600; color: var(--text); }
+.macro { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 9px 10px 10px; box-shadow: var(--shadow); min-width: 0; }
+.macro-name { font-weight: 650; font-size: 13px; line-height: 1.2; }
+.macro-val { font-family: var(--serif); font-size: 13.5px; color: var(--muted); margin: 0 0 5px; white-space: nowrap; line-height: 1.15; }
+.macro-val b { font-size: 19px; font-weight: 600; color: var(--text); }
+.macro .track.thin { height: 5px; }
 
 /* ---------- Bars ---------- */
 .bar-row { margin: 14px 0; }
@@ -317,10 +318,10 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 /* ---------- Bottom veil: blurs and fades content scrolling under the tab bar ---------- */
 .bottom-veil {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 19; pointer-events: none;
-  height: calc(var(--safe-bottom) + 10px + 64px + 34px);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 0%, transparent) 0%, color-mix(in srgb, var(--bg) 78%, transparent) 45%, var(--bg) 100%);
+  height: calc(var(--safe-bottom) + 10px + 64px + 56px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 0%, transparent) 0, color-mix(in srgb, var(--bg) 88%, transparent) calc(56px - 14px), var(--bg) 56px);
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 42%); mask-image: linear-gradient(180deg, transparent 0, #000 42%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 44px); mask-image: linear-gradient(180deg, transparent 0, #000 44px);
 }
 
 /* ---------- Tab bar (floating, with a central add button) ---------- */
@@ -329,7 +330,7 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
   max-width: 520px; margin: 0 auto;
   display: grid; grid-template-columns: 1fr 1fr 72px 1fr 1fr; align-items: center;
   height: 64px; padding: 0 6px;
-  background: color-mix(in srgb, var(--card) 72%, transparent);
+  background: color-mix(in srgb, var(--card) 90%, transparent);
   -webkit-backdrop-filter: saturate(160%) blur(24px); backdrop-filter: saturate(160%) blur(24px);
   border: 1px solid var(--line); border-radius: 999px;
   box-shadow: 0 12px 30px -12px rgba(40, 25, 10, 0.35);
@@ -337,7 +338,14 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .tabbar a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 54px; border-radius: 999px; color: var(--dim); text-decoration: none; font-size: 10.5px; font-weight: 650; letter-spacing: 0.02em; transition: color 0.2s, background 0.2s; }
 .tabbar a svg { width: 24px; height: 24px; }
 .tabbar a .knob { fill: var(--card); }
-.tabbar a[aria-current="page"] { color: var(--text); background: var(--card-2); }
+.tabbar a[aria-current="page"] { color: var(--text); }
+.tabbar a { position: relative; z-index: 1; }
+.tab-ind { position: absolute; top: 5px; left: 0; height: 54px; width: 0; border-radius: 999px; background: var(--card-2); z-index: 0; opacity: 0; transition: transform 0.45s var(--spring), width 0.45s var(--spring), opacity 0.2s; }
+.tab-ind.on { opacity: 1; }
+.tabbar a:active svg { transform: scale(0.88); }
+.tabbar a svg { transition: transform 0.18s var(--ease); }
+.tabbar a[aria-current="page"] svg { animation: tab-pop 0.45s var(--spring); }
+@keyframes tab-pop { 40% { transform: scale(1.18) translateY(-1px); } }
 .tab-add { justify-self: center; width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; box-shadow: 0 8px 18px -6px color-mix(in srgb, var(--accent) 70%, transparent); transition: transform 0.12s; }
 .tab-add svg { width: 26px; height: 26px; }
 
@@ -420,7 +428,7 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 @media (max-width: 360px) {
   .gauge { grid-template-columns: 1fr minmax(0, 200px) 1fr; }
   .side-v { font-size: 26px; }
-  .macro-val b { font-size: 21px; }
+  .macro-val b { font-size: 18px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
@@ -432,12 +440,10 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .mtable .sub-h { margin: 14px 0 2px; }
 
 /* "Of which" sugars / saturates */
-.macro-sub { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); color: var(--muted); white-space: nowrap; }
-.ms-l { font-size: 10.5px; font-weight: 600; text-transform: lowercase; overflow: hidden; text-overflow: ellipsis; }
-@media (max-width: 370px) { .ms-l::before { content: none; } .ms-l { text-transform: none; } }
-.ms-l::before { content: "of which "; font-weight: 400; font-style: italic; }
-.ms-v { font-family: var(--serif); font-size: 14px; margin-top: 1px; }
-.ms-v b { font-size: 18px; font-weight: 600; color: var(--text); }
+.macro-sub { margin-top: 6px; color: var(--muted); white-space: nowrap; line-height: 1.15; }
+.ms-l { font-size: 10px; font-style: italic; overflow: hidden; text-overflow: ellipsis; }
+.ms-v { font-family: var(--serif); font-size: 11.5px; }
+.ms-v b { font-size: 13.5px; font-weight: 600; color: var(--text); }
 .macro-sub.near b { color: var(--amber); }
 .macro-sub.over b, .macro-sub.over .ms-l { color: var(--red); }
 .stat-sub { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
@@ -449,3 +455,45 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .serv-row [data-sl] { flex: 1.5; min-width: 0; }
 .serv-row [data-sa] { flex: 0 0 84px; }
 .iconbtn.danger { color: var(--red); }
+
+/* ---------- Motion ---------- */
+:root { --spring: cubic-bezier(0.34, 1.4, 0.5, 1); }
+/* Sections rise in one after another when a screen opens. */
+.view-enter { animation: none; }
+.view-enter > * { animation: rise 0.55s var(--ease) both; }
+.view-enter > :nth-child(2) { animation-delay: 0.05s; }
+.view-enter > :nth-child(3) { animation-delay: 0.1s; }
+.view-enter > :nth-child(4) { animation-delay: 0.15s; }
+.view-enter > :nth-child(5) { animation-delay: 0.2s; }
+.view-enter > :nth-child(6) { animation-delay: 0.25s; }
+.view-enter > :nth-child(7) { animation-delay: 0.3s; }
+.view-enter > :nth-child(n+8) { animation-delay: 0.35s; }
+.view-enter > .hero { animation-name: fade; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+/* Macro cards pop in one by one on Today. */
+.view-enter .macro { animation: rise 0.55s var(--spring) both; }
+.view-enter .macro:nth-child(2) { animation-delay: 0.08s; }
+.view-enter .macro:nth-child(3) { animation-delay: 0.16s; }
+/* Gauge: ticks sweep in, laurels grow. */
+.view-enter .arc .ticks line { animation: tick-in 0.4s var(--ease) both; animation-delay: calc(var(--k) * 22ms + 0.1s); }
+@keyframes tick-in { from { opacity: 0; } }
+.view-enter .arc-laurels { animation: laurel-in 0.8s var(--spring) 0.35s both; }
+@keyframes laurel-in { from { opacity: 0; transform: translateX(-50%) scale(0.7) translateY(6px); } }
+.view-enter .arc-center .big { animation: rise 0.6s var(--ease) 0.1s both; }
+/* Tap feedback. */
+.macro, .meal, .result, .item { transition: transform 0.15s var(--ease); }
+.macro:active, .item:active, .result:active { transform: scale(0.98); }
+.tab-add { transition: transform 0.25s var(--spring), box-shadow 0.2s; }
+.tab-add:active { transform: scale(0.9) rotate(90deg); }
+/* Sub-limit value pulses when it tips over. */
+.macro-sub.over .ms-v b { animation: nudge 0.5s var(--ease); }
+@keyframes nudge { 30% { transform: translateX(-2px); } 60% { transform: translateX(2px); } }
+.ms-v b { display: inline-block; }
+@media (max-width: 385px) {
+  .macro { padding-left: 9px; padding-right: 8px; }
+  .ms-l { font-size: 9.5px; letter-spacing: -0.015em; }
+}
+@media (max-width: 340px) { .ms-l { font-size: 9px; letter-spacing: -0.02em; } }
+.glass.bump { animation: bump 0.6s var(--spring); transform-origin: 50% 100%; }
+@keyframes bump { 30% { transform: scale(1.06, 0.95); } 60% { transform: scale(0.97, 1.04); } }
