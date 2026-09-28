@@ -237,7 +237,8 @@ button { cursor: pointer; }
 .iconbtn.accent { background: var(--accent); color: var(--on-accent); border-color: transparent; }
 .items { margin-top: 6px; }
 .item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 2px; border: 0; background: transparent; text-align: left; border-top: 1px solid var(--line); min-height: 52px; }
-.items .item:first-child { margin-top: 8px; }
+.items .item:first-child, .items > .swipe:first-child { margin-top: 8px; }
+.items > .swipe:first-child .item { margin-top: 0; }
 .item-main { flex: 1; min-width: 0; }
 .item-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .item-meta { font-size: 13px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -546,3 +547,6 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .same-y-names { font-weight: 600; font-size: 15px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .same-y-row { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 12px 12px 14px; }
 .info-group > .kv:first-child { border-top: 0; }
+
+/* Goals that don't add up */
+.input.bad { border-color: var(--red); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 14%, transparent); color: var(--red); }

@@ -21,6 +21,8 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
 - **Settings:** calorie and macro goals (with live "macros add up to X kcal"), water goal, micronutrient targets and upper limits, and **Export / Import JSON** backups.
 - **Custom foods:** micronutrients are grouped into **Vitamins**, **Minerals** and **Fibre & omega-3s** (the same grouping is used on the Nutrients screen, food details and Settings). Sodium sits under Minerals and is entered in **mg**. If a label only lists salt, sodium (mg) = salt (g) × 400.
 - **One-off foods:** when you create a food while adding to a meal, turn off **Save to My foods** to log it just this once without keeping it in your lists. The switch remembers your last choice.
+- **Removing logged food:** swipe left on a food in any meal on Today to remove it (Undo appears). You can also do it on the meal's page.
+- **Balanced goals:** in Settings, when protein, carbs and fat don't add up to your calorie goal they turn red. Tap **Balance macros** to fit them to the calorie goal (protein is kept; carbs and fat are rescaled in the same proportion), or set the calorie goal to match the macros instead.
 - **Deleting:** swipe left on any food or saved meal (Foods screen, or the lists in the add-food sheet) to delete it. A long swipe deletes immediately; a short one reveals a **Delete** button. **Undo** appears for a few seconds. Foods you've already logged stay in your history.
 - **Apple Health:** send your daily nutrition and water to Apple Health through an Apple Shortcut. See below.
 

@@ -182,6 +182,23 @@ export function mountFoods(view, state) {
   return { refresh };
 }
 
+/**
+ * Macros that add up to the calorie goal. Protein is kept (it's usually the
+ * one you care about); carbs and fat are rescaled keeping their calorie split.
+ * If protein alone is over the goal, all three are scaled down.
+ */
+export function balanceMacros({ kcal, protein, carbs, fat }) {
+  const p = Number(protein) || 0, c = Number(carbs) || 0, f = Number(fat) || 0;
+  const rest = kcal - p * 4;
+  if (rest <= 0) {
+    const k = kcal / Math.max(1, macroKcal(p, c, f));
+    return { protein: Math.round(p * k), carbs: Math.round(c * k), fat: Math.round(f * k) };
+  }
+  const cK = c * 4, fK = f * 9;
+  const share = cK + fK > 0 ? cK / (cK + fK) : 0.55;
+  return { protein: p, carbs: Math.round((rest * share) / 4), fat: Math.round((rest * (1 - share)) / 9) };
+}
+
 // ======================================================================
 // Settings
 // ======================================================================
@@ -200,7 +217,10 @@ export function mountSettings(view) {
       </div>
       <div class="kv" style="border-top:0;padding-top:4px"><span class="muted">Macros add up to</span><b class="num" data-mk></b></div>
       <p class="note" data-mdiff style="margin-top:0"></p>
-      <button class="btn sm" type="button" data-usemk hidden>Set calorie goal to match macros</button>
+      <div class="btns" data-fix hidden style="flex-wrap:wrap">
+        <button class="btn sm go" type="button" data-balance>Balance macros</button>
+        <button class="btn sm" type="button" data-usemk>Set calorie goal to match macros</button>
+      </div>
       <label class="field" style="margin-top:16px"><span>Water (litres)</span><input class="input num" type="number" inputmode="decimal" min="0" step="0.1" data-s="water"></label>
     </section>`);
   const micros = el(`
@@ -279,12 +299,16 @@ export function mountSettings(view) {
     const mk = macroKcal(s.protein, s.carbs, s.fat);
     $(goals, '[data-mk]').textContent = `${Math.round(mk).toLocaleString('en-GB')} kcal`;
     const diff = Math.round(mk - s.kcal);
+    const off = Math.abs(diff) >= 10;
     const dEl = $(goals, '[data-mdiff]');
-    if (Math.abs(diff) < 10) { dEl.innerHTML = '<span class="c-green">Matches your calorie goal.</span>'; }
-    else dEl.innerHTML = `<span class="c-amber">${Math.abs(diff).toLocaleString('en-GB')} kcal ${diff > 0 ? 'more' : 'less'} than your calorie goal.</span> Protein & carbs 4 kcal/g, fat 9 kcal/g.`;
-    const b = $(goals, '[data-usemk]');
-    b.hidden = Math.abs(diff) < 10;
-    b.textContent = `Set calorie goal to ${Math.round(mk).toLocaleString('en-GB')} kcal`;
+    if (!off) { dEl.innerHTML = '<span class="c-green">Balanced: macros match your calorie goal.</span>'; }
+    else dEl.innerHTML = `<span class="c-red">${Math.abs(diff).toLocaleString('en-GB')} kcal ${diff > 0 ? 'over' : 'under'} your calorie goal.</span> Protein & carbs 4 kcal/g, fat 9 kcal/g.`;
+    // Macros turn red until they add up to the calorie goal.
+    for (const m of MACROS) $(goals, `[data-s="${m.key}"]`).classList.toggle('bad', off);
+    $(goals, '[data-mk]').classList.toggle('c-red', off);
+    $(goals, '[data-fix]').hidden = !off;
+    $(goals, '[data-balance]').textContent = `Balance macros to ${Math.round(s.kcal).toLocaleString('en-GB')} kcal`;
+    $(goals, '[data-usemk]').textContent = `Or set calories to ${Math.round(mk).toLocaleString('en-GB')} kcal`;
   }
 
   for (const inp of $$(goals, '[data-s]')) {
@@ -297,6 +321,15 @@ export function mountSettings(view) {
     };
     inp.onchange = save;
   }
+  // Fit carbs and fat to the calorie goal, keeping protein and the carb:fat split.
+  $(goals, '[data-balance]').onclick = async () => {
+    const b = balanceMacros(s);
+    Object.assign(s, b);
+    for (const k of ['protein', 'carbs', 'fat']) $(goals, `[data-s="${k}"]`).value = s[k];
+    updateMacroKcal();
+    await save();
+    toast(`Macros balanced to ${s.kcal.toLocaleString('en-GB')} kcal`);
+  };
   $(goals, '[data-usemk]').onclick = async () => {
     s.kcal = Math.round(macroKcal(s.protein, s.carbs, s.fat));
     $(goals, '[data-s="kcal"]').value = s.kcal;
