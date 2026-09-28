@@ -1,6 +1,6 @@
 // Home screen: calorie gauge, macro cards, water, meals.
 import { el, esc, $, $$, icons, animateNumber, setFill, limitStatus, dateSwitcher, toast, round1 } from './ui.js';
-import { MEALS, MACROS, totals, scale, fmt } from './nutrients.js';
+import { MEALS, MACROS, SUBS, totals, scale, fmt } from './nutrients.js';
 import * as store from './store.js';
 import * as fooddb from './fooddb.js';
 import { openAddFood, openFoodDetail, changed } from './sheets.js';
@@ -58,6 +58,7 @@ export function mountToday(view, state) {
       <div class="macro-name">${m.label}</div>
       <div class="macro-val num"><b data-v>0</b><span>/<span data-g>0</span>g</span></div>
       <div class="track thin"><div class="fill"></div></div>
+      ${SUBS.filter((s) => s.parent === m.key).map((s) => `<div class="macro-sub" data-sub="${s.key}"><div class="ms-l">${s.label}</div><div class="ms-v num"><b data-v>0</b>/<span data-g>0</span>g</div></div>`).join('')}
     </div>`).join('')}</section>`);
   view.appendChild(macroCard);
 
@@ -202,6 +203,15 @@ export function mountToday(view, state) {
       animateNumber($(row, '[data-v]'), v);
       $(row, '[data-g]').textContent = g;
       setFill($(row, '.fill'), g ? v / g : 0, limitStatus(v, g));
+    }
+    for (const s of SUBS) {
+      const row = $(macroCard, `[data-sub="${s.key}"]`);
+      const v = t[s.key].value;
+      const g = settings[s.key] ?? s.limit;
+      $(row, '[data-v]').textContent = fmt(v);
+      $(row, '[data-g]').textContent = g;
+      row.className = `macro-sub${g && v >= g ? ' over' : g && v >= g * 0.9 ? ' near' : ''}`;
+      row.title = t[s.key].missing ? `${t[s.key].missing} logged ${t[s.key].missing === 1 ? 'food has' : 'foods have'} no ${s.label.toLowerCase()} data` : '';
     }
 
     // Water

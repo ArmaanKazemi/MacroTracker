@@ -109,7 +109,7 @@ export function offToFood(p) {
   };
   let kcal = num('energy-kcal_100g');
   if (kcal === null && num('energy_100g') !== null) kcal = num('energy_100g') / 4.184;
-  const per100 = { kcal, protein: num('proteins_100g'), carbs: num('carbohydrates_100g'), fat: num('fat_100g') };
+  const per100 = { kcal, protein: num('proteins_100g'), carbs: num('carbohydrates_100g'), fat: num('fat_100g'), sugars: num('sugars_100g'), satfat: num('saturated-fat_100g') };
   for (const [ours, theirs, mult] of OFF_MAP) {
     let v = num(`${theirs}_100g`);
     if (v === null && theirs === 'folates') v = num('vitamin-b9_100g');

@@ -4,7 +4,7 @@
 
 A dark, athletic-looking nutrition tracker that runs entirely in your browser. You can install it to your iPhone home screen and it works offline. There's no backend, no account and no AI. All your data stays on your phone in IndexedDB.
 
-- **Today:** a calorie ring (eaten / goal / remaining), protein, carb and fat bars, an animated water glass, four meal sections and a date switcher.
+- **Today:** a calorie ring (eaten / goal / remaining), protein, carb and fat bars (with *of which sugars* under carbs and *of which saturates* under fat), an animated water glass, four meal sections and a date switcher.
 - **Nutrients:** 17 nutrients, each with a daily target and an optional upper limit, all editable in Settings. They're shown as progress bars with *Low / % / Met* flags, plus a 7-day average with a per-day strip so nutrients that are consistently low stand out.
   - Tracked: fibre, potassium, magnesium, folate, vitamins C, A, K, D and B12, iron, zinc, calcium, iodine, selenium, omega-3 ALA, EPA + DHA, and sodium.
   - Going over an upper limit turns the bar red ("Over upper limit"). The limits for magnesium (supplements only), folate (supplements / fortified foods) and vitamin A (preformed only) can't be judged from food totals, so they're shown but never flagged.
@@ -13,8 +13,9 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
   - UK CoFID (McCance & Widdowson) generic foods, bundled so search works offline.
   - UK branded products from Open Food Facts, plus camera barcode scanning.
   - Missing micronutrients show as **no data**, never as zero. You can link a food to a similar CoFID food to estimate them.
-- **Logging:** by g, ml or custom serving sizes ("1 scoop = 25 g").
+- **Logging:** by g, ml or custom serving sizes ("1 scoop = 25 g"). Add a serving from any food's sheet with **Add serving size**, and remove one with **Edit servings**. Undo is available.
 - **Custom foods, favourites and saved meals.** Favourites log in one tap. Saved meals also log in one tap, or you can adjust the amounts before logging.
+- **Sugars and saturated fat:** tracked like a UK label, as "of which" values under carbs and fat. Each has a daily maximum (UK reference intakes: 90 g sugars, 20 g saturates, editable in Settings). The number turns ochre from 90% and red once you reach it. Values come from CoFID and Open Food Facts, or you type them in for custom foods.
 - **Settings:** calorie and macro goals (with live "macros add up to X kcal"), water goal, micronutrient targets and upper limits, and **Export / Import JSON** backups.
 - **Custom foods:** micronutrients are grouped into **Vitamins**, **Minerals** and **Fibre & omega-3s** (the same grouping is used on the Nutrients screen, food details and Settings). Sodium sits under Minerals and is entered in **mg**. If a label only lists salt, sodium (mg) = salt (g) × 400.
 - **One-off foods:** when you create a food while adding to a meal, turn off **Save to My foods** to log it just this once without keeping it in your lists. The switch remembers your last choice.
@@ -53,7 +54,7 @@ iPhone web apps can't talk to Apple Health directly. Pithos sends your numbers t
 - Turn on **Show "Send to Health" on Today**, then tap **Send to Health** whenever you want to sync. The Shortcuts app opens briefly; swipe back to Pithos afterwards.
 - Only amounts added since your last send are sent, so tapping it more than once never double-counts.
 - If a send doesn't arrive, tap **Didn't arrive? Mark as not sent** and send again.
-- Sent: calories, protein, carbs, fat, water, fibre, sodium, potassium, calcium, magnesium, iron, zinc, vitamins A, C, D, K and B12, folate, iodine and selenium. Omega-3s aren't sent, because Health has no type for them.
+- Sent: calories, protein, carbs, fat, sugars, saturated fat, water, fibre, sodium, potassium, calcium, magnesium, iron, zinc, vitamins A, C, D, K and B12, folate, iodine and selenium. Omega-3s aren't sent, because Health has no type for them.
 - Editing or deleting food after sending can't reduce Health from Pithos. Adjust those in the Health app.
 - It can't sync automatically in the background. That's an iOS limit for web apps.
 

@@ -8,6 +8,14 @@ export const MACROS = [
   { key: 'fat', label: 'Fat', unit: 'g', kcalPerG: 9 },
 ];
 
+// "Of which" sub-values shown under their macro (like a UK label). Both are
+// daily limits: UK reference intakes, editable in Settings.
+export const SUBS = [
+  { key: 'sugars', parent: 'carbs', label: 'Sugars', of: 'of which sugars', unit: 'g', limit: 90 },
+  { key: 'satfat', parent: 'fat', label: 'Saturates', of: 'of which saturates', unit: 'g', limit: 20 },
+];
+export const SUB_KEYS = SUBS.map((s) => s.key);
+
 // Default daily targets and upper limits (all editable in Settings).
 // kind 'target' = aim to reach it; kind 'limit' = stay under it (sodium).
 // upperNote marks upper limits that only apply to supplements / fortified /
@@ -43,7 +51,7 @@ export const MICRO_GROUPS = [
   { key: 'minerals', label: 'Minerals', keys: ['sodium', 'potassium', 'calcium', 'magnesium', 'iron', 'zinc', 'iodine', 'selenium'] },
   { key: 'other', label: 'Fibre & omega-3s', keys: ['fibre', 'ala', 'epadha'] },
 ].map((g) => ({ ...g, items: g.keys.map((k) => MICROS.find((m) => m.key === k)) }));
-export const ALL_KEYS = ['kcal', 'protein', 'carbs', 'fat', ...MICRO_KEYS];
+export const ALL_KEYS = ['kcal', 'protein', 'carbs', 'fat', ...SUB_KEYS, ...MICRO_KEYS];
 
 export const MEALS = [
   { key: 'breakfast', label: 'Breakfast' },
@@ -58,6 +66,8 @@ export function defaultSettings() {
     protein: 160,
     carbs: 220,
     fat: 75,
+    sugars: 90,
+    satfat: 20,
     water: 2500,
     micros: Object.fromEntries(MICROS.map((m) => [m.key, m.target])),
     upper: Object.fromEntries(MICROS.map((m) => [m.key, m.upper])),
@@ -107,14 +117,14 @@ export function normNutrients(src = {}) {
 }
 
 /**
- * Fill "no data" micronutrients from a linked (similar) food.
+ * Fill "no data" sugars, saturates and micronutrients from a linked (similar) food.
  * Returns { per100, estimated: [keys filled from the link] }.
  */
 export function applyLink(per100, linked) {
   const out = normNutrients(per100);
   const estimated = [];
   if (!linked) return { per100: out, estimated };
-  for (const k of MICRO_KEYS) {
+  for (const k of [...SUB_KEYS, ...MICRO_KEYS]) {
     if (out[k] === null && linked[k] !== null && linked[k] !== undefined) {
       out[k] = linked[k];
       estimated.push(k);
