@@ -60,13 +60,14 @@ export async function seedIfNeeded() {
   }
 }
 
-const DATA_VERSION = 3;
+const DATA_VERSION = 4;
 
 /**
  * Upgrades stored data. Needs the food database loaded.
  * v2: new nutrients (B12, iodine, selenium, omega-3s, sodium) added to preset foods.
  * v3: fill "no data" gaps in logged entries from the (fixed) food database - the
  *     first CoFID build had no minerals. Values that already exist are never changed.
+ * v4: sugars and saturated fat added; filled into logged entries the same way.
  */
 export async function migrateIfNeeded() {
   const from = (await db.get('kv', 'dataVersion')) || 1;

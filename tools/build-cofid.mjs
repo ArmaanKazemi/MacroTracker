@@ -30,6 +30,7 @@ const COLS = {
   protein: /^protein\b/i,
   carbs: /^carbohydrate\b/i,
   fat: /^fat\s*(\(g\))?\s*(\(g\))?$/i,
+  sugars: /^total\s*sugars\b/i,
   fibreAOAC: /^aoac\s*fibre/i,
   fibreNSP: /^nsp\b/i,
   potassium: /^potassium\b/i,
@@ -55,8 +56,13 @@ const FA_COLS = {
   ala: [/(18:3.*n-?3)|(n-?3.*18:3)/i],
   epa: [/(20:5.*n-?3)|(n-?3.*20:5)/i],
   dha: [/(22:6.*n-?3)|(n-?3.*22:6)/i, /\bC?22:6\b/i],
+  // "Satd FA /100g fd (g)" in Proximates; "/100g FA" columns are skipped by perFood().
+  satfat: [/^sat(ur)?(ate)?d?\b.*\b(fa|fatty)\b/i, /total saturated/i],
 };
-const perFood = (text) => /food/i.test(text) && !/100\s*g\s*(total\s*)?(fa\b|fatty)/i.test(text);
+const perFA = (text) => /100\s*g\s*(total\s*)?(fa\b|fatty)/i.test(text);
+const perFood = (text) => /\b(food|fd)\b/i.test(text) && !perFA(text);
+// Saturates also appear in Proximates with no "/100g" basis at all (that's per food).
+const perFoodOrPlain = (text) => perFood(text) || (!perFA(text) && !/100\s*g/i.test(text));
 
 const GROUPS = {
   A: 'Cereals', B: 'Milk & dairy', C: 'Eggs', D: 'Vegetables', F: 'Fruit', G: 'Nuts & seeds',
@@ -102,7 +108,8 @@ export function parseWorkbook(buf) {
     if (idx.code === undefined) continue;
     for (const [key, patterns] of Object.entries(FA_COLS)) {
       for (const re of patterns) {
-        const i = header.findIndex((c) => re.test(c) && perFood(`${sheetName} ${c}`));
+        const ok = key === 'satfat' ? perFoodOrPlain : perFood;
+        const i = header.findIndex((c) => re.test(c) && ok(`${sheetName} ${c}`));
         if (i >= 0) { idx[key] = i; break; }
       }
     }

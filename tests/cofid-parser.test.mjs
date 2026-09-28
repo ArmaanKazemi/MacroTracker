@@ -11,12 +11,12 @@ const XLSX = require('../tools/node_modules/xlsx');
 const meta = ['Food Code', 'Food Name', 'Description', 'Group', 'Previous', 'Main data references', 'Footnote'];
 const prox = [
   ['1.3 Proximates'],
-  [...meta, 'Water (g)', 'Protein (g)', 'Fat (g)', 'Carbohydrate (g)', 'Energy (kcal) (kcal)', 'Energy (kJ) (kJ)', 'Starch (g)', 'Total sugars (g)', 'NSP (g)', 'AOAC fibre (g)', 'Fatty acids, total saturated (g)'],
-  [null, null, null, null, null, null, null, 'WATER', 'PROT', 'FAT', 'CHO', 'KCALS', 'KJ', 'STARCH', 'TOTSUG', 'NSP', 'AOACFIB', 'SATFOD'],
-  ['14-319', 'Raspberries, raw', '', 'FA', '', '', '', 87, 1.4, 0.3, 4.6, 25, 109, 0, 4.6, 2.5, 6.5, 0.1],
-  ['14-101', 'Blueberries, raw', '', 'FA', '', '', '', 85, 0.9, 0.2, 9.1, 40, 170, 0, 9.1, 'N', '', 'Tr'],
-  ['13-500', 'Peanut butter, smooth', '', 'GA', '', '', '', 1, 22.6, 51.8, 13.1, 607, 2515, 6, 7, 5.4, 'N', 10],
-  ['11-999', 'Mystery food no energy', '', 'AA', '', '', '', 1, 'N', 'N', 'N', 'N', 'N', '', '', '', '', ''],
+  [...meta, 'Water (g)', 'Protein (g)', 'Fat (g)', 'Carbohydrate (g)', 'Energy (kcal) (kcal)', 'Energy (kJ) (kJ)', 'Starch (g)', 'Total sugars (g)', 'NSP (g)', 'AOAC fibre (g)', 'Satd FA /100g FA (g)', 'Satd FA /100g fd (g)'],
+  [null, null, null, null, null, null, null, 'WATER', 'PROT', 'FAT', 'CHO', 'KCALS', 'KJ', 'STARCH', 'TOTSUG', 'NSP', 'AOACFIB', 'SATFAC', 'SATFOD'],
+  ['14-319', 'Raspberries, raw', '', 'FA', '', '', '', 87, 1.4, 0.3, 4.6, 25, 109, 0, 4.6, 2.5, 6.5, 15, 0.1],
+  ['14-101', 'Blueberries, raw', '', 'FA', '', '', '', 85, 0.9, 0.2, 9.1, 40, 170, 0, 9.1, 'N', '', 'N', 'Tr'],
+  ['13-500', 'Peanut butter, smooth', '', 'GA', '', '', '', 1, 22.6, 51.8, 13.1, 607, 2515, 6, 7, 5.4, 'N', 20, 10],
+  ['11-999', 'Mystery food no energy', '', 'AA', '', '', '', 1, 'N', 'N', 'N', 'N', 'N', '', '', '', '', '', ''],
 ];
 const inorg = [
   // Real CoFID 2021 quirk: this sheet's "Food Code" header cell is blank.
@@ -62,10 +62,10 @@ const foods = parseWorkbook(buf);
 const rows = toCompact(foods);
 const byCode = Object.fromEntries(rows.map((r) => [r[0], r]));
 assert.equal(rows.length, 3, 'food without energy (and salmon, only in the FA sheet) is dropped');
-// [code, name, group, kcal, P, C, F, fibre, K, Mg, folate, vitC, vitA, vitK, Fe, Zn, Ca, vitD, Na, B12, I, Se, ALA, EPA+DHA]
-assert.deepEqual(byCode['14-319'], ['14-319', 'Raspberries, raw', 'Fruit', 25, 1.4, 4.6, 0.3, 6.5, 170, 19, 33, 32, 1, 7.8, 0.7, 0.4, 25, 0, 3, 0, null, 0, 0.13, 0]);
+// [code, name, group, kcal, P, C, F, fibre, K, Mg, folate, vitC, vitA, vitK, Fe, Zn, Ca, vitD, Na, B12, I, Se, ALA, EPA+DHA, sugars, satfat]
+assert.deepEqual(byCode['14-319'], ['14-319', 'Raspberries, raw', 'Fruit', 25, 1.4, 4.6, 0.3, 6.5, 170, 19, 33, 32, 1, 7.8, 0.7, 0.4, 25, 0, 3, 0, null, 0, 0.13, 0, 4.6, 0.1]);
 const pb = byCode['13-500'];
-assert.deepEqual(pb.slice(18), [350, 0, 3, 4, 0, null], 'PB: sodium, B12 Tr, iodine, selenium, ALA Tr (per food, not per FA), EPA+DHA N');
+assert.deepEqual(pb.slice(18), [350, 0, 3, 4, 0, null, 7, 10], 'PB: sodium, B12 Tr, iodine, selenium, ALA Tr (per food, not per FA), EPA+DHA N');
 const bb = byCode['14-101'];
 assert.equal(bb[18], 6, 'minerals read from the sheet with a blank Food Code header');
 // salmon row only exists in the FA sheet (no energy) so it's dropped, but check EPA+DHA maths via a food with energy:
@@ -74,6 +74,7 @@ assert.equal(bb[18], 6, 'minerals read from the sheet with a blank Food Code hea
   assert.equal(f.epa, 0.8);
   assert.equal(f.dha, 1.2, 'DHA read from the unlabelled C22:6 column');
 }
+assert.deepEqual(bb.slice(24), [9.1, 0], 'blueberry sugars; saturates Tr -> 0 (per-FA column ignored)');
 assert.equal(bb[7], null, 'blueberry fibre N/blank -> no data');
 assert.equal(bb[8], null, 'potassium N -> no data');
 assert.equal(bb[14], 0, 'iron Tr -> 0');

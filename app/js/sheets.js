@@ -1,7 +1,7 @@
 // Bottom-sheet flows: add food, food detail / log / edit entry, link to CoFID,
 // custom food form, saved meals (recipes), barcode scanning.
 import { el, esc, $, $$, icons, openSheet, toast, confirmSheet, round1, swipeToDelete } from './ui.js';
-import { MEALS, MICROS, MICRO_GROUPS, scale, fmt, normNutrients, macroKcal, MICRO_KEYS } from './nutrients.js';
+import { MEALS, MICROS, MICRO_GROUPS, SUBS, scale, fmt, normNutrients, macroKcal, MICRO_KEYS } from './nutrients.js';
 import * as fooddb from './fooddb.js';
 import * as store from './store.js';
 
@@ -406,7 +406,8 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     const a = amount();
     const n = scale(per100, a);
     $(body, '[data-preview]').innerHTML = [['kcal', 'Kcal'], ['protein', 'Protein'], ['carbs', 'Carbs'], ['fat', 'Fat']]
-      .map(([k, l]) => `<div><div class="stat-v">${n[k] === null ? '—' : fmt(n[k], k === 'kcal' ? 'kcal' : '')}${k !== 'kcal' && n[k] !== null ? '<small class="muted" style="font-size:12px">g</small>' : ''}</div><div class="stat-l">${l}</div></div>`).join('');
+      .map(([k, l]) => `<div><div class="stat-v">${n[k] === null ? '—' : fmt(n[k], k === 'kcal' ? 'kcal' : '')}${k !== 'kcal' && n[k] !== null ? '<small class="muted" style="font-size:12px">g</small>' : ''}</div><div class="stat-l">${l}</div>${SUBS.filter((s) => s.parent === k).map((s) =>
+        `<div class="stat-sub" data-sub="${s.key}">${s.key === 'satfat' ? 'sat.' : 'sugars'} ${n[s.key] === null ? 'no data' : `${estimated.includes(s.key) ? '~' : ''}${fmt(n[s.key])}g`}</div>`).join('')}</div>`).join('');
     const missing = MICRO_KEYS.filter((k) => per100[k] === null).length;
     $(body, '[data-micro-count]').innerHTML = missing
       ? `<span class="pill na">${missing} no data</span>`
@@ -560,6 +561,7 @@ export function openFoodForm(food, { onSaved, logging = false } = {}) {
       </div>
       <p class="note" data-basis-note>Enter values exactly as on the label. They're converted to per 100 when saved.</p>
       <div class="grid2">${numField('kcal', 'Calories', 'kcal')}${numField('protein', 'Protein', 'g')}${numField('carbs', 'Carbs', 'g')}${numField('fat', 'Fat', 'g')}</div>
+      <div class="grid2 of-which">${SUBS.map((s) => numField(s.key, s.of, s.unit)).join('')}</div>
       <div class="list-h">Micronutrients <span style="text-transform:none;letter-spacing:0;font-weight:600">· leave blank if unknown</span></div>
       ${MICRO_GROUPS.map((g) => `
         <div class="sub-h">${g.label}</div>

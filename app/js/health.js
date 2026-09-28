@@ -14,6 +14,8 @@ export const HEALTH_FIELDS = [
   ['protein', 'Protein', 'g', 1],
   ['carbs', 'Carbohydrates', 'g', 1],
   ['fat', 'Total Fat', 'g', 1],
+  ['sugars', 'Dietary Sugar', 'g', 1],
+  ['satfat', 'Saturated Fat', 'g', 1],
   ['water', 'Water', 'mL', 0],
   ['fibre', 'Fiber', 'g', 1],
   ['sodium', 'Sodium', 'mg', 0],

@@ -6,7 +6,7 @@
 // When the full CoFID file is built, `match` patterns map these starter IDs
 // to the real CoFID food so links resolve to official values automatically.
 
-export const FIELDS = ['kcal', 'protein', 'carbs', 'fat', 'fibre', 'potassium', 'magnesium', 'folate', 'vitC', 'vitA', 'vitK', 'iron', 'zinc', 'calcium', 'vitD', 'sodium', 'vitB12', 'iodine', 'selenium', 'ala', 'epadha'];
+export const FIELDS = ['kcal', 'protein', 'carbs', 'fat', 'fibre', 'potassium', 'magnesium', 'folate', 'vitC', 'vitA', 'vitK', 'iron', 'zinc', 'calcium', 'vitD', 'sodium', 'vitB12', 'iodine', 'selenium', 'ala', 'epadha', 'sugars', 'satfat'];
 
 // [id, name, group, [match patterns for CoFID], kcal, P, C, F, fibre, K, Mg, folate, vitC, vitA, vitK, Fe, Zn, Ca, vitD]
 export const STARTER = [
@@ -117,10 +117,17 @@ const EXTRA = {
   S73: [1, 0, null, 0.1, 0.01, 0], S74: [2, 0, null, 0, 0, 0], S75: [3, 0, null, 0, 0, 0],
 };
 
+// Added in v3, per 100 g: [total sugars g, saturated fat g]. Only the foods behind the
+// pre-loaded favourites; everything else comes from CoFID once it's built.
+const EXTRA3 = {
+  S01: [4.6, 0.1], S02: [9.1, 0], S03: [3.0, 0.1], S04: [1.6, 3.7], S05: [6.7, 10.3],
+  S06: [8.2, 0.1], S07: [3.1, 2.6], S08: [4.0, 0.2], S09: [6.0, 2.5], S10: [18.0, 3.0],
+};
+
 export function starterJson() {
   return {
     source: 'Starter set (approximate values)',
     fields: FIELDS,
-    foods: STARTER.map(([id, name, group, _m, ...vals]) => [id, name, group, ...vals, ...(EXTRA[id] || Array(6).fill(null))]),
+    foods: STARTER.map(([id, name, group, _m, ...vals]) => [id, name, group, ...vals, ...(EXTRA[id] || Array(6).fill(null)), ...(EXTRA3[id] || [null, null])]),
   };
 }

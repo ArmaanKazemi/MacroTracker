@@ -1,6 +1,6 @@
 // Nutrients, Foods and Settings screens.
 import { el, esc, $, $$, icons, animateNumber, setFill, dateSwitcher, toast, addDays, parseKey, todayKey, confirmSheet, swipeToDelete } from './ui.js';
-import { MICROS, MICRO_GROUPS, MACROS, totals, fmt, macroKcal, defaultSettings, microStatus } from './nutrients.js';
+import { MICROS, MICRO_GROUPS, MACROS, SUBS, totals, fmt, macroKcal, defaultSettings, microStatus } from './nutrients.js';
 import * as store from './store.js';
 import * as fooddb from './fooddb.js';
 import * as db from './db.js';
@@ -194,6 +194,9 @@ export function mountSettings(view) {
       <label class="field"><span>Calories <i class="unit">(kcal)</i></span><input class="input num" type="number" inputmode="numeric" min="0" step="1" data-s="kcal"></label>
       <div class="grid3">
         ${MACROS.map((m) => `<label class="field"><span>${m.label} <i class="unit">(g)</i></span><input class="input num" type="number" inputmode="numeric" min="0" step="1" data-s="${m.key}"></label>`).join('')}
+      </div>
+      <div class="grid2">
+        ${SUBS.map((s) => `<label class="field"><span>${s.label} max <i class="unit">(g)</i></span><input class="input num" type="number" inputmode="numeric" min="0" step="1" data-s="${s.key}"></label>`).join('')}
       </div>
       <div class="kv" style="border-top:0;padding-top:4px"><span class="muted">Macros add up to</span><b class="num" data-mk></b></div>
       <p class="note" data-mdiff style="margin-top:0"></p>
