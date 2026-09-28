@@ -6,7 +6,7 @@ import { mountToday } from './today.js';
 import { mountNutrients, mountFoods, mountSettings, guessMeal } from './views.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.3.0';
+window.APP_VERSION = '2.3.1';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), microMode: 'day', foodsTab: 'fav' };
@@ -46,10 +46,9 @@ export function applyTheme(theme) {
   syncThemeColor();
 }
 
-/** Tint the browser / status-bar area: the hero's top colour on Today, the page colour elsewhere. */
+/** Tint the browser / status-bar area to the page colour (the top of every screen is plain parchment). */
 function syncThemeColor() {
-  const css = getComputedStyle(document.documentElement);
-  const color = css.getPropertyValue(currentName === 'today' ? '--hero-top' : '--bg').trim();
+  const color = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
   if (color) document.querySelector('meta[name="theme-color"]').setAttribute('content', color);
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => syncThemeColor());
