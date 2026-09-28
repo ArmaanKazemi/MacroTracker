@@ -186,6 +186,7 @@ export function mountToday(view, state) {
     const bar = $(hero, '.arc-bar');
     bar.setAttribute('class', `arc-bar c-${st}`);
     bar.style.strokeDashoffset = 100 * (1 - Math.min(1, goal ? eaten / goal : 0));
+    bar.style.opacity = eaten > 0 ? 1 : 0; // a zero-length dash would still draw a round cap
     animateNumber($(hero, '[data-remaining]'), Math.abs(remaining));
     $(hero, '[data-remaining]').className = `big num${remaining < 0 ? ' c-red' : ''}`;
     $(hero, '[data-remaining-label]').textContent = remaining < 0 ? 'Over' : 'Remaining';
