@@ -1,10 +1,12 @@
 // Nutrients, Foods and Settings screens.
-import { el, esc, $, $$, icons, animateNumber, setFill, dateSwitcher, toast, addDays, parseKey, todayKey, confirmSheet } from './ui.js';
+import { el, esc, $, $$, icons, animateNumber, setFill, dateSwitcher, toast, addDays, parseKey, todayKey, confirmSheet, swipeToDelete } from './ui.js';
 import { MICROS, MACROS, totals, fmt, macroKcal, defaultSettings, microStatus } from './nutrients.js';
 import * as store from './store.js';
 import * as fooddb from './fooddb.js';
 import * as db from './db.js';
-import { openFoodDetail, openFoodForm, openRecipeEditor, openRecipeLog, recipeTotals, changed } from './sheets.js';
+import { HEALTH_FIELDS, CORE_KEYS, DEFAULT_SHORTCUT } from './health.js';
+import { openSheet } from './ui.js';
+import { openFoodDetail, openFoodForm, openRecipeEditor, openRecipeLog, recipeTotals, changed, removeFood, removeRecipe } from './sheets.js';
 
 export function guessMeal() {
   const h = new Date().getHours();
@@ -128,24 +130,34 @@ export function mountFoods(view, state) {
   const seg = el(`<div class="seg" role="tablist"><button role="tab" data-t="fav">Favourites</button><button role="tab" data-t="mine">My foods</button><button role="tab" data-t="meals">Saved meals</button></div>`);
   const actions = el(`<div class="btns" style="margin:0 0 12px"><button class="btn sm" type="button" data-nf>${icons.plus} New food</button><button class="btn sm" type="button" data-nm>${icons.plus} New meal</button></div>`);
   const card = el('<section class="card"></section>');
-  view.append(seg, actions, card);
+  const hint = el('<p class="hint">Swipe left on an item to delete it.</p>');
+  view.append(seg, actions, card, hint);
   $(actions, '[data-nf]').onclick = () => openFoodForm(null);
   $(actions, '[data-nm]').onclick = () => openRecipeEditor(null);
   $$(seg, '[data-t]').forEach((b) => (b.onclick = () => { tab = state.foodsTab = b.dataset.t; refresh(); }));
 
-  async function refresh() {
+  // Queued so overlapping refreshes can't both append rows.
+  let chain = Promise.resolve();
+  function refresh() {
+    chain = chain.then(refreshNow).catch((e) => console.error(e));
+    return chain;
+  }
+
+  async function refreshNow() {
     await fooddb.load();
     $$(seg, '[data-t]').forEach((b) => b.setAttribute('aria-selected', b.dataset.t === tab));
     card.innerHTML = '';
+    hint.hidden = false;
     if (tab === 'meals') {
       const recipes = (await store.getRecipes()).sort((a, b) => a.name.localeCompare(b.name));
       if (!recipes.length) card.innerHTML = '<p class="empty">No saved meals yet. Tap “New meal” to combine foods you often eat together.</p>';
+      hint.hidden = !recipes.length;
       for (const r of recipes) {
         const t = await recipeTotals(r);
         const row = el(`<button class="result" type="button"><div class="item-main"><div class="item-name">${esc(r.name)}</div>
           <div class="macros-line"><b>${fmt(t.kcal, 'kcal')}</b> kcal · P ${fmt(t.protein)} · C ${fmt(t.carbs)} · F ${fmt(t.fat)} · ${r.items.length} items</div></div></button>`);
         row.onclick = () => openRecipeLog(r, { date: todayKey(), meal: guessMeal(), onLogged: () => changed(), onEdited: refresh });
-        card.appendChild(row);
+        card.appendChild(swipeToDelete(row, { onDelete: () => removeRecipe(r) }));
       }
       return;
     }
@@ -153,6 +165,7 @@ export function mountFoods(view, state) {
       .filter((f) => (tab === 'fav' ? f.favourite : f.source !== 'generic'))
       .sort((a, b) => a.name.localeCompare(b.name));
     if (!foods.length) card.innerHTML = `<p class="empty">${tab === 'fav' ? 'No favourites yet.' : 'No custom foods yet.'}</p>`;
+    hint.hidden = !foods.length;
     for (const f of foods) {
       const { per100, estimated } = store.resolve(f);
       const noData = MICROS.filter((m) => per100[m.key] === null).length;
@@ -161,7 +174,7 @@ export function mountFoods(view, state) {
         <div class="macros-line"><b>${fmt(per100.kcal, 'kcal')}</b> kcal · P ${fmt(per100.protein)} · C ${fmt(per100.carbs)} · F ${fmt(per100.fat)} <span class="muted">per 100${f.unit || 'g'}</span>
         ${noData ? ` · <span class="pill na">${noData} no data</span>` : estimated.length ? ' · <span class="pill est">micros est.</span>' : ''}</div></div></button>`);
       row.onclick = () => openFoodDetail(f, { date: todayKey(), meal: guessMeal(), onLogged: () => { changed(); toast(`Logged ${f.name.slice(0, 28)} to today`); } });
-      card.appendChild(row);
+      card.appendChild(swipeToDelete(row, { onDelete: () => removeFood(f) }));
     }
   }
   return { refresh };
@@ -201,6 +214,14 @@ export function mountSettings(view) {
         </div>`).join('')}
       </div>
     </section>`);
+  const healthBox = el(`
+    <section class="card">
+      <div class="eyebrow">Apple Health</div>
+      <p class="note">Send your daily nutrition and water to Apple Health. iPhone web apps can't write to Health directly, so this uses a Shortcut that you build once in Apple's Shortcuts app.</p>
+      <button class="btn sm block" type="button" data-hguide>How to set it up</button>
+      <div class="toggle" style="margin-top:10px"><span>Show “Send to Health” on Today</span><label class="switch"><input type="checkbox" data-henabled aria-label="Enable Apple Health sync"><span></span></label></div>
+      <label class="field"><span>Shortcut name</span><input class="input" data-hname autocomplete="off" autocapitalize="off"></label>
+    </section>`);
   const data = el(`
     <section class="card">
       <div class="eyebrow">Your data</div>
@@ -216,7 +237,7 @@ export function mountSettings(view) {
       <p class="note">Branded products from Open Food Facts (openfoodfacts.org, ODbL). Generic foods from the UK Composition of Foods Integrated Dataset (CoFID), Public Health England / OHID.</p>
       <p class="note" data-ver></p>
     </section>`);
-  view.append(goals, micros, data, about);
+  view.append(goals, micros, healthBox, data, about);
 
   let s;
   const save = async () => { await store.saveSettings(s); changed(); };
@@ -229,6 +250,8 @@ export function mountSettings(view) {
     }
     for (const inp of $$(micros, '[data-micro]')) if (document.activeElement !== inp) inp.value = s.micros[inp.dataset.micro];
     for (const inp of $$(micros, '[data-upper]')) if (document.activeElement !== inp) inp.value = s.upper[inp.dataset.upper] ?? '';
+    $(healthBox, '[data-henabled]').checked = !!s.health?.enabled;
+    if (document.activeElement !== $(healthBox, '[data-hname]')) $(healthBox, '[data-hname]').value = s.health?.shortcut || DEFAULT_SHORTCUT;
     updateMacroKcal();
     const [foods, recipes, entries] = await Promise.all([store.getFoods(), store.getRecipes(), db.getAll('entries')]);
     const days = new Set(entries.map((e) => e.date)).size;
@@ -296,6 +319,17 @@ export function mountSettings(view) {
     toast('Targets and limits reset to defaults');
   };
 
+  $(healthBox, '[data-henabled]').onchange = async (e) => {
+    s.health = { ...(s.health || {}), enabled: e.target.checked };
+    await save();
+    if (e.target.checked) toast('Tap “Send to Health” on the Today screen');
+  };
+  $(healthBox, '[data-hname]').onchange = async (e) => {
+    s.health = { ...(s.health || {}), shortcut: e.target.value.trim() || DEFAULT_SHORTCUT };
+    await save();
+  };
+  $(healthBox, '[data-hguide]').onclick = () => openHealthGuide(s.health?.shortcut || DEFAULT_SHORTCUT);
+
   $(data, '[data-export]').onclick = async () => {
     const json = await db.exportAll();
     const blob = new Blob([JSON.stringify(json, null, 1)], { type: 'application/json' });
@@ -334,4 +368,43 @@ export function mountSettings(view) {
     }
   };
   return { refresh };
+}
+
+// ======================================================================
+// Apple Health setup guide
+// ======================================================================
+function openHealthGuide(name) {
+  const row = ([key, type, unit]) => `<tr><td><code>${key}</code></td><td>${esc(type)}</td><td>${esc(unit)}</td></tr>`;
+  const body = el(`
+    <div class="guide">
+      <p class="note" style="margin-top:0">You only do this once. It takes about 10 minutes. After that, tap <b>Send to Health</b> on the Today screen whenever you want to sync. Fuel sends only what's new since your last send, so nothing is counted twice.</p>
+      <ol>
+        <li>Open Apple's <b>Shortcuts</b> app and tap <b>+</b> to make a new shortcut.</li>
+        <li>Tap the name at the top, choose <b>Rename</b> and call it exactly <b>${esc(name)}</b>.</li>
+        <li>Tap <b>Search Actions</b>, find <b>Get Dictionary from Input</b> and add it. It should read “Get dictionary from <i>Shortcut Input</i>”. If Shortcuts asks what input it receives, choose <b>Text</b>.</li>
+        <li>Add <b>Get Dictionary Value</b>. Set it to “Get <b>Value</b> for <b>date</b> in <i>Dictionary</i>”. Then tap the action's result and <b>Rename</b> it to <b>Date</b>.</li>
+        <li>Now, for each nutrient you want in Health (start with the first five):
+          <ol type="a">
+            <li>Add <b>Get Dictionary Value</b> → “Get <b>Value</b> for <b>kcal</b> in <i>Dictionary</i>”. Use the key from the table below, and make sure it points at the <i>Dictionary</i> from step 3.</li>
+            <li>Add <b>Log Health Sample</b>. Set <b>Type</b> to the Health type in the table (e.g. <b>Dietary Energy</b>), <b>Value</b> to the <i>Dictionary Value</i> you just got, the unit from the table, and <b>Date</b> to <i>Date</i>.</li>
+          </ol>
+        </li>
+        <li>Tap <b>Done</b>. Back in Fuel, turn on <b>Show “Send to Health” on Today</b> and tap <b>Send to Health</b>. The first time, iOS asks for permission to write to Health: tap <b>Allow</b>. Then swipe back to Fuel.</li>
+      </ol>
+      <div class="list-h">Keys, Health types and units</div>
+      <table class="htable">
+        <thead><tr><th>Key</th><th>Health type</th><th>Unit</th></tr></thead>
+        <tbody>${HEALTH_FIELDS.filter(([k]) => CORE_KEYS.includes(k)).map(row).join('')}
+          <tr><td colspan="3" class="muted small" style="padding-top:10px">Optional extras:</td></tr>
+          ${HEALTH_FIELDS.filter(([k]) => !CORE_KEYS.includes(k)).map(row).join('')}</tbody>
+      </table>
+      <div class="list-h">Good to know</div>
+      <ul>
+        <li>Every key is always sent, even when it's 0, so you can add as many or as few nutrients as you like.</li>
+        <li>If you edit or delete food after sending, Health can't be reduced from Fuel. Fix it in the Health app (Browse → Nutrition → the nutrient → Show All Data).</li>
+        <li>Omega-3s aren't sent: Apple Health has no type for them.</li>
+        <li>If a send doesn't arrive, tap <b>Didn't arrive? Mark as not sent</b> on the Today screen and send again.</li>
+      </ul>
+    </div>`);
+  openSheet({ title: 'Apple Health setup', body, tall: true });
 }

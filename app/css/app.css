@@ -270,3 +270,24 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .mname .unit { color: var(--muted); font-weight: 600; font-size: 12.5px; }
 .mname small { display: block; font-weight: 500; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
 .mnone { color: var(--dim); text-align: center; }
+
+/* ---------- Swipe to delete ---------- */
+.swipe { position: relative; overflow: hidden; transition: height 0.22s var(--ease), opacity 0.22s; }
+.swipe.gone { height: 0 !important; opacity: 0; }
+.swipe-content { position: relative; z-index: 1; background: var(--swipe-bg, var(--card)); transition: transform 0.3s var(--ease); will-change: transform; }
+.sheet .swipe-content { --swipe-bg: #0d0f12; }
+.swipe-del { visibility: hidden; position: absolute; inset: 1px 0; border: 0; background: var(--red); color: #fff; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: flex-end; padding-right: 22px; }
+.swipe > .result { border-top: 0; }
+.swipe + .swipe > .result { border-top: 1px solid var(--line); }
+.hint { font-size: 12.5px; color: var(--dim); margin: 2px 4px 10px; }
+
+/* ---------- Apple Health guide ---------- */
+.guide ol, .guide ul { padding-left: 20px; margin: 8px 0; }
+.guide li { margin: 8px 0; line-height: 1.45; font-size: 15px; }
+.guide li ol li { font-size: 14px; }
+.guide i { color: var(--blue); font-style: normal; font-weight: 600; }
+.htable { width: 100%; border-collapse: collapse; font-size: 14px; }
+.htable th { text-align: left; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 6px 4px; }
+.htable td { padding: 7px 4px; border-top: 1px solid var(--line); }
+.htable code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--green); font-size: 13px; }
+.swipe.swiping .swipe-del, .swipe.open .swipe-del, .swipe.gone .swipe-del { visibility: visible; }

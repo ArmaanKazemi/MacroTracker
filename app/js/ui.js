@@ -230,3 +230,116 @@ export function dateSwitcher(key, onChange) {
 export function round1(v) {
   return Math.round(v * 10) / 10;
 }
+
+// ---------- swipe left to delete ----------
+let openSwipe = null;
+document.addEventListener('pointerdown', (e) => {
+  if (openSwipe && !openSwipe.wrap.contains(e.target)) openSwipe.close();
+}, true);
+
+/**
+ * Wrap a list row so swiping it left reveals a Delete button.
+ * A long swipe (past 60% of the width) deletes straight away.
+ * Returns the wrapper element to insert instead of the row.
+ */
+export function swipeToDelete(content, { label = 'Delete', onDelete }) {
+  const wrap = el(`<div class="swipe"><button class="swipe-del" type="button" tabindex="-1">${esc(label)}</button></div>`);
+  content.classList.add('swipe-content');
+  wrap.appendChild(content);
+  const OPEN = 92;
+  let x0 = 0, y0 = 0, dx = 0, base = 0, pid = null, decided = false, horizontal = false, suppress = false;
+
+  const set = (x, animate) => {
+    content.style.transition = animate ? '' : 'none';
+    content.style.transform = x ? `translateX(${x}px)` : '';
+  };
+  const handle = {
+    wrap,
+    close() {
+      base = 0;
+      set(0, true);
+      wrap.classList.remove('open');
+      setTimeout(() => { if (!wrap.classList.contains('open')) wrap.classList.remove('swiping'); }, 320);
+      if (openSwipe === handle) openSwipe = null;
+    },
+  };
+  let deleted = false;
+  const doDelete = () => {
+    if (deleted) return;
+    deleted = true;
+    set(-wrap.offsetWidth, true);
+    wrap.style.height = `${wrap.offsetHeight}px`;
+    requestAnimationFrame(() => wrap.classList.add('gone'));
+    if (openSwipe === handle) openSwipe = null;
+    setTimeout(() => onDelete(), 220);
+  };
+
+  const start = (x, y) => {
+    x0 = x;
+    y0 = y;
+    dx = base;
+    decided = horizontal = false;
+  };
+  // Returns true once the gesture is a horizontal swipe (caller then blocks scrolling).
+  const move = (x, y) => {
+    const mx = x - x0;
+    const my = y - y0;
+    if (!decided) {
+      if (Math.abs(mx) < 8 && Math.abs(my) < 8) return false;
+      decided = true;
+      horizontal = Math.abs(mx) > Math.abs(my) * 1.2;
+      if (horizontal && openSwipe && openSwipe !== handle) openSwipe.close();
+    }
+    if (!horizontal) return false;
+    wrap.classList.add('swiping');
+    dx = Math.max(-wrap.offsetWidth, Math.min(0, base + mx));
+    set(dx, false);
+    return true;
+  };
+  const end = () => {
+    if (!horizontal) return;
+    horizontal = false;
+    suppress = true;
+    setTimeout(() => (suppress = false), 60);
+    const w = wrap.offsetWidth;
+    if (dx < -w * 0.6) doDelete();
+    else if (dx < -OPEN / 2) {
+      base = -OPEN;
+      set(-OPEN, true);
+      wrap.classList.add('open');
+      openSwipe = handle;
+    } else handle.close();
+  };
+
+  // Touch (iPhone): touch events, so we can stop the page scrolling once the swipe is horizontal.
+  content.addEventListener('touchstart', (e) => start(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+  content.addEventListener('touchmove', (e) => {
+    if (move(e.touches[0].clientX, e.touches[0].clientY) && e.cancelable) e.preventDefault();
+  }, { passive: false });
+  content.addEventListener('touchend', end);
+  content.addEventListener('touchcancel', end);
+  // Mouse (desktop): pointer events.
+  content.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    pid = e.pointerId;
+    start(e.clientX, e.clientY);
+  });
+  content.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== pid) return;
+    if (move(e.clientX, e.clientY)) { try { content.setPointerCapture(pid); } catch { /* ignore */ } }
+  });
+  const pend = (e) => { if (e.pointerId === pid) { pid = null; end(); } };
+  content.addEventListener('pointerup', pend);
+  content.addEventListener('pointercancel', pend);
+  // Swallow the tap that ends a swipe, and use a tap on an open row to close it.
+  wrap.addEventListener('click', (e) => {
+    if (e.target.closest('.swipe-del')) return;
+    if (suppress || wrap.classList.contains('open')) {
+      e.stopPropagation();
+      e.preventDefault();
+      if (!suppress) handle.close();
+    }
+  }, true);
+  $(wrap, '.swipe-del').onclick = doDelete;
+  return wrap;
+}
