@@ -1,4 +1,6 @@
-# Fuel — personal nutrition tracker (PWA)
+# Pithos — personal nutrition tracker (PWA)
+
+*A pithos is the great storage jar of ancient Greece.*
 
 A dark, athletic-looking nutrition tracker that runs entirely in your browser. You can install it to your iPhone home screen and it works offline. There's no backend, no account and no AI. All your data stays on your phone in IndexedDB.
 
@@ -38,7 +40,7 @@ Design: "modern classical". Warm ivory paper, ink and terracotta, with serif num
 
 1. Open the site in **Safari**. It must be Safari; other iOS browsers can't install web apps.
 2. Tap the **Share** button, then **Add to Home Screen**, then **Add**.
-3. Launch **Fuel** from the home screen. It opens full-screen, like a native app.
+3. Launch **Pithos** from the home screen. It opens full-screen, like a native app.
 4. Use it once while online, so the app and food database are cached for offline use.
 5. The first time you use **Scan**, allow camera access.
 
@@ -46,13 +48,13 @@ On Android (Chrome), use **⋮ → Install app** or **Add to Home screen**.
 
 ### Apple Health
 
-iPhone web apps can't talk to Apple Health directly. Fuel sends your numbers to an Apple **Shortcut** instead, and the Shortcut writes them into Health. You build the Shortcut once. The app walks you through it: **Settings → Apple Health → How to set it up**.
+iPhone web apps can't talk to Apple Health directly. Pithos sends your numbers to an Apple **Shortcut** instead, and the Shortcut writes them into Health. You build the Shortcut once. The app walks you through it: **Settings → Apple Health → How to set it up**.
 
-- Turn on **Show "Send to Health" on Today**, then tap **Send to Health** whenever you want to sync. The Shortcuts app opens briefly; swipe back to Fuel afterwards.
+- Turn on **Show "Send to Health" on Today**, then tap **Send to Health** whenever you want to sync. The Shortcuts app opens briefly; swipe back to Pithos afterwards.
 - Only amounts added since your last send are sent, so tapping it more than once never double-counts.
 - If a send doesn't arrive, tap **Didn't arrive? Mark as not sent** and send again.
 - Sent: calories, protein, carbs, fat, water, fibre, sodium, potassium, calcium, magnesium, iron, zinc, vitamins A, C, D, K and B12, folate, iodine and selenium. Omega-3s aren't sent, because Health has no type for them.
-- Editing or deleting food after sending can't reduce Health from Fuel. Adjust those in the Health app.
+- Editing or deleting food after sending can't reduce Health from Pithos. Adjust those in the Health app.
 - It can't sync automatically in the background. That's an iOS limit for web apps.
 
 ### Keep your data safe

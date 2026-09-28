@@ -344,7 +344,7 @@ export function mountSettings(view) {
   $(data, '[data-export]').onclick = async () => {
     const json = await db.exportAll();
     const blob = new Blob([JSON.stringify(json, null, 1)], { type: 'application/json' });
-    const name = `fuel-backup-${todayKey()}.json`;
+    const name = `pithos-backup-${todayKey()}.json`;
     const file = new File([blob], name, { type: 'application/json' });
     // iOS home-screen apps can't always trigger downloads; the share sheet lets you "Save to Files".
     if (navigator.canShare?.({ files: [file] }) && /iPhone|iPad|iPod/.test(navigator.userAgent)) {
@@ -388,7 +388,7 @@ function openHealthGuide(name) {
   const row = ([key, type, unit]) => `<tr><td><code>${key}</code></td><td>${esc(type)}</td><td>${esc(unit)}</td></tr>`;
   const body = el(`
     <div class="guide">
-      <p class="note" style="margin-top:0">You only do this once. It takes about 10 minutes. After that, tap <b>Send to Health</b> on the Today screen whenever you want to sync. Fuel sends only what's new since your last send, so nothing is counted twice.</p>
+      <p class="note" style="margin-top:0">You only do this once. It takes about 10 minutes. After that, tap <b>Send to Health</b> on the Today screen whenever you want to sync. Pithos sends only what's new since your last send, so nothing is counted twice.</p>
       <ol>
         <li>Open Apple's <b>Shortcuts</b> app and tap <b>+</b> to make a new shortcut.</li>
         <li>Tap the name at the top, choose <b>Rename</b> and call it exactly <b>${esc(name)}</b>.</li>
@@ -400,7 +400,7 @@ function openHealthGuide(name) {
             <li>Add <b>Log Health Sample</b>. Set <b>Type</b> to the Health type in the table (e.g. <b>Dietary Energy</b>), <b>Value</b> to the <i>Dictionary Value</i> you just got, the unit from the table, and <b>Date</b> to <i>Date</i>.</li>
           </ol>
         </li>
-        <li>Tap <b>Done</b>. Back in Fuel, turn on <b>Show “Send to Health” on Today</b> and tap <b>Send to Health</b>. The first time, iOS asks for permission to write to Health: tap <b>Allow</b>. Then swipe back to Fuel.</li>
+        <li>Tap <b>Done</b>. Back in Pithos, turn on <b>Show “Send to Health” on Today</b> and tap <b>Send to Health</b>. The first time, iOS asks for permission to write to Health: tap <b>Allow</b>. Then swipe back to Pithos.</li>
       </ol>
       <div class="list-h">Keys, Health types and units</div>
       <table class="htable">
@@ -412,7 +412,7 @@ function openHealthGuide(name) {
       <div class="list-h">Good to know</div>
       <ul>
         <li>Every key is always sent, even when it's 0, so you can add as many or as few nutrients as you like.</li>
-        <li>If you edit or delete food after sending, Health can't be reduced from Fuel. Fix it in the Health app (Browse → Nutrition → the nutrient → Show All Data).</li>
+        <li>If you edit or delete food after sending, Health can't be reduced from Pithos. Fix it in the Health app (Browse → Nutrition → the nutrient → Show All Data).</li>
         <li>Omega-3s aren't sent: Apple Health has no type for them.</li>
         <li>If a send doesn't arrive, tap <b>Didn't arrive? Mark as not sent</b> on the Today screen and send again.</li>
       </ul>

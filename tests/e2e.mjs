@@ -524,7 +524,7 @@ await step('Apple Health: sends only new amounts to the Shortcut, undo resends',
   await page.waitForTimeout(900);
   const urls = await page.evaluate(() => window.__opened);
   assert.equal(urls.length, 1);
-  assert.ok(urls[0].startsWith('shortcuts://run-shortcut?name=Fuel%20to%20Health&input=text&text='));
+  assert.ok(urls[0].startsWith('shortcuts://run-shortcut?name=Pithos%20to%20Health&input=text&text='));
   const payload = JSON.parse(decodeURIComponent(urls[0].split('&text=')[1]));
   assert.ok(Math.abs(payload.kcal - eatenNow) <= 1, `sent ${payload.kcal} vs eaten ${eatenNow}`);
   assert.equal(payload.water, 750);

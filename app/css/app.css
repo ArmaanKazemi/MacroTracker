@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Fuel — "modern classical" design system
+   Pithos — "modern classical" design system
    Warm ivory paper, ink, terracotta clay; serif numerals and Roman capitals.
    ========================================================================== */
 
@@ -134,8 +134,9 @@ button { cursor: pointer; }
   background:
     radial-gradient(60% 40% at 15% 20%, color-mix(in srgb, var(--gold) 6%, transparent), transparent 70%),
     radial-gradient(50% 35% at 90% 60%, color-mix(in srgb, var(--gold) 5%, transparent), transparent 70%),
-    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
-    linear-gradient(180deg, var(--bg-2), var(--bg));
+    radial-gradient(90% 55% at 50% 48%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 72%),
+    /* starts at the page colour so it meets the status-bar area (painted in --bg by iOS) without a seam */
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 42%, var(--bg) 100%);
   overflow: hidden;
 }
 .datebar { display: flex; justify-content: center; }

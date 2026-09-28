@@ -32,7 +32,7 @@ export const HEALTH_FIELDS = [
   ['selenium', 'Selenium', 'mcg', 0],
 ];
 export const CORE_KEYS = ['kcal', 'protein', 'carbs', 'fat', 'water'];
-export const DEFAULT_SHORTCUT = 'Fuel to Health';
+export const DEFAULT_SHORTCUT = 'Pithos to Health';
 
 const round = (v, d) => Math.round(v * 10 ** d) / 10 ** d;
 
