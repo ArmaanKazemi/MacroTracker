@@ -46,11 +46,10 @@ export const mealIcons = {
   breakfast: `<svg viewBox="0 0 48 48" aria-hidden="true"><g ${stroke}>
     <path d="M10 31a14 14 0 0 1 28 0"/><path d="M6 31h36"/><path d="M12 36h24" opacity=".55"/>
     <path d="M24 9v5M12.3 13.8l3.3 3.6M35.7 13.8l-3.3 3.6M5.5 22.5l4.6 1.6M42.5 22.5l-4.6 1.6"/></g></svg>`,
-  // Plate with knife and fork (symmetric about x = 24)
-  lunch: `<svg viewBox="0 0 48 48" aria-hidden="true"><g ${stroke}>
-    <circle cx="24" cy="24.5" r="10.5"/><circle cx="24" cy="24.5" r="5.8" opacity=".55"/>
-    <path d="M6 11.5v7M8.5 11.5v7M11 11.5v7M6 18.5c0 2 1.1 3 2.5 3s2.5-1 2.5-3M8.5 21.5v16"/>
-    <path d="M37 37.5v-26c3 1.6 4.5 5.2 4.5 9.5 0 3.4-1.6 5.3-4.5 5.8"/></g></svg>`,
+  // Steaming bowl (mirror-symmetric about x = 24)
+  lunch: `<svg viewBox="0 0 48 48" aria-hidden="true"><g ${stroke} transform="translate(0 -1.75)">
+    <path d="M8 25h32"/><path d="M9.5 25c0 7.6 6.4 13 14.5 13s14.5-5.4 14.5-13"/><path d="M18.5 41.5h11"/>
+    <path d="M17 19c-2-2.2 2-4.3 0-6.5M31 19c2-2.2-2-4.3 0-6.5M24 19v-9" opacity=".7"/></g></svg>`,
   // Amphora
   dinner: `<svg viewBox="0 0 48 48" aria-hidden="true"><g ${stroke}>
     <path d="M19 6h10M20 6v5c0 2-6 5-6 13 0 7 4 12 7 15l3 3 3-3c3-3 7-8 7-15 0-8-6-11-6-13V6"/>
