@@ -1,5 +1,5 @@
 // Home screen: calorie gauge, macro cards, water, meals.
-import { el, esc, $, $$, icons, animateNumber, setFill, limitStatus, dateSwitcher, toast, round1 } from './ui.js';
+import { el, esc, $, $$, icons, animateNumber, setFill, limitStatus, dateSwitcher, toast, round1, swipeToDelete } from './ui.js';
 import { MEALS, MACROS, SUBS, MEAL_SHARE, totals, scale, fmt } from './nutrients.js';
 import * as store from './store.js';
 import * as fooddb from './fooddb.js';
@@ -278,7 +278,15 @@ export function mountToday(view, state) {
           const food = (e.foodId && (await store.getFood(e.foodId))) || { name: e.name, brand: e.brand, unit: e.unit, servings: [], source: 'entry' };
           openFoodDetail(food, { entry: e });
         };
-        items.appendChild(b);
+        // Swipe left to remove straight from Today (with Undo).
+        items.appendChild(swipeToDelete(b, {
+          label: 'Remove',
+          onDelete: async () => {
+            await store.deleteEntry(e.id);
+            changed();
+            toast(`Removed ${e.name.slice(0, 28)}`, { label: 'Undo', run: async () => { await store.saveEntry(e); changed(); } });
+          },
+        }));
       }
       if (list.length) items.appendChild(el(`<a class="meal-more" href="#/meal?m=${m.key}">Meal details ${icons.next}</a>`));
       card.dataset.count = list.length;

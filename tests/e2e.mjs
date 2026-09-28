@@ -324,7 +324,7 @@ await step('goals: macro grams show calories they add up to; changes apply to ho
   await page.locator('[data-s="protein"]').fill('180');
   await page.locator('[data-s="protein"]').dispatchEvent('change');
   assert.equal(await page.locator('[data-mk]').textContent(), '2,275 kcal'); // 180*4+220*4+75*9
-  assert.match(await page.locator('[data-mdiff]').textContent(), /75 kcal more/);
+  assert.match(await page.locator('[data-mdiff]').textContent(), /75 kcal over/);
   await page.locator('[data-usemk]').click();
   await page.waitForTimeout(300);
   assert.equal(await page.locator('[data-s="kcal"]').inputValue(), '2275');
@@ -771,6 +771,49 @@ await step('meal page, collapsible meal cards and "same as yesterday"', async ()
   assert.equal(await eaten(), before + add);
   // tidy: expand again for later steps
   await page.locator('[data-meal="snacks"] [data-toggle]').click();
+});
+
+await step('swipe a logged food off a meal on Today (with undo)', async () => {
+  await page.goto(BASE + '#/today');
+  await settle();
+  const before = await eaten();
+  const rows = page.locator('[data-meal="snacks"] .swipe');
+  const n = await rows.count();
+  assert.ok(n > 0);
+  const kcal = Number((await rows.last().locator('.item-kcal').textContent()).replace(/[^0-9.]/g, ''));
+  await swipeLeft(rows.last(), 0.8);
+  await page.waitForTimeout(600);
+  await settle();
+  assert.equal(await rows.count(), n - 1);
+  assert.ok(Math.abs(await eaten() - (before - kcal)) <= 1, 'calories drop by the removed food');
+  await page.locator('#toast button').click();
+  await settle();
+  assert.equal(await rows.count(), n, 'undo puts it back');
+  assert.equal(await eaten(), before);
+});
+
+await step('goals: macros turn red until balanced to the calorie goal', async () => {
+  await page.goto(BASE + '#/settings');
+  await settle();
+  const saved = await page.evaluate(() => ['kcal', 'protein', 'carbs', 'fat'].map((k) => document.querySelector(`[data-s="${k}"]`).value));
+  await page.locator('[data-s="kcal"]').fill('1900');
+  await page.locator('[data-s="kcal"]').dispatchEvent('change');
+  await page.waitForTimeout(200);
+  assert.match(await page.locator('[data-s="carbs"]').getAttribute('class'), /bad/, 'red while unbalanced');
+  assert.ok(await page.locator('[data-fix]').isVisible());
+  await page.locator('[data-balance]').click();
+  await page.waitForTimeout(300);
+  const [p, c, f] = await page.evaluate(() => ['protein', 'carbs', 'fat'].map((k) => Number(document.querySelector(`[data-s="${k}"]`).value)));
+  assert.equal(p, Number(saved[1]), 'protein kept');
+  assert.ok(Math.abs(p * 4 + c * 4 + f * 9 - 1900) < 10, 'adds up to 1900');
+  assert.doesNotMatch(await page.locator('[data-s="carbs"]').getAttribute('class'), /bad/);
+  assert.ok(await page.locator('[data-fix]').isHidden());
+  // restore the earlier goals for the remaining steps
+  for (const [i, k] of ['kcal', 'protein', 'carbs', 'fat'].entries()) {
+    await page.locator(`[data-s="${k}"]`).fill(saved[i]);
+    await page.locator(`[data-s="${k}"]`).dispatchEvent('change');
+  }
+  await page.waitForTimeout(200);
 });
 
 await step('central + button opens add food; appearance switch applies themes', async () => {
