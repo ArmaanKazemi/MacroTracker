@@ -451,9 +451,12 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .of-which .field > span { text-transform: none; letter-spacing: 0; font-style: italic; }
 
 /* Serving sizes editor */
-.serv-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.serv-row [data-sl] { flex: 1.5; min-width: 0; }
-.serv-row [data-sa] { flex: 0 0 84px; }
+.serv-row { display: grid; grid-template-columns: 1.4fr 1fr 44px; align-items: center; gap: 8px; margin-bottom: 10px; }
+.serv-row .input { min-width: 0; }
+.serv-head { margin: 4px 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.serv-amt { position: relative; display: block; }
+.serv-amt .input { padding-right: 34px; }
+.serv-amt i { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted); pointer-events: none; }
 .iconbtn.danger { color: var(--red); }
 
 /* ---------- Motion ---------- */

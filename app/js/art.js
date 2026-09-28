@@ -46,12 +46,11 @@ export const mealIcons = {
   breakfast: `<svg viewBox="0 0 48 48" aria-hidden="true"><g ${stroke}>
     <path d="M10 31a14 14 0 0 1 28 0"/><path d="M6 31h36"/><path d="M12 36h24" opacity=".55"/>
     <path d="M24 9v5M12.3 13.8l3.3 3.6M35.7 13.8l-3.3 3.6M5.5 22.5l4.6 1.6M42.5 22.5l-4.6 1.6"/></g></svg>`,
-  // Olive sprig with fruit
+  // Plate with knife and fork
   lunch: `<svg viewBox="0 0 48 48" aria-hidden="true"><g ${stroke}>
-    <path d="M9 39C18 31 27 22 40 10"/>
-    <path d="M17 31c-5-1-8 1-10 4 4 1 7 0 10-4z"/><path d="M22 26c0-5 3-8 7-9-1 4-3 7-7 9z"/>
-    <path d="M28 20c-5-1-8 1-9 4 3 1 6 0 9-4z"/><path d="M33 15c0-4 2-7 6-8-1 4-2 6-6 8z"/></g>
-    <g fill="currentColor"><ellipse cx="27.5" cy="31" rx="3.2" ry="4" transform="rotate(-30 27.5 31)"/><ellipse cx="36" cy="22.5" rx="2.8" ry="3.6" transform="rotate(-30 36 22.5)"/></g></svg>`,
+    <circle cx="24" cy="25" r="11.5"/><circle cx="24" cy="25" r="6.5" opacity=".55"/>
+    <path d="M6 11v7M9 11v7M12 11v7M6 18c0 2 1.3 3.2 3 3.2s3-1.2 3-3.2M9 21.2V39"/>
+    <path d="M40.5 39V11c2.6 1.6 3.6 5.2 3.6 9.5 0 3.4-1.2 5.3-3.6 5.8"/></g></svg>`,
   // Amphora
   dinner: `<svg viewBox="0 0 48 48" aria-hidden="true"><g ${stroke}>
     <path d="M19 6h10M20 6v5c0 2-6 5-6 13 0 7 4 12 7 15l3 3 3-3c3-3 7-8 7-15 0-8-6-11-6-13V6"/>

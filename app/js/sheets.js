@@ -289,6 +289,13 @@ export function openAddFood({ date, meal }) {
   return sheet;
 }
 
+// Serving-size editor rows, shared by the food form and the food sheet.
+const servHead = (unit) => `<div class="serv-row serv-head"><span>Serving name</span><span>Weight of one</span><span class="serv-gap"></span></div>`;
+const servRow = (sv, unit) => `<div class="serv-row">
+  <input class="input" data-sl value="${esc(sv.label)}" aria-label="Serving name, e.g. 1 scoop" placeholder="e.g. 1 scoop" autocomplete="off" autocorrect="off" enterkeyhint="next">
+  <label class="serv-amt"><input class="input num" data-sa type="number" inputmode="decimal" step="any" min="0" value="${sv.amount}" aria-label="Weight of one serving in ${unit}" placeholder="e.g. 25" autocomplete="off"><i>${unit}</i></label>
+  <button type="button" class="iconbtn danger" data-rm aria-label="Delete serving">${icons.trash}</button></div>`;
+
 // ======================================================================
 // Food detail: log a food, or edit an existing entry
 // ======================================================================
@@ -470,13 +477,9 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     const list = el('<div class="serv-list"></div>');
     const s = openSheet({ title: 'Serving sizes', body: list });
     const render = () => {
-      list.innerHTML = servings.length ? '' : '<p class="empty">No serving sizes. You can always log by weight.</p>';
+      list.innerHTML = servings.length ? servHead(unit) : '<p class="empty">No serving sizes. You can always log by weight.</p>';
       servings.forEach((sv, i) => {
-        const r = el(`<div class="serv-row">
-          <input class="input" data-sl value="${esc(sv.label)}" aria-label="Serving label" placeholder="1 scoop">
-          <input class="input num" data-sa type="number" inputmode="decimal" step="any" min="0" value="${sv.amount}" aria-label="Serving amount (${unit})">
-          <span class="muted">${unit}</span>
-          <button type="button" class="iconbtn danger" data-rm aria-label="Delete serving">${icons.trash}</button></div>`);
+        const r = el(servRow(sv, unit));
         const save = () => {
           const label = $(r, '[data-sl]').value.trim();
           const a = Number($(r, '[data-sa]').value);
@@ -490,7 +493,7 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
         $(r, '[data-rm]').onclick = () => remove(i);
         list.appendChild(r);
       });
-      list.appendChild(el('<p class="note">Changes save as you go. Entries you already logged keep their amounts.</p>'));
+      list.appendChild(el('<p class="note">Name each portion and say how much one weighs. Changes save as you go; entries you already logged keep their amounts.</p>'));
     };
     // mapSel: old index of the selected serving -> new index (-1 = it's gone).
     const commit = async (next, mapSel, redraw = true) => {
@@ -625,7 +628,8 @@ export function openFoodForm(food, { onSaved, logging = false } = {}) {
         <div class="sub-h">${g.label}</div>
         ${g.key === 'minerals' ? '<p class="note" style="margin-top:0">Sodium is in milligrams. If the label only lists salt, sodium (mg) = salt (g) × 400.</p>' : ''}
         <div class="grid2">${g.items.map((m) => numField(m.key, m.label, m.unit)).join('')}</div>`).join('')}
-      <div class="list-h">Serving sizes</div>
+      <div class="list-h">Serving sizes <span style="text-transform:none;letter-spacing:0;font-weight:600">· optional</span></div>
+      <p class="note" style="margin-top:0">Log by portion instead of weighing. Give the serving a name and say how much one weighs, e.g. <b>1 scoop</b> = <b>25 g</b>.</p>
       <div data-servings></div>
       <button type="button" class="btn sm" data-add-serv style="margin-top:6px">${icons.plus} Add serving</button>
       <div class="toggle" data-fav-row style="margin-top:6px"><span>Favourite</span><label class="switch"><input type="checkbox" data-fav ${f.favourite ? 'checked' : ''} aria-label="Favourite"><span></span></label></div>
@@ -653,16 +657,14 @@ export function openFoodForm(food, { onSaved, logging = false } = {}) {
   let servings = [...(f.servings || [])];
   const renderServ = () => {
     const box = $(body, '[data-servings]');
-    box.innerHTML = servings.length ? '' : '<p class="empty">None. You can always log by weight.</p>';
+    const u = $(body, '[data-f="unit"]')?.value || f.unit || 'g';
+    box.innerHTML = servings.length ? servHead(u) : '<p class="empty">None yet. You can always log by weight.</p>';
     servings.forEach((sv, i) => {
-      const r = el(`<div class="row" style="gap:8px;margin:6px 0">
-        <input class="input" value="${esc(sv.label)}" aria-label="Serving label" placeholder="1 scoop" style="flex:1.4">
-        <input class="input num" type="number" inputmode="decimal" step="any" value="${sv.amount}" aria-label="Serving amount" style="flex:1">
-        <button type="button" class="iconbtn" aria-label="Remove serving">${icons.close}</button></div>`);
+      const r = el(servRow(sv, u));
       const [l, a] = $$(r, 'input');
       l.oninput = () => (sv.label = l.value);
       a.oninput = () => (sv.amount = Number(a.value));
-      $(r, 'button').onclick = () => { servings.splice(i, 1); renderServ(); };
+      $(r, '[data-rm]').onclick = () => { servings.splice(i, 1); renderServ(); };
       box.appendChild(r);
     });
   };
@@ -670,7 +672,7 @@ export function openFoodForm(food, { onSaved, logging = false } = {}) {
   $(body, '[data-add-serv]').onclick = () => { servings.push({ label: '', amount: '' }); renderServ(); $$(body, '[data-servings] input').at(-2)?.focus(); };
   const unitSel = $(body, '[data-f="unit"]');
   const basisNote = () => ($(body, '[data-basis-note]').textContent = `Enter values per ${$(body, '[data-basis]').value || 100} ${unitSel.value}, exactly as on the label. They're converted to per 100 ${unitSel.value} when saved.`);
-  unitSel.onchange = basisNote;
+  unitSel.onchange = () => { basisNote(); renderServ(); };
   $(body, '[data-basis]').oninput = basisNote;
 
   $(foot, '[data-save]').onclick = async () => {
