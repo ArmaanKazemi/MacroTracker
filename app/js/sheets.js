@@ -1,7 +1,7 @@
 // Bottom-sheet flows: add food, food detail / log / edit entry, link to CoFID,
 // custom food form, saved meals (recipes), barcode scanning.
-import { el, esc, $, $$, icons, openSheet, toast, confirmSheet, round1, swipeToDelete } from './ui.js';
-import { MEALS, MICROS, MICRO_GROUPS, SUBS, scale, fmt, normNutrients, macroKcal, MICRO_KEYS } from './nutrients.js';
+import { el, esc, $, $$, icons, openSheet, toast, confirmSheet, round1, swipeToDelete, addDays } from './ui.js';
+import { MEALS, MICROS, MICRO_GROUPS, SUBS, scale, fmt, normNutrients, macroKcal, MICRO_KEYS, totals } from './nutrients.js';
 import * as fooddb from './fooddb.js';
 import * as store from './store.js';
 
@@ -55,6 +55,36 @@ function foodRow(food, { quick = false } = {}) {
 // ======================================================================
 // Add food sheet
 // ======================================================================
+/**
+ * "Same as yesterday?" card: copies yesterday's entries for this meal in one tap.
+ * Resolves to null when yesterday's meal was empty.
+ */
+export async function sameAsYesterday({ date, meal }) {
+  const prev = (await store.entriesFor(addDays(date, -1))).filter((e) => e.meal === meal).sort((a, b) => a.ts - b.ts);
+  if (!prev.length) return null;
+  const kcal = totals(prev).kcal.value;
+  const card = el(`
+    <div class="same-y">
+      <div class="list-h" style="margin-top:4px">Same as yesterday?</div>
+      <div class="result same-y-row" role="button" tabindex="0">
+        <div class="item-main"><div class="same-y-names">${prev.map((e) => esc(e.name)).join(', ')}</div>
+          <div class="macros-line"><b>${fmt(kcal, 'kcal')}</b> kcal · ${prev.length} ${prev.length === 1 ? 'item' : 'items'}</div></div>
+        <button class="iconbtn accent" type="button" data-copy aria-label="Log the same ${mealLabel(meal).toLowerCase()} as yesterday">${icons.plus}</button>
+      </div>
+    </div>`);
+  const row = $(card, '.same-y-row');
+  const copy = async () => {
+    const created = await store.copyEntries(prev, { date, meal });
+    row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+    navigator.vibrate?.(15);
+    changed();
+    toast(`Added yesterday's ${mealLabel(meal).toLowerCase()}`, { label: 'Undo', run: async () => { for (const e of created) await store.deleteEntry(e.id); changed(); } });
+  };
+  row.onclick = copy;
+  row.onkeydown = (e) => { if (e.key === 'Enter') copy(); };
+  return card;
+}
+
 export function openAddFood({ date, meal }) {
   let tab = 'search';
   let q = '';
@@ -187,6 +217,8 @@ export function openAddFood({ date, meal }) {
   async function renderSearch() {
     await fooddb.load();
     if (!q.trim()) {
+      const same = await sameAsYesterday({ date, meal });
+      if (same) list.appendChild(same);
       const recent = (await store.getFoods()).filter((f) => f.lastUsed).sort((a, b) => b.lastUsed - a.lastUsed).slice(0, 12);
       if (recent.length) {
         list.appendChild(el('<div class="list-h">Recent</div>'));

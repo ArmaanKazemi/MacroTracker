@@ -717,6 +717,62 @@ await step('serving sizes can be added and deleted on a generic food (with undo)
   await settle();
 });
 
+await step('meal page, collapsible meal cards and "same as yesterday"', async () => {
+  // log two foods into yesterday's snacks
+  await page.goto(BASE + '#/today');
+  await settle();
+  const [n1, n2, add, copied] = await page.evaluate(async () => {
+    const store = await import('./js/store.js'); const ui = await import('./js/ui.js');
+    const foods = (await store.getFoods()).filter((f) => f.source !== 'generic').slice(0, 2);
+    const y = ui.addDays(ui.todayKey(), -1);
+    for (const f of foods) await store.logFood(f, { date: y, meal: 'snacks', amount: 100 });
+    const nut = await import('./js/nutrients.js');
+    const all = (await store.entriesFor(y)).filter((e) => e.meal === 'snacks');
+    window.dispatchEvent(new Event('data-changed'));
+    return [foods[0].name, foods[1].name, Math.round(nut.totals(all).kcal.value), all.length];
+  });
+  await settle();
+  const before = await eaten();
+  const itemsBefore = await page.locator('[data-meal="snacks"] .item').count();
+  // add sheet offers yesterday's snacks and copies them in one tap
+  await page.locator('[data-meal="snacks"] [data-add]').click();
+  await page.waitForTimeout(500);
+  const same = topSheet().locator('.same-y');
+  assert.ok((await same.textContent()).includes(`${n1}, ${n2}`));
+  await same.locator('[data-copy]').click();
+  await page.waitForTimeout(450);
+  await closeTop();
+  await settle();
+  assert.equal(await eaten(), before + add, 'both foods copied at the same amounts');
+  assert.equal(await page.locator('[data-meal="snacks"] .item').count(), itemsBefore + copied);
+  // collapse hides the list and remembers it
+  await page.locator('[data-meal="snacks"] [data-toggle]').click();
+  await page.waitForTimeout(450);
+  assert.match(await page.locator('[data-meal="snacks"]').getAttribute('class'), /collapsed/);
+  assert.match(await page.locator('[data-meal="snacks"] [data-sub]').textContent(), new RegExp(`${itemsBefore + copied} items`));
+  await page.reload(); await settle();
+  assert.match(await page.locator('[data-meal="snacks"]').getAttribute('class'), /collapsed/, 'remembered');
+  // meal page shows the foods and nutrition, and can remove one (with undo)
+  await page.locator('[data-meal="snacks"] [data-open]').click();
+  await page.waitForTimeout(600);
+  assert.equal(await page.locator('.meal-top .title').textContent(), 'Snacks');
+  assert.ok(Number((await page.locator('.meal-sum [data-kcal]').textContent()).replace(/,/g, '')) >= add);
+  assert.equal(await page.locator('.meal-items .item').count(), itemsBefore + copied);
+  assert.match(await page.locator('[data-info]').textContent(), /Protein[\s\S]*of which sugars[\s\S]*of which saturates[\s\S]*Sodium/);
+  await page.locator('.meal-items .item').last().locator('[data-del]').click();
+  await page.waitForTimeout(450);
+  assert.equal(await page.locator('.meal-items .item').count(), itemsBefore + copied - 1);
+  await page.locator('#toast button').click();
+  await page.waitForTimeout(450);
+  assert.equal(await page.locator('.meal-items .item').count(), itemsBefore + copied, 'undo restores it');
+  // back to Today
+  await page.locator('.meal-top [data-back]').click();
+  await settle();
+  assert.equal(await eaten(), before + add);
+  // tidy: expand again for later steps
+  await page.locator('[data-meal="snacks"] [data-toggle]').click();
+});
+
 await step('central + button opens add food; appearance switch applies themes', async () => {
   await page.goto(BASE + '#/today');
   await page.waitForTimeout(400);

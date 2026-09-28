@@ -53,6 +53,9 @@ export const MICRO_GROUPS = [
 ].map((g) => ({ ...g, items: g.keys.map((k) => MICROS.find((m) => m.key === k)) }));
 export const ALL_KEYS = ['kcal', 'protein', 'carbs', 'fat', ...SUB_KEYS, ...MICRO_KEYS];
 
+// Recommended share of the day's calories for each meal [low, high].
+export const MEAL_SHARE = { breakfast: [0.25, 0.35], lunch: [0.3, 0.4], dinner: [0.3, 0.4], snacks: [0.05, 0.15] };
+
 export const MEALS = [
   { key: 'breakfast', label: 'Breakfast' },
   { key: 'lunch', label: 'Lunch' },

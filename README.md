@@ -5,6 +5,8 @@
 A dark, athletic-looking nutrition tracker that runs entirely in your browser. You can install it to your iPhone home screen and it works offline. There's no backend, no account and no AI. All your data stays on your phone in IndexedDB.
 
 - **Today:** a calorie ring (eaten / goal / remaining), protein, carb and fat bars (with *of which sugars* under carbs and *of which saturates* under fat), an animated water glass, four meal sections and a date switcher.
+- **Meals:** tap a meal's name on Today to open its page: every food in it, total calories against the recommended range, and nutrition (protein, carbs with sugars and fibre, fat with saturates, sodium, potassium, and all vitamins and minerals) against that meal's share of your daily goals. Remove foods there with ✕ or a swipe (with Undo). The chevron on a meal card collapses its list; that's remembered.
+- **Same as yesterday?** When you add food to a meal, yesterday's version of that meal is offered at the top. One tap copies it all (Undo available). It also appears on an empty meal's page.
 - **Nutrients:** 17 nutrients, each with a daily target and an optional upper limit, all editable in Settings. They're shown as progress bars with *Low / % / Met* flags, plus a 7-day average with a per-day strip so nutrients that are consistently low stand out.
   - Tracked: fibre, potassium, magnesium, folate, vitamins C, A, K, D and B12, iron, zinc, calcium, iodine, selenium, omega-3 ALA, EPA + DHA, and sodium.
   - Going over an upper limit turns the bar red ("Over upper limit"). The limits for magnesium (supplements only), folate (supplements / fortified foods) and vitamin A (preformed only) can't be judged from food totals, so they're shown but never flagged.
