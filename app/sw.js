@@ -1,6 +1,6 @@
 // Service worker: precache the app shell + food database so everything works offline.
 // Bump VERSION whenever you change any app file so phones pick up the update.
-const VERSION = 'fuel-v2.1.1';
+const VERSION = 'pithos-v2.2.0';
 
 const SHELL = [
   './',

@@ -35,7 +35,7 @@ jobs:
         run: node build-cofid.mjs --download || echo "::warning::CoFID download/convert failed - deploying without a fresh cofid.json"
 
       - name: Stamp service worker version so phones pick up the update
-        run: sed -i "s/const VERSION = '[^']*'/const VERSION = 'fuel-${GITHUB_SHA::8}'/" app/sw.js
+        run: sed -i "s/const VERSION = '[^']*'/const VERSION = 'pithos-${GITHUB_SHA::8}'/" app/sw.js
 
       - uses: actions/configure-pages@v5
 

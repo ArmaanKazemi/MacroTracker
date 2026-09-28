@@ -55,7 +55,7 @@ export function defaultSettings() {
     micros: Object.fromEntries(MICROS.map((m) => [m.key, m.target])),
     upper: Object.fromEntries(MICROS.map((m) => [m.key, m.upper])),
     microsVersion: MICROS_VERSION,
-    health: { enabled: false, shortcut: 'Fuel to Health' },
+    health: { enabled: false, shortcut: 'Pithos to Health' },
     theme: 'system',
   };
 }

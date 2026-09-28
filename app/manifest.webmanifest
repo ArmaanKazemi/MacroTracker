@@ -1,6 +1,6 @@
 {
-  "name": "Fuel — Nutrition Tracker",
-  "short_name": "Fuel",
+  "name": "Pithos — Nutrition Tracker",
+  "short_name": "Pithos",
   "description": "Personal nutrition, micronutrient and water tracker. Works offline.",
   "id": "./",
   "start_url": "./#/today",
