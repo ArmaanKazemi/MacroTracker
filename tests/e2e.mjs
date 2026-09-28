@@ -673,6 +673,37 @@ await step('sugars and saturates: entered on custom foods, shown under carbs and
   assert.equal(await page.locator('[data-sub="sugars"] [data-g]').textContent(), '90');
 });
 
+await step('serving sizes can be added and deleted on a generic food (with undo)', async () => {
+  await page.goto(BASE + '#/today');
+  await settle();
+  await page.locator('[data-meal="lunch"] [data-add]').click();
+  await topSheet().locator('input[type=search]').fill('lentils');
+  await page.waitForTimeout(300);
+  await topSheet().locator('.result').first().click();
+  await page.waitForTimeout(450);
+  const d = topSheet();
+  assert.ok(await d.locator('[data-edit-servings]').isHidden(), 'nothing to edit yet');
+  await d.locator('[data-add-serving]').click();
+  await page.waitForTimeout(400);
+  await topSheet().locator('[data-l]').fill('1 bowl');
+  await topSheet().locator('[data-a]').fill('180');
+  await topSheet().locator('[data-ok]').click();
+  await page.waitForTimeout(450);
+  const detail = topSheet();
+  assert.match(await detail.locator('select[data-unit]').textContent(), /1 bowl/);
+  await detail.locator('[data-edit-servings]').click();
+  await page.waitForTimeout(400);
+  await topSheet().locator('[data-rm]').first().click();
+  await page.waitForTimeout(450);
+  assert.doesNotMatch(await detail.locator('select[data-unit]').textContent(), /1 bowl/, 'serving removed');
+  assert.equal(await detail.locator('select[data-unit]').inputValue(), 'unit', 'falls back to grams');
+  await page.locator('#toast button').click();
+  await page.waitForTimeout(400);
+  assert.match(await detail.locator('select[data-unit]').textContent(), /1 bowl/, 'undo restores it');
+  await closeTop(); await closeTop();
+  await settle();
+});
+
 await step('central + button opens add food; appearance switch applies themes', async () => {
   await page.goto(BASE + '#/today');
   await page.waitForTimeout(400);

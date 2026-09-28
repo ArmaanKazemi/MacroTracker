@@ -326,7 +326,11 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
         <input class="input big-input num" type="number" inputmode="decimal" step="any" min="0" aria-label="Amount">
         <select class="input" aria-label="Unit or serving" data-unit></select>
       </div>
-      <button type="button" class="btn sm" data-add-serving style="margin-top:8px;background:transparent;color:var(--muted);padding:0 4px">${icons.plus} Add serving size</button>
+      <div class="row" style="gap:4px;margin-top:8px">
+        <button type="button" class="btn sm" data-add-serving style="background:transparent;color:var(--muted);padding:0 4px">${icons.plus} Add serving size</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn sm" data-edit-servings style="background:transparent;color:var(--muted);padding:0 4px" hidden>Edit servings</button>
+      </div>
       <div class="preview num" data-preview></div>
       <label class="field"><span>Meal</span><select class="input" data-meal>${MEALS.map((m) => `<option value="${m.key}">${m.label}</option>`).join('')}</select></label>
       <div class="list-h" style="display:flex;align-items:center;gap:8px">Micronutrients <span class="spacer"></span><span data-micro-count style="letter-spacing:0;text-transform:none;font-weight:600"></span></div>
@@ -346,6 +350,7 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     unitSel.innerHTML = `<option value="unit">${unit}</option>` +
       servings.map((s, i) => `<option value="${i}">${esc(s.label)} (${fmt(s.amount)}${unit})</option>`).join('');
     unitSel.value = String(sel);
+    $(body, '[data-edit-servings]').hidden = !servings.length;
   }
   renderUnits();
   amtInput.value = num;
@@ -459,6 +464,43 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     box.appendChild(row);
     void per100;
   }
+
+  // Remove serving sizes (works for every kind of food, including CoFID ones).
+  $(body, '[data-edit-servings]').onclick = () => {
+    const list = el('<div class="serv-list"></div>');
+    const s = openSheet({ title: 'Serving sizes', body: list });
+    const render = () => {
+      list.innerHTML = servings.length ? '' : '<p class="empty">No serving sizes. You can always log by weight.</p>';
+      servings.forEach((sv, i) => {
+        const r = el(`<div class="kv"><span>${esc(sv.label)} <span class="muted">(${fmt(sv.amount)}${unit})</span></span><button type="button" class="btn sm danger" data-rm>Delete</button></div>`);
+        $(r, '[data-rm]').onclick = () => remove(i);
+        list.appendChild(r);
+      });
+      list.appendChild(el('<p class="note">Entries you already logged keep their amounts.</p>'));
+    };
+    const commit = async (next) => {
+      const saved = await store.persistFood(food);
+      saved.servings = next;
+      await store.saveFood(saved);
+      food = { ...saved };
+      const selLabel = sel === 'unit' ? null : servings[sel]?.label;
+      const prevAmount = amount();
+      servings = next;
+      const si = selLabel === null ? -1 : servings.findIndex((x) => x.label === selLabel);
+      if (sel !== 'unit' && si < 0) { sel = 'unit'; num = round1(prevAmount || 100); amtInput.value = num; } else if (si >= 0) sel = si;
+      renderUnits();
+      renderDynamic();
+      render();
+      changed();
+    };
+    const remove = async (i) => {
+      const before = servings;
+      await commit(servings.filter((_, j) => j !== i));
+      toast(`Deleted ${before[i].label}`, { label: 'Undo', run: () => commit(before) });
+      if (!servings.length) s.close();
+    };
+    render();
+  };
 
   // Extra actions
   const actions = $(body, '[data-actions]');
