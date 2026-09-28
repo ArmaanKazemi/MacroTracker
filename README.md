@@ -13,7 +13,7 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
   - UK CoFID (McCance & Widdowson) generic foods, bundled so search works offline.
   - UK branded products from Open Food Facts, plus camera barcode scanning.
   - Missing micronutrients show as **no data**, never as zero. You can link a food to a similar CoFID food to estimate them.
-- **Logging:** by g, ml or custom serving sizes ("1 scoop = 25 g"). Add a serving from any food's sheet with **Add serving size**, and remove one with **Edit servings**. Undo is available.
+- **Logging:** by g, ml or custom serving sizes ("1 scoop = 25 g"). Add a serving from any food's sheet with **Add serving size**, and change or delete one with **Edit servings**. Changes save as you type, and deleting has Undo.
 - **Custom foods, favourites and saved meals.** Favourites log in one tap. Saved meals also log in one tap, or you can adjust the amounts before logging.
 - **Sugars and saturated fat:** tracked like a UK label, as "of which" values under carbs and fat. Each has a daily maximum (UK reference intakes: 90 g sugars, 20 g saturates, editable in Settings). The number turns ochre from 90% and red once you reach it. Values come from CoFID and Open Food Facts, or you type them in for custom foods.
 - **Settings:** calorie and macro goals (with live "macros add up to X kcal"), water goal, micronutrient targets and upper limits, and **Export / Import JSON** backups.
