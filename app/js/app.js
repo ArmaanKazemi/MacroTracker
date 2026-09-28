@@ -6,7 +6,7 @@ import { mountToday } from './today.js';
 import { mountNutrients, mountFoods, mountSettings, guessMeal } from './views.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.5.1';
+window.APP_VERSION = '2.5.2';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), microMode: 'day', foodsTab: 'fav' };
@@ -91,6 +91,8 @@ async function start() {
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then((reg) => {
+      // iOS resumes home-screen apps without reloading, so also check for a new version on return.
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;
         nw?.addEventListener('statechange', () => {
