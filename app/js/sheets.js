@@ -1,7 +1,7 @@
 // Bottom-sheet flows: add food, food detail / log / edit entry, link to CoFID,
 // custom food form, saved meals (recipes), barcode scanning.
 import { el, esc, $, $$, icons, openSheet, toast, confirmSheet, round1, swipeToDelete } from './ui.js';
-import { MEALS, MICROS, scale, fmt, normNutrients, macroKcal, MICRO_KEYS } from './nutrients.js';
+import { MEALS, MICROS, MICRO_GROUPS, scale, fmt, normNutrients, macroKcal, MICRO_KEYS } from './nutrients.js';
 import * as fooddb from './fooddb.js';
 import * as store from './store.js';
 
@@ -411,11 +411,11 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     $(body, '[data-micro-count]').innerHTML = missing
       ? `<span class="pill na">${missing} no data</span>`
       : estimated.length ? `<span class="pill est">${estimated.length} estimated</span>` : '';
-    $(body, '[data-micros]').innerHTML = MICROS.map((m) => {
+    $(body, '[data-micros]').innerHTML = MICRO_GROUPS.map((g) => `<div class="sub-h">${g.label}</div>` + g.items.map((m) => {
       const v = n[m.key];
       const badge = v === null ? '<span class="pill na">No data</span>' : estimated.includes(m.key) ? '<span class="pill est">Est.</span>' : '';
       return `<div class="kv"><span>${m.label}</span><span class="row" style="gap:8px">${badge}<b class="num">${v === null ? '' : fmt(v) + ' ' + m.unit}</b></span></div>`;
-    }).join('');
+    }).join('')).join('');
     renderLink();
   }
 
@@ -559,10 +559,12 @@ export function openFoodForm(food, { onSaved, logging = false } = {}) {
         <label class="field"><span>Unit</span><select class="input" data-f="unit"><option value="g">grams (g)</option><option value="ml">millilitres (ml)</option></select></label>
       </div>
       <p class="note" data-basis-note>Enter values exactly as on the label. They're converted to per 100 when saved.</p>
-      <div class="grid2">${numField('kcal', 'Calories', 'kcal')}${numField('protein', 'Protein', 'g')}${numField('carbs', 'Carbs', 'g')}${numField('fat', 'Fat', 'g')}${numField('sodium', 'Sodium', 'mg')}</div>
-      <p class="note" style="margin-top:0">Sodium is in milligrams. If the label only lists salt, sodium (mg) = salt (g) × 400.</p>
+      <div class="grid2">${numField('kcal', 'Calories', 'kcal')}${numField('protein', 'Protein', 'g')}${numField('carbs', 'Carbs', 'g')}${numField('fat', 'Fat', 'g')}</div>
       <div class="list-h">Micronutrients <span style="text-transform:none;letter-spacing:0;font-weight:600">· leave blank if unknown</span></div>
-      <div class="grid2">${MICROS.filter((m) => m.key !== 'sodium').map((m) => numField(m.key, m.label, m.unit)).join('')}</div>
+      ${MICRO_GROUPS.map((g) => `
+        <div class="sub-h">${g.label}</div>
+        ${g.key === 'minerals' ? '<p class="note" style="margin-top:0">Sodium is in milligrams. If the label only lists salt, sodium (mg) = salt (g) × 400.</p>' : ''}
+        <div class="grid2">${g.items.map((m) => numField(m.key, m.label, m.unit)).join('')}</div>`).join('')}
       <div class="list-h">Serving sizes</div>
       <div data-servings></div>
       <button type="button" class="btn sm" data-add-serv style="margin-top:6px">${icons.plus} Add serving</button>

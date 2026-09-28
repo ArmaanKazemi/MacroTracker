@@ -1,6 +1,6 @@
 // Nutrients, Foods and Settings screens.
 import { el, esc, $, $$, icons, animateNumber, setFill, dateSwitcher, toast, addDays, parseKey, todayKey, confirmSheet, swipeToDelete } from './ui.js';
-import { MICROS, MACROS, totals, fmt, macroKcal, defaultSettings, microStatus } from './nutrients.js';
+import { MICROS, MICRO_GROUPS, MACROS, totals, fmt, macroKcal, defaultSettings, microStatus } from './nutrients.js';
 import * as store from './store.js';
 import * as fooddb from './fooddb.js';
 import * as db from './db.js';
@@ -29,14 +29,16 @@ export function mountNutrients(view, state) {
       <div class="card"><div class="stat-v num c-amber" data-mid>0</div><div class="stat-l">Getting there</div></div>
       <div class="card"><div class="stat-v num c-green" data-ok>0</div><div class="stat-l">On target</div></div>
     </div>`);
-  const card = el(`<section class="card" aria-label="Micronutrients">${MICROS.map((m) => `
+  const card = el(`<div>${MICRO_GROUPS.map((g) => `
+    <div class="sub-h page">${g.label}</div>
+    <section class="card" aria-label="${g.label}">${g.items.map((m) => `
     <div class="bar-row" data-k="${m.key}">
       <div class="bar-head"><span class="bar-name">${m.label} <span class="pill" data-pill></span></span><span class="bar-val num"><b data-v>0</b> / ${m.kind === 'limit' ? 'max ' : ''}<span data-t></span> ${m.unit}</span></div>
       <div class="track thin"><div class="fill"></div></div>
       <div class="days" data-days hidden>${'<i></i>'.repeat(7)}</div>
       <div class="nodata" data-ul hidden></div>
       <div class="nodata" data-nd hidden></div>
-    </div>`).join('')}</section>`);
+    </div>`).join('')}</section>`).join('')}</div>`);
   const foot = el('<p class="note" data-foot style="padding:0 4px"></p>');
   view.append(top, seg, summary, card, foot);
   $$(seg, '[data-m]').forEach((b) => (b.onclick = () => { mode = state.microMode = b.dataset.m; refresh(); }));
@@ -204,14 +206,14 @@ export function mountSettings(view) {
       <p class="note">Daily target and upper limit for each nutrient. Leave an upper limit blank for none. Sodium is a limit only: it turns amber near it and red once you reach it.</p>
       <div class="mtable">
         <div class="mrow mhead"><span>Nutrient</span><span>Target</span><span>Upper limit</span></div>
-        ${MICROS.map((m) => `
+        ${MICRO_GROUPS.map((g) => `<div class="sub-h">${g.label}</div>` + g.items.map((m) => `
         <div class="mrow">
           <span class="mname">${m.label} <i class="unit">${m.unit}</i>${m.upperNote ? `<small>UL ${esc(m.upperNote)}</small>` : ''}</span>
           ${m.kind === 'limit'
             ? '<span class="mnone">—</span>'
             : `<input class="input num" type="number" inputmode="decimal" min="0" step="any" data-micro="${m.key}" aria-label="${m.label} target (${m.unit})">`}
           <input class="input num" type="number" inputmode="decimal" min="0" step="any" data-upper="${m.key}" placeholder="none" aria-label="${m.label} upper limit (${m.unit})">
-        </div>`).join('')}
+        </div>`).join('')).join('')}
       </div>
     </section>`);
   const look = el(`

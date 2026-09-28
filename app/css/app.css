@@ -416,3 +416,8 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
+
+/* Group sub-headings (Vitamins / Minerals / Fibre & omega-3s) */
+.sub-h { font-family: var(--caps); font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin: 16px 2px 4px; }
+.sub-h.page { margin: 18px 4px 8px; }
+.mtable .sub-h { margin: 14px 0 2px; }

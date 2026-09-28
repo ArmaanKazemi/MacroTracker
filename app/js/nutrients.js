@@ -36,6 +36,13 @@ export const MICROS = [
 export const MICROS_VERSION = 2;
 
 export const MICRO_KEYS = MICROS.map((m) => m.key);
+
+// Display grouping: vitamins, minerals, then fibre and omega-3 fats.
+export const MICRO_GROUPS = [
+  { key: 'vitamins', label: 'Vitamins', keys: ['vitA', 'vitC', 'vitD', 'vitK', 'vitB12', 'folate'] },
+  { key: 'minerals', label: 'Minerals', keys: ['sodium', 'potassium', 'calcium', 'magnesium', 'iron', 'zinc', 'iodine', 'selenium'] },
+  { key: 'other', label: 'Fibre & omega-3s', keys: ['fibre', 'ala', 'epadha'] },
+].map((g) => ({ ...g, items: g.keys.map((k) => MICROS.find((m) => m.key === k)) }));
 export const ALL_KEYS = ['kcal', 'protein', 'carbs', 'fat', ...MICRO_KEYS];
 
 export const MEALS = [
