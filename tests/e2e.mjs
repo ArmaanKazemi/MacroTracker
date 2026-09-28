@@ -584,6 +584,61 @@ await step('upgrade from v1: old targets replaced, new nutrients filled into old
   await c.close();
 });
 
+await step('one-off custom food: logged but not saved to My foods (choice remembered)', async () => {
+  await page.goto(BASE + '#/today');
+  await settle();
+  const before = await eaten();
+  await page.locator('[data-meal="dinner"] [data-add]').click();
+  await topSheet().locator('input[type=search]').fill('wedding cake');
+  await page.waitForTimeout(300);
+  await topSheet().locator('button', { hasText: 'Create custom food' }).click();
+  await page.waitForTimeout(450);
+  const f = topSheet();
+  assert.ok(await f.locator('[data-keep]').isChecked(), 'saves by default');
+  await f.locator('[data-keep]').uncheck();
+  assert.equal(await f.locator('[data-save]').textContent(), 'Continue to log');
+  assert.ok(await f.locator('[data-fav-row]').isHidden());
+  assert.equal(await f.locator('[data-f="name"]').inputValue(), 'wedding cake');
+  await f.locator('[data-n="kcal"]').fill('400');
+  await f.locator('[data-n="protein"]').fill('4');
+  await f.locator('[data-save]').click();
+  await page.waitForTimeout(500);
+  const d = topSheet();
+  assert.equal(await d.locator('h2').textContent(), 'wedding cake');
+  await d.locator('input.big-input').fill('150');
+  await d.locator('[data-save]').click();
+  await page.waitForTimeout(450);
+  // not in My foods, not in Recent
+  await topSheet().locator('[data-tab="mine"]').click();
+  await page.waitForTimeout(400);
+  assert.equal(await topSheet().locator('.result', { hasText: 'wedding cake' }).count(), 0);
+  await closeTop();
+  await settle();
+  assert.equal(await eaten(), before + 600);
+  assert.equal(await page.locator('[data-meal="dinner"] .item', { hasText: 'wedding cake' }).count(), 1);
+  // editing the logged one-off still works (uses its own copy of the nutrition)
+  await page.locator('[data-meal="dinner"] .item', { hasText: 'wedding cake' }).click();
+  await page.waitForTimeout(450);
+  await topSheet().locator('input.big-input').fill('100');
+  await topSheet().locator('[data-save]').click();
+  await settle();
+  assert.equal(await eaten(), before + 400);
+  // the switch remembers "off" next time; the Foods screen form never shows it
+  await page.locator('[data-fab]').click();
+  await page.waitForTimeout(450);
+  await topSheet().locator('button', { hasText: 'Create custom food' }).click();
+  await page.waitForTimeout(450);
+  assert.ok(!(await topSheet().locator('[data-keep]').isChecked()));
+  await closeTop();
+  await closeTop();
+  await page.goto(BASE + '#/foods');
+  await page.waitForTimeout(400);
+  await page.locator('[data-nf]').click();
+  await page.waitForTimeout(450);
+  assert.equal(await topSheet().locator('[data-keep]').count(), 0);
+  await closeTop();
+});
+
 await step('central + button opens add food; appearance switch applies themes', async () => {
   await page.goto(BASE + '#/today');
   await page.waitForTimeout(400);
