@@ -1,4 +1,4 @@
-// Renders the app icons (original artwork: two concentric progress arcs) to PNG.
+// Renders the app icons (original artwork: the hydria water jar) to PNG.
 // Usage: node tools/make-icons.mjs   (needs Playwright + Chromium)
 import { chromium } from 'playwright';
 import { dirname, join } from 'node:path';
@@ -7,35 +7,34 @@ import { existsSync } from 'node:fs';
 
 const out = join(dirname(fileURLToPath(import.meta.url)), '..', 'app', 'icons');
 
-function laurelSprig(mirror) {
-  // same construction as app/js/art.js, simplified
-  const P0 = [0, 0], P1 = [4, -34], P2 = [46, -58];
-  const at = (t) => [(1 - t) ** 2 * P0[0] + 2 * (1 - t) * t * P1[0] + t * t * P2[0], (1 - t) ** 2 * P0[1] + 2 * (1 - t) * t * P1[1] + t * t * P2[1]];
-  const tan = (t) => [2 * (1 - t) * (P1[0] - P0[0]) + 2 * t * (P2[0] - P1[0]), 2 * (1 - t) * (P1[1] - P0[1]) + 2 * t * (P2[1] - P1[1])];
-  let leaves = '';
-  for (let i = 0; i < 6; i++) {
-    const t = 0.14 + (i / 5) * 0.78;
-    const [x, y] = at(t); const [dx, dy] = tan(t);
-    const ang = (Math.atan2(dy, dx) * 180) / Math.PI; const k = 1 - i * 0.07;
-    for (const side of [-1, 1]) leaves += `<ellipse rx="${8.5 * k}" ry="${3.1 * k}" transform="translate(${x} ${y}) rotate(${ang + side * 38}) translate(${7 * k} 0)"/>`;
-  }
-  return `<g transform="${mirror ? 'scale(-1 1)' : ''}"><path d="M0 0 Q4 -34 46 -58" fill="none" stroke="#a88450" stroke-width="2"/><g fill="#a88450">${leaves}</g></g>`;
-}
+// The hydria (Greek water jar) from the Today screen's water card - see app/js/art.js.
+const HYDRIA_PATH = 'M38 10 H62 V20 C62 24 70 26 74 32 C84 44 88 62 86 80 C84 102 74 120 64 130 C60 133 56 134 50 134 C44 134 40 133 36 130 C26 120 16 102 14 80 C12 62 16 44 26 32 C30 26 38 24 38 20 Z';
 
 function svg(size, { maskable = false, rounded = false } = {}) {
-  const k = maskable ? 0.78 : 1; // keep artwork inside the maskable safe zone
-  const c = 256, r = 150 * k, w = 34 * k, sweep = 125;
-  const p = (deg) => [c + r * Math.sin((deg * Math.PI) / 180), 250 - r * Math.cos((deg * Math.PI) / 180)];
-  const [ax, ay] = p(-sweep), [bx, by] = p(sweep), [mx, my] = p(55);
+  // Jar artwork spans x 6-94, y 10-134 in its 100x146 box; fit it inside the icon
+  // (smaller for maskable icons so it stays within the safe zone).
+  const scale = maskable ? 2.3 : 2.7;
+  const tx = 256 - 50 * scale;
+  const ty = 256 - 72 * scale;
+  const level = 64; // water surface y inside the jar (fills roughly the lower half)
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 512 512">
-    <defs><radialGradient id="bg" cx="0.5" cy="0.25" r="0.9"><stop offset="0" stop-color="#fbf7f0"/><stop offset="1" stop-color="#eadfcd"/></radialGradient></defs>
+    <defs>
+      <radialGradient id="bg" cx="0.5" cy="0.3" r="0.85"><stop offset="0" stop-color="#fbf7f0"/><stop offset="1" stop-color="#e9ddca"/></radialGradient>
+      <linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fb3cf"/><stop offset="1" stop-color="#356b8c"/></linearGradient>
+      <clipPath id="jar"><path d="${HYDRIA_PATH}"/></clipPath>
+    </defs>
     <rect width="512" height="512" rx="${rounded ? 112 : 0}" fill="url(#bg)"/>
-    <path d="M${ax} ${ay} A${r} ${r} 0 1 1 ${bx} ${by}" fill="none" stroke="#e2d6c3" stroke-width="${w}" stroke-linecap="round"/>
-    <path d="M${ax} ${ay} A${r} ${r} 0 1 1 ${mx} ${my}" fill="none" stroke="#c15f3c" stroke-width="${w}" stroke-linecap="round"/>
-    <g transform="translate(256 ${250 + r * 0.92}) scale(${1.55 * k})">
-      <g transform="translate(-6 0) rotate(-8)">${laurelSprig(true)}</g>
-      <g transform="translate(6 0) rotate(8)">${laurelSprig(false)}</g>
-      <circle cy="1" r="3" fill="#a88450"/>
+    <g transform="translate(${tx} ${ty}) scale(${scale})">
+      <path d="M26 34 C10 34 6 52 16 60" fill="none" stroke="#b86a45" stroke-width="3.6" stroke-linecap="round"/>
+      <path d="M74 34 C90 34 94 52 84 60" fill="none" stroke="#b86a45" stroke-width="3.6" stroke-linecap="round"/>
+      <g clip-path="url(#jar)">
+        <rect x="0" y="0" width="100" height="146" fill="#f3ebdd"/>
+        <path d="M0 ${level - 2} Q12.5 ${level - 9} 25 ${level - 2} T50 ${level - 2} T75 ${level - 2} T100 ${level - 2} V146 H0 Z" fill="#9cc3d8"/>
+        <path d="M0 ${level} Q12.5 ${level - 7} 25 ${level} T50 ${level} T75 ${level} T100 ${level} V146 H0 Z" fill="url(#water)"/>
+        <path d="M14 ${level - 16} H86 M14 ${level - 11} H86" stroke="#b86a45" stroke-width="1.3" opacity=".35"/>
+      </g>
+      <path d="${HYDRIA_PATH}" fill="none" stroke="#b86a45" stroke-width="3.4" stroke-linejoin="round"/>
+      <path d="M34 10 H66" stroke="#b86a45" stroke-width="3.6" stroke-linecap="round"/>
     </g>
   </svg>`;
 }
