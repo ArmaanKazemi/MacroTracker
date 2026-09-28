@@ -44,6 +44,7 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --edge: 0px; /* extra room below the status bar, see display-mode rule below */
   --tabbar-h: 76px;
   color-scheme: light;
 }
@@ -91,7 +92,7 @@ button { cursor: pointer; }
 .num { font-variant-numeric: lining-nums tabular-nums; font-feature-settings: "lnum", "tnum"; }
 
 #view {
-  padding: calc(var(--safe-top) + 10px) 16px calc(var(--tabbar-h) + var(--safe-bottom) + 30px);
+  padding: calc(var(--safe-top) + var(--edge) + 10px) 16px calc(var(--tabbar-h) + var(--safe-bottom) + 30px);
   max-width: 560px;
   margin: 0 auto;
   outline: none;
@@ -127,8 +128,8 @@ button { cursor: pointer; }
 .hero {
   position: relative;
   isolation: isolate;
-  margin: calc(-10px - var(--safe-top)) -16px 0;
-  padding: calc(var(--safe-top) + 6px) 16px 8px;
+  margin: calc(-10px - var(--safe-top) - var(--edge)) -16px 0;
+  padding: calc(var(--safe-top) + var(--edge) + 6px) 16px 8px;
   /* faint marble veining is part of the background (no overlay above the text) */
   background:
     radial-gradient(60% 40% at 15% 20%, color-mix(in srgb, var(--gold) 6%, transparent), transparent 70%),
@@ -330,14 +331,14 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .sheet {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 41;
   max-width: 560px; margin: 0 auto;
-  max-height: calc(100% - var(--safe-top) - 16px);
+  max-height: calc(100% - var(--safe-top) - var(--edge) - 16px);
   display: flex; flex-direction: column;
   background: var(--sheet); border-radius: 26px 26px 0 0;
   border-top: 1px solid var(--line);
   box-shadow: 0 -12px 40px -20px rgba(40, 25, 10, 0.5);
   transform: translateY(100%); transition: transform 0.38s var(--ease);
 }
-.sheet.tall { height: calc(100% - var(--safe-top) - 16px); }
+.sheet.tall { height: calc(100% - var(--safe-top) - var(--edge) - 16px); }
 .sheet.open { transform: none; }
 .sheet-back.open { opacity: 1; }
 .sheet-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px 6px 18px; flex: none; }
@@ -393,6 +394,13 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 @keyframes spin { to { transform: rotate(360deg); } }
 .view-enter { animation: enter 0.35s var(--ease); }
 @keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Installed on the home screen, iOS softens/blurs content just below the status
+   bar. Keep text clear of that zone. */
+:root.standalone { --edge: 22px; }
+@media (display-mode: standalone) {
+  :root { --edge: 22px; }
+}
 
 @media (max-width: 360px) {
   .gauge { grid-template-columns: 1fr minmax(0, 200px) 1fr; }
