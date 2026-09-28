@@ -130,13 +130,8 @@ button { cursor: pointer; }
   isolation: isolate;
   margin: calc(-10px - var(--safe-top) - var(--edge)) -16px 0;
   padding: calc(var(--safe-top) + var(--edge) + 6px) 16px 8px;
-  /* faint marble veining is part of the background (no overlay above the text) */
-  background:
-    radial-gradient(60% 40% at 15% 20%, color-mix(in srgb, var(--gold) 6%, transparent), transparent 70%),
-    radial-gradient(50% 35% at 90% 60%, color-mix(in srgb, var(--gold) 5%, transparent), transparent 70%),
-    radial-gradient(90% 55% at 50% 48%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 72%),
-    /* starts at the page colour so it meets the status-bar area (painted in --bg by iOS) without a seam */
-    linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 42%, var(--bg) 100%);
+  /* flat parchment, same as the page and the status-bar area: no gradient, no seam */
+  background: var(--bg);
   overflow: hidden;
 }
 .datebar { display: flex; justify-content: center; }
