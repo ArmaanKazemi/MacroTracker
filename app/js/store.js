@@ -180,6 +180,18 @@ export async function logFood(food, opts) {
   return entry;
 }
 export const saveEntry = (e) => db.put('entries', e);
+
+/** Copy logged entries to another day / meal (new ids, same foods, amounts and nutrition). */
+export async function copyEntries(list, { date, meal }) {
+  let ts = Date.now();
+  const out = [];
+  for (const e of list) {
+    const c = { ...e, id: 'e-' + db.uid(), date, meal, ts: ts++ };
+    await db.put('entries', c);
+    out.push(c);
+  }
+  return out;
+}
 export const deleteEntry = (id) => db.del('entries', id);
 
 /** After linking a food, refresh the micronutrient estimates on all its logged entries. */

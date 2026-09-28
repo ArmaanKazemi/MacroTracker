@@ -4,24 +4,32 @@ import * as store from './store.js';
 import * as fooddb from './fooddb.js';
 import { mountToday } from './today.js';
 import { mountNutrients, mountFoods, mountSettings, guessMeal } from './views.js';
+import { mountMeal } from './meal.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.6.0';
+window.APP_VERSION = '2.7.0';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), microMode: 'day', foodsTab: 'fav' };
-const routes = { today: mountToday, nutrients: mountNutrients, foods: mountFoods, settings: mountSettings };
+const routes = { today: mountToday, nutrients: mountNutrients, foods: mountFoods, settings: mountSettings, meal: mountMeal };
 let current = null;
 let currentName = '';
 let enterTimer = 0;
+const scrollMemory = {};
 
 function route() {
   const name = (location.hash.replace(/^#\/?/, '') || 'today').split('?')[0];
   const mount = routes[name] || routes.today;
   const key = routes[name] ? name : 'today';
+  // Each meal page is its own screen (its query picks the meal).
+  const ident = key === 'meal' ? location.hash : key;
+  let restoreY = null;
   closeAllSheets();
-  if (key !== currentName) {
-    currentName = key;
+  if (ident !== currentName) {
+    if (currentName) scrollMemory[currentName] = window.scrollY;
+    window.__prevRoute = currentName;
+    const returning = key === 'today' && window.__prevRoute?.startsWith('#/meal');
+    currentName = ident;
     current = mount(view, state);
     view.classList.remove('view-enter');
     void view.offsetWidth;
@@ -29,12 +37,16 @@ function route() {
     // Drop the class once the entrance has played, so later refreshes don't replay it.
     clearTimeout(enterTimer);
     enterTimer = setTimeout(() => view.classList.remove('view-enter'), 1400);
+    // Back from a meal page lands where you left Today.
+    if (returning) { view.classList.remove('view-enter'); restoreY = scrollMemory.today || 0; }
     window.scrollTo(0, 0);
   }
-  $$(document, '.tabbar a').forEach((a) => (a.dataset.tab === key ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
+  const tab = key === 'meal' ? 'today' : key;
+  $$(document, '.tabbar a').forEach((a) => (a.dataset.tab === tab ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   moveTabIndicator();
   syncThemeColor();
-  current.refresh();
+  const done = current.refresh();
+  if (restoreY !== null) { const y = restoreY; Promise.resolve(done).then(() => window.scrollTo(0, y)); }
 }
 
 /** Slide the pill behind the active tab. */

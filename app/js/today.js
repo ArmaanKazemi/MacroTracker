@@ -1,6 +1,6 @@
 // Home screen: calorie gauge, macro cards, water, meals.
 import { el, esc, $, $$, icons, animateNumber, setFill, limitStatus, dateSwitcher, toast, round1 } from './ui.js';
-import { MEALS, MACROS, SUBS, totals, scale, fmt } from './nutrients.js';
+import { MEALS, MACROS, SUBS, MEAL_SHARE, totals, scale, fmt } from './nutrients.js';
 import * as store from './store.js';
 import * as fooddb from './fooddb.js';
 import { openAddFood, openFoodDetail, changed } from './sheets.js';
@@ -23,9 +23,25 @@ const TICKS = Array.from({ length: 26 }, (_, i) => {
 }).join('');
 
 // Suggested share of the calorie goal per meal.
-const MEAL_SHARE = { breakfast: [0.25, 0.35], lunch: [0.3, 0.4], dinner: [0.3, 0.4], snacks: [0.05, 0.15] };
 
 const sectionHead = (label) => el(`<div class="section-h"><span>${label}</span><i class="meander" aria-hidden="true"></i></div>`);
+
+// Which meal cards are collapsed (remembered on this device).
+const COLLAPSE_KEY = 'pithos-collapsed';
+function collapsed() {
+  try { return new Set(JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '[]')); } catch { return new Set(); }
+}
+function saveCollapsed(set) {
+  try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...set])); } catch { /* private mode */ }
+}
+function applyCollapse(card, key, count) {
+  const shut = count > 0 && collapsed().has(key);
+  card.classList.toggle('collapsed', shut);
+  const t = $(card, '[data-toggle]');
+  t.hidden = !count;
+  t.setAttribute('aria-expanded', String(!shut));
+  $(card, '[data-count]')?.toggleAttribute('hidden', !shut);
+}
 
 export function mountToday(view, state) {
   view.innerHTML = '';
@@ -99,13 +115,22 @@ export function mountToday(view, state) {
     const card = el(`
       <section class="card meal" data-meal="${m.key}" aria-label="${m.label}">
         <div class="meal-head">
-          <div class="meal-icon">${mealIcons[m.key]}</div>
-          <div style="flex:1;min-width:0"><div class="meal-title">${m.label}</div><div class="meal-sub num" data-sub></div></div>
+          <a class="meal-link" href="#/meal?m=${m.key}" data-open aria-label="Open ${m.label}">
+            <div class="meal-icon">${mealIcons[m.key]}</div>
+            <div style="flex:1;min-width:0"><div class="meal-title">${m.label}</div><div class="meal-sub num" data-sub></div></div>
+          </a>
+          <button class="iconbtn chev" type="button" data-toggle aria-label="Show or hide ${m.label} foods" hidden>${icons.next}</button>
           <button class="iconbtn add" type="button" data-add aria-label="Add food to ${m.label}">${icons.plus}</button>
         </div>
-        <div class="items" data-items></div>
+        <div class="items-wrap"><div class="items" data-items></div></div>
       </section>`);
     $(card, '[data-add]').onclick = () => openAddFood({ date: state.date, meal: m.key });
+    $(card, '[data-toggle]').onclick = () => {
+      const c = collapsed();
+      c.has(m.key) ? c.delete(m.key) : c.add(m.key);
+      saveCollapsed(c);
+      applyCollapse(card, m.key, card.dataset.count | 0);
+    };
     mealsBox.appendChild(card);
   }
 
@@ -234,7 +259,7 @@ export function mountToday(view, state) {
       const mt = totals(list);
       const [lo, hi] = MEAL_SHARE[m.key].map((f) => Math.round((settings.kcal * f) / 5) * 5);
       $(card, '[data-sub]').innerHTML = list.length
-        ? `<b>${fmt(mt.kcal.value, 'kcal')} kcal</b> · P ${fmt(mt.protein.value)} · C ${fmt(mt.carbs.value)} · F ${fmt(mt.fat.value)}`
+        ? `<b>${fmt(mt.kcal.value, 'kcal')} kcal</b> · P ${fmt(mt.protein.value)} · C ${fmt(mt.carbs.value)} · F ${fmt(mt.fat.value)}<span data-count hidden> · ${list.length} ${list.length === 1 ? 'item' : 'items'}</span>`
         : `Recommended ${lo.toLocaleString('en-GB')} – ${hi.toLocaleString('en-GB')} kcal`;
       const items = $(card, '[data-items]');
       items.innerHTML = '';
@@ -255,6 +280,9 @@ export function mountToday(view, state) {
         };
         items.appendChild(b);
       }
+      if (list.length) items.appendChild(el(`<a class="meal-more" href="#/meal?m=${m.key}">Meal details ${icons.next}</a>`));
+      card.dataset.count = list.length;
+      applyCollapse(card, m.key, list.length);
     }
   }
   return { refresh };
