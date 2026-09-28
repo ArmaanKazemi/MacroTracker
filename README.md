@@ -18,7 +18,7 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
 - **Deleting:** swipe left on any food or saved meal (Foods screen, or the lists in the add-food sheet) to delete it. A long swipe deletes immediately; a short one reveals a **Delete** button. **Undo** appears for a few seconds. Foods you've already logged stay in your history.
 - **Apple Health:** send your daily nutrition and water to Apple Health through an Apple Shortcut. See below.
 
-Colours: green = on track, amber = close to the goal, red = over the goal (or a micronutrient that is low).
+Design: "modern classical". Warm ivory paper, ink and terracotta, with serif numerals (Cormorant Garamond) and Roman inscription capitals (Cinzel). The Today screen has an open arc gauge framed by laurels, Greek-key section rules, line-art meal icons and a hydria (water jar) that fills as you drink. There's an optional **Marble night** dark theme (Settings → Appearance). Colours: olive = on track, ochre = close to the goal, deep red = over the goal (or a micronutrient that is low). Fonts are bundled under the SIL Open Font License (see `app/fonts/`).
 
 ## Deploying to GitHub Pages
 
@@ -110,6 +110,7 @@ app/                    ← the static site (this folder is what gets deployed)
   js/  app.js (router) · today.js · views.js · sheets.js · store.js · db.js · fooddb.js · nutrients.js · ui.js · scanner.js
   data/starter.json     ← bundled starter foods (cofid.json is generated)
   vendor/zxing.min.js   ← barcode decoder for iOS (Apache-2.0)
+  fonts/                ← Cormorant Garamond + Cinzel (SIL OFL)
   icons/
 tools/                  ← build-cofid.mjs (xlsx → json), starter-foods.mjs, make-icons.mjs
 tests/                  ← e2e.mjs (Playwright), cofid-parser.test.mjs, serve.mjs
@@ -124,7 +125,7 @@ There's no build step for the app itself. It's plain HTML, CSS and ES modules.
 node tests/serve.mjs 8080        # then open http://127.0.0.1:8080
 cd tools && npm install          # xlsx + playwright
 node ../tests/cofid-parser.test.mjs
-node ../tests/e2e.mjs            # 21 end-to-end checks on an iPhone-sized viewport
+node ../tests/e2e.mjs            # 24 end-to-end checks on an iPhone-sized viewport
 ```
 
 The e2e suite covers:

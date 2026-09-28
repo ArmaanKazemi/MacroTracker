@@ -1,6 +1,6 @@
 // Service worker: precache the app shell + food database so everything works offline.
 // Bump VERSION whenever you change any app file so phones pick up the update.
-const VERSION = 'fuel-v1.2.0';
+const VERSION = 'fuel-v2.0.0';
 
 const SHELL = [
   './',
@@ -8,6 +8,7 @@ const SHELL = [
   'manifest.webmanifest',
   'css/app.css',
   'js/app.js',
+  'js/art.js',
   'js/db.js',
   'js/fooddb.js',
   'js/health.js',
@@ -19,6 +20,11 @@ const SHELL = [
   'js/ui.js',
   'js/views.js',
   'data/starter.json',
+  'fonts/cormorant-garamond-latin-500-normal.woff2',
+  'fonts/cormorant-garamond-latin-600-normal.woff2',
+  'fonts/cormorant-garamond-latin-700-normal.woff2',
+  'fonts/cinzel-latin-500-normal.woff2',
+  'fonts/cinzel-latin-700-normal.woff2',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/apple-touch-icon.png',

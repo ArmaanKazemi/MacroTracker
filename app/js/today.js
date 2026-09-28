@@ -1,4 +1,4 @@
-// Home screen: calorie ring, macro bars, water, meals.
+// Home screen: calorie gauge, macro cards, water, meals.
 import { el, esc, $, $$, icons, animateNumber, setFill, limitStatus, dateSwitcher, toast, round1 } from './ui.js';
 import { MEALS, MACROS, totals, scale, fmt } from './nutrients.js';
 import * as store from './store.js';
@@ -6,71 +6,67 @@ import * as fooddb from './fooddb.js';
 import { openAddFood, openFoodDetail, changed } from './sheets.js';
 import { openSheet } from './ui.js';
 import * as health from './health.js';
+import { laurels, mealIcons, hydriaSvg, HYDRIA_H } from './art.js';
 
-const R = 104;
-const C = 2 * Math.PI * R;
+// Open arc gauge: 250° sweep, open at the bottom.
+const CX = 150, CY = 142, R = 116, SWEEP = 125;
+const pt = (deg) => [CX + R * Math.sin((deg * Math.PI) / 180), CY - R * Math.cos((deg * Math.PI) / 180)];
+const [AX, AY] = pt(-SWEEP);
+const [BX, BY] = pt(SWEEP);
+const ARC = `M${AX.toFixed(1)} ${AY.toFixed(1)} A${R} ${R} 0 1 1 ${BX.toFixed(1)} ${BY.toFixed(1)}`;
+const TICKS = Array.from({ length: 26 }, (_, i) => {
+  const a = -SWEEP + (i * 2 * SWEEP) / 25;
+  const r1 = R + 13, r2 = R + (i % 5 === 0 ? 20 : 17);
+  const s1 = [CX + r1 * Math.sin((a * Math.PI) / 180), CY - r1 * Math.cos((a * Math.PI) / 180)];
+  const s2 = [CX + r2 * Math.sin((a * Math.PI) / 180), CY - r2 * Math.cos((a * Math.PI) / 180)];
+  return `<line x1="${s1[0].toFixed(1)}" y1="${s1[1].toFixed(1)}" x2="${s2[0].toFixed(1)}" y2="${s2[1].toFixed(1)}"/>`;
+}).join('');
 
-const GLASS_H = 124; // interior height of the glass in SVG units (y 10 → 134)
+// Suggested share of the calorie goal per meal.
+const MEAL_SHARE = { breakfast: [0.25, 0.35], lunch: [0.3, 0.4], dinner: [0.3, 0.4], snacks: [0.05, 0.15] };
 
-function glassSvg() {
-  return `
-  <svg viewBox="0 0 100 140" role="img" aria-label="Water glass">
-    <defs>
-      <clipPath id="glassClip"><path d="M14 10 L86 10 L78 128 Q77 134 71 134 L29 134 Q23 134 22 128 Z"/></clipPath>
-      <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#6cc0ff"/><stop offset="1" stop-color="#1f6fd6"/>
-      </linearGradient>
-    </defs>
-    <g clip-path="url(#glassClip)">
-      <rect x="0" y="0" width="100" height="140" fill="#12161c"/>
-      <g class="level" style="transform: translateY(${GLASS_H + 6}px)">
-        <path class="wave2" fill="#3d8fe8" d="M0 8 Q12.5 0 25 8 T50 8 T75 8 T100 8 T125 8 T150 8 T175 8 T200 8 V200 H0 Z"/>
-        <path class="wave" fill="url(#waterGrad)" d="M0 10 Q12.5 3 25 10 T50 10 T75 10 T100 10 T125 10 T150 10 T175 10 T200 10 V200 H0 Z"/>
-      </g>
-      <path d="M24 18 L30 120" stroke="rgba(255,255,255,0.10)" stroke-width="4" stroke-linecap="round"/>
-    </g>
-    <path class="outline" d="M14 10 L86 10 L78 128 Q77 134 71 134 L29 134 Q23 134 22 128 Z" fill="none" stroke="#3a414b" stroke-width="3" stroke-linejoin="round" style="transition: stroke .5s"/>
-  </svg>`;
-}
+const sectionHead = (label) => el(`<div class="section-h"><span>${label}</span><i class="meander" aria-hidden="true"></i></div>`);
 
 export function mountToday(view, state) {
   view.innerHTML = '';
-  const top = el('<div class="topbar"><h1 class="title">Fuel</h1></div>');
-  view.appendChild(top);
 
   const hero = el(`
-    <section class="card hero" aria-label="Calories">
-      <div class="ring-wrap">
-        <svg class="ring" viewBox="0 0 240 240" aria-hidden="true">
-          <circle class="ring-track" cx="120" cy="120" r="${R}"/>
-          <circle class="bar c-green" cx="120" cy="120" r="${R}" stroke="currentColor" stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
-        </svg>
-        <div class="ring-center">
-          <div class="big num" data-remaining>0</div>
-          <div class="eyebrow" data-remaining-label>kcal remaining</div>
+    <section class="hero" aria-label="Calories">
+      <div class="datebar" data-datebar></div>
+      <div class="gauge">
+        <div class="side"><div class="side-l">Eaten</div><div class="side-v num" data-eaten>0</div><div class="side-u">kcal</div></div>
+        <div class="arc-wrap">
+          <svg class="arc" viewBox="0 0 300 250" aria-hidden="true">
+            <g class="ticks">${TICKS}</g>
+            <path class="arc-track" d="${ARC}"/>
+            <path class="arc-bar c-green" d="${ARC}" pathLength="100" stroke-dasharray="100 100" stroke-dashoffset="100"/>
+          </svg>
+          <div class="arc-center">
+            <div class="eyebrow" data-remaining-label>Remaining</div>
+            <div class="big num" data-remaining>0</div>
+            <div class="arc-goal num">Goal <span data-goal>0</span> kcal</div>
+          </div>
+          <div class="arc-laurels">${laurels()}</div>
         </div>
-      </div>
-      <div class="hero-stats">
-        <div><div class="stat-v num" data-eaten>0</div><div class="stat-l">Eaten</div></div>
-        <div><div class="stat-v num" data-goal>0</div><div class="stat-l">Goal</div></div>
-        <div><div class="stat-v num" data-pct>0%</div><div class="stat-l">Of goal</div></div>
+        <div class="side"><div class="side-l">Of goal</div><div class="side-v num" data-pct>0%</div><div class="side-u">&nbsp;</div></div>
       </div>
     </section>`);
   view.appendChild(hero);
 
-  const macroCard = el(`<section class="card" aria-label="Macros">${MACROS.map((m) => `
-    <div class="bar-row" data-macro="${m.key}">
-      <div class="bar-head"><span class="bar-name">${m.label}</span><span class="bar-val num"><b data-v>0</b> / <span data-g>0</span> g</span></div>
-      <div class="track"><div class="fill"></div></div>
+  const macroCard = el(`<section class="macro-grid" aria-label="Macros">${MACROS.map((m) => `
+    <div class="macro" data-macro="${m.key}">
+      <div class="macro-name">${m.label}</div>
+      <div class="macro-val num"><b data-v>0</b><span>/<span data-g>0</span>g</span></div>
+      <div class="track thin"><div class="fill"></div></div>
     </div>`).join('')}</section>`);
   view.appendChild(macroCard);
 
+  view.appendChild(sectionHead('Hydration'));
   const water = el(`
     <section class="card" aria-label="Water">
       <div class="water">
-        <div class="glass">${glassSvg()}</div>
+        <div class="glass">${hydriaSvg()}</div>
         <div class="water-info">
-          <div class="eyebrow">Water</div>
           <div class="water-big num"><span data-wv>0</span><small> / <span data-wg></span> L</small></div>
           <div class="muted small" data-wleft></div>
           <div class="chips">
@@ -91,18 +87,20 @@ export function mountToday(view, state) {
         <button class="chip primary" type="button" data-hsend>Send to Health</button>
       </div>
       <p class="note" data-hwarn hidden></p>
-      <button class="btn sm" type="button" data-hundo hidden style="background:transparent;color:var(--muted);padding:0 2px;min-height:36px">Didn't arrive? Mark as not sent</button>
+      <button class="btn sm link" type="button" data-hundo hidden>Didn't arrive? Mark as not sent</button>
     </section>`);
   view.appendChild(healthCard);
 
+  view.appendChild(sectionHead('Meals'));
   const mealsBox = el('<div></div>');
   view.appendChild(mealsBox);
   for (const m of MEALS) {
     const card = el(`
-      <section class="card" data-meal="${m.key}" aria-label="${m.label}">
+      <section class="card meal" data-meal="${m.key}" aria-label="${m.label}">
         <div class="meal-head">
+          <div class="meal-icon">${mealIcons[m.key]}</div>
           <div style="flex:1;min-width:0"><div class="meal-title">${m.label}</div><div class="meal-sub num" data-sub></div></div>
-          <button class="iconbtn accent" type="button" data-add aria-label="Add food to ${m.label}">${icons.plus}</button>
+          <button class="iconbtn add" type="button" data-add aria-label="Add food to ${m.label}">${icons.plus}</button>
         </div>
         <div class="items" data-items></div>
       </section>`);
@@ -175,7 +173,7 @@ export function mountToday(view, state) {
 
   async function refresh() {
     refreshHealth();
-    top.replaceChildren(el('<h1 class="title">Fuel</h1>'), dateSwitcher(state.date, (d) => { state.date = d; refresh(); }));
+    $(hero, '[data-datebar]').replaceChildren(dateSwitcher(state.date, (d) => { state.date = d; refresh(); }));
     const [settings, entries, waterList] = await Promise.all([store.getSettings(), store.entriesFor(state.date), store.waterFor(state.date)]);
     await fooddb.load();
     const t = totals(entries);
@@ -185,12 +183,12 @@ export function mountToday(view, state) {
     const goal = settings.kcal;
     const remaining = goal - eaten;
     const st = limitStatus(eaten, goal);
-    const bar = $(hero, '.bar');
-    bar.setAttribute('class', `bar c-${st}`);
-    bar.style.strokeDashoffset = C * (1 - Math.min(1, goal ? eaten / goal : 0));
+    const bar = $(hero, '.arc-bar');
+    bar.setAttribute('class', `arc-bar c-${st}`);
+    bar.style.strokeDashoffset = 100 * (1 - Math.min(1, goal ? eaten / goal : 0));
     animateNumber($(hero, '[data-remaining]'), Math.abs(remaining));
     $(hero, '[data-remaining]').className = `big num${remaining < 0 ? ' c-red' : ''}`;
-    $(hero, '[data-remaining-label]').textContent = remaining < 0 ? 'kcal over' : 'kcal remaining';
+    $(hero, '[data-remaining-label]').textContent = remaining < 0 ? 'Over' : 'Remaining';
     animateNumber($(hero, '[data-eaten]'), eaten);
     animateNumber($(hero, '[data-goal]'), goal);
     animateNumber($(hero, '[data-pct]'), goal ? (eaten / goal) * 100 : 0, (v) => `${Math.round(v)}%`);
@@ -209,7 +207,7 @@ export function mountToday(view, state) {
     const ml = waterList.reduce((s, w) => s + w.ml, 0);
     const wgoal = settings.water || 2500;
     const frac = Math.min(1, ml / wgoal);
-    $(water, '.level').style.transform = `translateY(${GLASS_H * (1 - frac) + (frac > 0 ? 0 : 6)}px)`;
+    $(water, '.level').style.transform = `translateY(${HYDRIA_H * (1 - frac) + (frac > 0 ? 0 : 6)}px)`;
     $(water, '.glass').classList.toggle('full', ml >= wgoal);
     animateNumber($(water, '[data-wv]'), ml / 1000, (v) => v.toFixed(2));
     $(water, '[data-wg]').textContent = (wgoal / 1000).toFixed(2).replace(/\.?0+$/, '');
@@ -221,9 +219,10 @@ export function mountToday(view, state) {
       const card = $(mealsBox, `[data-meal="${m.key}"]`);
       const list = entries.filter((e) => e.meal === m.key).sort((a, b) => a.ts - b.ts);
       const mt = totals(list);
-      $(card, '[data-sub]').textContent = list.length
-        ? `${fmt(mt.kcal.value, 'kcal')} kcal · P ${fmt(mt.protein.value)} · C ${fmt(mt.carbs.value)} · F ${fmt(mt.fat.value)}`
-        : 'Nothing logged';
+      const [lo, hi] = MEAL_SHARE[m.key].map((f) => Math.round((settings.kcal * f) / 5) * 5);
+      $(card, '[data-sub]').innerHTML = list.length
+        ? `<b>${fmt(mt.kcal.value, 'kcal')} kcal</b> · P ${fmt(mt.protein.value)} · C ${fmt(mt.carbs.value)} · F ${fmt(mt.fat.value)}`
+        : `Recommended ${lo.toLocaleString('en-GB')} – ${hi.toLocaleString('en-GB')} kcal`;
       const items = $(card, '[data-items]');
       items.innerHTML = '';
       for (const e of list) {
