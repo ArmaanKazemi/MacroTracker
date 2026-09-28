@@ -65,7 +65,7 @@ await step('home screen renders with goal and empty meals', async () => {
   assert.equal(await num('[data-goal]'), 2200);
   assert.equal(await eaten(), 0);
   assert.equal(await page.locator('.meal-title').count(), 4);
-  assert.equal(await page.locator('[data-remaining-label]').textContent(), 'kcal remaining');
+  assert.equal(await page.locator('[data-remaining-label]').textContent(), 'Remaining');
 });
 
 await step('pre-loaded favourites are seeded', async () => {
@@ -582,6 +582,26 @@ await step('upgrade from v1: old targets replaced, new nutrients filled into old
   assert.ok(Number(await p.locator('[data-k="selenium"] [data-v]').textContent()) > 0, 'selenium estimated for old entry');
   assert.ok(Number((await p.locator('[data-k="potassium"] [data-v]').textContent()).replace(/,/g, '')) > 0, 'old "no data" potassium filled in');
   await c.close();
+});
+
+await step('central + button opens add food; appearance switch applies themes', async () => {
+  await page.goto(BASE + '#/today');
+  await page.waitForTimeout(400);
+  await page.locator('[data-fab]').click();
+  await page.waitForTimeout(450);
+  assert.match(await topSheet().locator('h2').textContent(), /^Add to (Breakfast|Lunch|Dinner|Snacks)$/);
+  await closeTop();
+  await page.goto(BASE + '#/settings');
+  await page.waitForTimeout(400);
+  await page.locator('[data-theme="dark"]').click();
+  await page.waitForTimeout(200);
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
+  await page.reload();
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark', 'theme survives reload');
+  await page.locator('[data-theme="system"]').click();
+  await page.waitForTimeout(200);
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), undefined);
 });
 
 await step('no JavaScript errors', async () => {

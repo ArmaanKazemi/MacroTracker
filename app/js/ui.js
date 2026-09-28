@@ -199,6 +199,7 @@ export function addDays(k, n) {
   d.setDate(d.getDate() + n);
   return dateKey(d);
 }
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export function dateLabel(k) {
   const t = todayKey();
   if (k === t) return 'Today';
@@ -212,7 +213,7 @@ export function dateSwitcher(key, onChange) {
   const w = el(`
     <div class="datesw">
       <button type="button" data-prev aria-label="Previous day">${icons.back}</button>
-      <button type="button" class="label" data-label><span>${esc(dateLabel(key))}</span>
+      <button type="button" class="label" data-label><span>${esc(dateLabel(key))}</span>${/^(Today|Yesterday|Tomorrow)$/.test(dateLabel(key)) ? `<small>${parseKey(key).getDate()} ${MONTHS[parseKey(key).getMonth()]}</small>` : ''}
         <input type="date" aria-label="Pick a date" value="${key}" max="${todayKey()}"></button>
       <button type="button" data-next aria-label="Next day" ${key >= todayKey() ? 'disabled' : ''}>${icons.next}</button>
     </div>`);

@@ -7,29 +7,36 @@ import { existsSync } from 'node:fs';
 
 const out = join(dirname(fileURLToPath(import.meta.url)), '..', 'app', 'icons');
 
+function laurelSprig(mirror) {
+  // same construction as app/js/art.js, simplified
+  const P0 = [0, 0], P1 = [4, -34], P2 = [46, -58];
+  const at = (t) => [(1 - t) ** 2 * P0[0] + 2 * (1 - t) * t * P1[0] + t * t * P2[0], (1 - t) ** 2 * P0[1] + 2 * (1 - t) * t * P1[1] + t * t * P2[1]];
+  const tan = (t) => [2 * (1 - t) * (P1[0] - P0[0]) + 2 * t * (P2[0] - P1[0]), 2 * (1 - t) * (P1[1] - P0[1]) + 2 * t * (P2[1] - P1[1])];
+  let leaves = '';
+  for (let i = 0; i < 6; i++) {
+    const t = 0.14 + (i / 5) * 0.78;
+    const [x, y] = at(t); const [dx, dy] = tan(t);
+    const ang = (Math.atan2(dy, dx) * 180) / Math.PI; const k = 1 - i * 0.07;
+    for (const side of [-1, 1]) leaves += `<ellipse rx="${8.5 * k}" ry="${3.1 * k}" transform="translate(${x} ${y}) rotate(${ang + side * 38}) translate(${7 * k} 0)"/>`;
+  }
+  return `<g transform="${mirror ? 'scale(-1 1)' : ''}"><path d="M0 0 Q4 -34 46 -58" fill="none" stroke="#a88450" stroke-width="2"/><g fill="#a88450">${leaves}</g></g>`;
+}
+
 function svg(size, { maskable = false, rounded = false } = {}) {
-  const s = maskable ? 0.62 : 0.78; // keep artwork inside the maskable safe zone
-  const c = size / 2;
-  const r1 = (size * s) / 2 - size * 0.06;
-  const w1 = size * 0.1;
-  const r2 = r1 - w1 * 1.35;
-  const w2 = size * 0.075;
-  const arc = (r, frac) => {
-    const a = frac * 2 * Math.PI;
-    const x = c + r * Math.sin(a);
-    const y = c - r * Math.cos(a);
-    return `M ${c} ${c - r} A ${r} ${r} 0 ${frac > 0.5 ? 1 : 0} 1 ${x.toFixed(2)} ${y.toFixed(2)}`;
-  };
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-    <defs>
-      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5dffb4"/><stop offset="1" stop-color="#12c874"/></linearGradient>
-      <radialGradient id="bg" cx="0.5" cy="0.35" r="0.75"><stop offset="0" stop-color="#16191e"/><stop offset="1" stop-color="#050607"/></radialGradient>
-    </defs>
-    <rect width="${size}" height="${size}" rx="${rounded ? size * 0.22 : 0}" fill="url(#bg)"/>
-    <circle cx="${c}" cy="${c}" r="${r1}" fill="none" stroke="#1d2127" stroke-width="${w1}"/>
-    <path d="${arc(r1, 0.74)}" fill="none" stroke="url(#g)" stroke-width="${w1}" stroke-linecap="round"/>
-    <circle cx="${c}" cy="${c}" r="${r2}" fill="none" stroke="#1d2127" stroke-width="${w2}"/>
-    <path d="${arc(r2, 0.52)}" fill="none" stroke="#4aa8ff" stroke-width="${w2}" stroke-linecap="round"/>
+  const k = maskable ? 0.78 : 1; // keep artwork inside the maskable safe zone
+  const c = 256, r = 150 * k, w = 34 * k, sweep = 125;
+  const p = (deg) => [c + r * Math.sin((deg * Math.PI) / 180), 250 - r * Math.cos((deg * Math.PI) / 180)];
+  const [ax, ay] = p(-sweep), [bx, by] = p(sweep), [mx, my] = p(55);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 512 512">
+    <defs><radialGradient id="bg" cx="0.5" cy="0.25" r="0.9"><stop offset="0" stop-color="#fbf7f0"/><stop offset="1" stop-color="#eadfcd"/></radialGradient></defs>
+    <rect width="512" height="512" rx="${rounded ? 112 : 0}" fill="url(#bg)"/>
+    <path d="M${ax} ${ay} A${r} ${r} 0 1 1 ${bx} ${by}" fill="none" stroke="#e2d6c3" stroke-width="${w}" stroke-linecap="round"/>
+    <path d="M${ax} ${ay} A${r} ${r} 0 1 1 ${mx} ${my}" fill="none" stroke="#c15f3c" stroke-width="${w}" stroke-linecap="round"/>
+    <g transform="translate(256 ${250 + r * 0.92}) scale(${1.55 * k})">
+      <g transform="translate(-6 0) rotate(-8)">${laurelSprig(true)}</g>
+      <g transform="translate(6 0) rotate(8)">${laurelSprig(false)}</g>
+      <circle cy="1" r="3" fill="#a88450"/>
+    </g>
   </svg>`;
 }
 

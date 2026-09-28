@@ -214,6 +214,11 @@ export function mountSettings(view) {
         </div>`).join('')}
       </div>
     </section>`);
+  const look = el(`
+    <section class="card">
+      <div class="eyebrow">Appearance</div>
+      <div class="seg" role="tablist" style="margin:12px 0 2px"><button role="tab" data-theme="system">Automatic</button><button role="tab" data-theme="light">Parchment</button><button role="tab" data-theme="dark">Marble night</button></div>
+    </section>`);
   const healthBox = el(`
     <section class="card">
       <div class="eyebrow">Apple Health</div>
@@ -237,7 +242,7 @@ export function mountSettings(view) {
       <p class="note">Branded products from Open Food Facts (openfoodfacts.org, ODbL). Generic foods from the UK Composition of Foods Integrated Dataset (CoFID), Public Health England / OHID.</p>
       <p class="note" data-ver></p>
     </section>`);
-  view.append(goals, micros, healthBox, data, about);
+  view.append(goals, micros, look, healthBox, data, about);
 
   let s;
   const save = async () => { await store.saveSettings(s); changed(); };
@@ -250,6 +255,7 @@ export function mountSettings(view) {
     }
     for (const inp of $$(micros, '[data-micro]')) if (document.activeElement !== inp) inp.value = s.micros[inp.dataset.micro];
     for (const inp of $$(micros, '[data-upper]')) if (document.activeElement !== inp) inp.value = s.upper[inp.dataset.upper] ?? '';
+    $$(look, '[data-theme]').forEach((b) => b.setAttribute('aria-selected', b.dataset.theme === (s.theme || 'system')));
     $(healthBox, '[data-henabled]').checked = !!s.health?.enabled;
     if (document.activeElement !== $(healthBox, '[data-hname]')) $(healthBox, '[data-hname]').value = s.health?.shortcut || DEFAULT_SHORTCUT;
     updateMacroKcal();
@@ -319,6 +325,11 @@ export function mountSettings(view) {
     toast('Targets and limits reset to defaults');
   };
 
+  $$(look, '[data-theme]').forEach((b) => (b.onclick = async () => {
+    s.theme = b.dataset.theme;
+    window.dispatchEvent(new CustomEvent('theme-change', { detail: s.theme }));
+    await save();
+  }));
   $(healthBox, '[data-henabled]').onchange = async (e) => {
     s.health = { ...(s.health || {}), enabled: e.target.checked };
     await save();

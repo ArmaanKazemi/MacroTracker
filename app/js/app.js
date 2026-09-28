@@ -3,9 +3,10 @@ import { todayKey, toast, closeAllSheets, $$ } from './ui.js';
 import * as store from './store.js';
 import * as fooddb from './fooddb.js';
 import { mountToday } from './today.js';
-import { mountNutrients, mountFoods, mountSettings } from './views.js';
+import { mountNutrients, mountFoods, mountSettings, guessMeal } from './views.js';
+import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '1.2.0';
+window.APP_VERSION = '2.0.0';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), microMode: 'day', foodsTab: 'fav' };
@@ -29,6 +30,22 @@ function route() {
   $$(document, '.tabbar a').forEach((a) => (a.dataset.tab === key ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   current.refresh();
 }
+
+// Central + button: add food to the most likely meal for the current time.
+document.querySelector('[data-fab]').addEventListener('click', () => {
+  openAddFood({ date: state.date, meal: guessMeal() });
+});
+
+/** Apply 'system' | 'light' | 'dark'. Mirrored to localStorage so index.html can apply it before first paint. */
+export function applyTheme(theme) {
+  const root = document.documentElement;
+  if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
+  else delete root.dataset.theme;
+  try { localStorage.setItem('fuel-theme', theme || 'system'); } catch { /* private mode */ }
+  const dark = theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#141311' : '#f4efe6');
+}
+window.addEventListener('theme-change', (e) => applyTheme(e.detail));
 
 let pending = false;
 window.addEventListener('data-changed', () => {
@@ -57,6 +74,7 @@ async function start() {
     console.error(e);
     toast('Storage unavailable — data may not be saved');
   }
+  store.getSettings().then((s) => applyTheme(s.theme)).catch(() => {});
   fooddb.load().then(() => store.migrateIfNeeded()).then(() => current?.refresh()).catch((e) => console.error(e));
   window.addEventListener('hashchange', route);
   route();
