@@ -19,7 +19,7 @@ const TICKS = Array.from({ length: 26 }, (_, i) => {
   const r1 = R + 13, r2 = R + (i % 5 === 0 ? 20 : 17);
   const s1 = [CX + r1 * Math.sin((a * Math.PI) / 180), CY - r1 * Math.cos((a * Math.PI) / 180)];
   const s2 = [CX + r2 * Math.sin((a * Math.PI) / 180), CY - r2 * Math.cos((a * Math.PI) / 180)];
-  return `<line x1="${s1[0].toFixed(1)}" y1="${s1[1].toFixed(1)}" x2="${s2[0].toFixed(1)}" y2="${s2[1].toFixed(1)}"/>`;
+  return `<line style="--k:${i}" x1="${s1[0].toFixed(1)}" y1="${s1[1].toFixed(1)}" x2="${s2[0].toFixed(1)}" y2="${s2[1].toFixed(1)}"/>`;
 }).join('');
 
 // Suggested share of the calorie goal per meal.
@@ -58,7 +58,7 @@ export function mountToday(view, state) {
       <div class="macro-name">${m.label}</div>
       <div class="macro-val num"><b data-v>0</b><span>/<span data-g>0</span>g</span></div>
       <div class="track thin"><div class="fill"></div></div>
-      ${SUBS.filter((s) => s.parent === m.key).map((s) => `<div class="macro-sub" data-sub="${s.key}"><div class="ms-l">${s.label}</div><div class="ms-v num"><b data-v>0</b>/<span data-g>0</span>g</div></div>`).join('')}
+      ${SUBS.filter((s) => s.parent === m.key).map((s) => `<div class="macro-sub" data-sub="${s.key}"><div class="ms-l">${s.of}</div><div class="ms-v num"><b data-v>0</b>/<span data-g>0</span>g</div></div>`).join('')}
     </div>`).join('')}</section>`);
   view.appendChild(macroCard);
 
@@ -117,6 +117,8 @@ export function mountToday(view, state) {
     await store.addWater(state.date, ml);
     waterBusy = false;
     navigator.vibrate?.(15);
+    const g = $(water, '.glass');
+    g.classList.remove('bump'); void g.offsetWidth; g.classList.add('bump');
     changed();
   };
   $$(water, '[data-add]').forEach((b) => (b.onclick = () => addWater(Number(b.dataset.add))));

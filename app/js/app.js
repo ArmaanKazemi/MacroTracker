@@ -6,13 +6,14 @@ import { mountToday } from './today.js';
 import { mountNutrients, mountFoods, mountSettings, guessMeal } from './views.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.5.2';
+window.APP_VERSION = '2.6.0';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), microMode: 'day', foodsTab: 'fav' };
 const routes = { today: mountToday, nutrients: mountNutrients, foods: mountFoods, settings: mountSettings };
 let current = null;
 let currentName = '';
+let enterTimer = 0;
 
 function route() {
   const name = (location.hash.replace(/^#\/?/, '') || 'today').split('?')[0];
@@ -25,12 +26,27 @@ function route() {
     view.classList.remove('view-enter');
     void view.offsetWidth;
     view.classList.add('view-enter');
+    // Drop the class once the entrance has played, so later refreshes don't replay it.
+    clearTimeout(enterTimer);
+    enterTimer = setTimeout(() => view.classList.remove('view-enter'), 1400);
     window.scrollTo(0, 0);
   }
   $$(document, '.tabbar a').forEach((a) => (a.dataset.tab === key ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
+  moveTabIndicator();
   syncThemeColor();
   current.refresh();
 }
+
+/** Slide the pill behind the active tab. */
+function moveTabIndicator() {
+  const ind = document.querySelector('.tab-ind');
+  const a = document.querySelector('.tabbar a[aria-current]');
+  if (!ind || !a) return;
+  ind.style.width = `${a.offsetWidth}px`;
+  ind.style.transform = `translateX(${a.offsetLeft}px)`;
+  ind.classList.add('on');
+}
+window.addEventListener('resize', moveTabIndicator);
 
 // Central + button: add food to the most likely meal for the current time.
 document.querySelector('[data-fab]').addEventListener('click', () => {
