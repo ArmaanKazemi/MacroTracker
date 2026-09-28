@@ -44,6 +44,7 @@ async function step(name, fn) {
 }
 
 const ctx = await browser.newContext({ ...iphone, acceptDownloads: true });
+await ctx.addInitScript(() => { window.__opened = []; window.__fuelOpenURL = (u) => window.__opened.push(u); });
 await mockOff(ctx);
 const page = await ctx.newPage();
 const errors = [];
@@ -208,8 +209,8 @@ await step('create custom food from per-serving label values with a serving size
   await f.locator('[data-n="carbs"]').fill('30');
   await f.locator('[data-n="fat"]').fill('4');
   await f.locator('[data-n="fibre"]').fill('3');
-  await f.locator('[data-salt]').fill('1.5');
-  assert.equal(await f.locator('[data-n="sodium"]').inputValue(), '600'); // salt → sodium
+  assert.equal(await f.locator('[data-salt]').count(), 0, 'no salt field: sodium is entered in mg');
+  await f.locator('[data-n="sodium"]').fill('600'); // mg per 50 g
   await f.locator('[data-add-serv]').click();
   const sv = f.locator('[data-servings] input');
   await sv.nth(0).fill('1 jar');
@@ -430,6 +431,123 @@ await step('works offline after first load (service worker)', async () => {
   await page.goto(BASE + '#/nutrients');
   await page.waitForSelector('[data-k="vitC"]');
   await ctx.setOffline(false);
+});
+
+// Real touch events (like an iPhone), via the Chrome DevTools protocol.
+let cdp;
+async function swipeLeft(locator, fraction) {
+  cdp ||= await ctx.newCDPSession(page);
+  await locator.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(150);
+  const box = await locator.boundingBox();
+  const y = box.y + box.height / 2;
+  const x = box.x + box.width - 20;
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  const steps = 10;
+  for (let i = 1; i <= steps; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x - (box.width * fraction * i) / steps, y }] });
+    await page.waitForTimeout(16);
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(450);
+}
+
+await step('swipe left to delete foods and saved meals (with undo)', async () => {
+  await page.goto(BASE + '#/foods');
+  await page.waitForTimeout(500);
+  await page.locator('[data-t="fav"]').click();
+  await page.waitForTimeout(300);
+  const names = () => page.locator('.card .item-name').allTextContents();
+  const before = (await names()).length;
+  // Long swipe deletes immediately
+  await swipeLeft(page.locator('.swipe', { hasText: 'Spirulina' }), 0.8);
+  await page.waitForTimeout(300);
+  assert.ok(!(await names()).some((n) => /spirulina/i.test(n)));
+  assert.equal((await names()).length, before - 1);
+  await page.locator('#toast button', { hasText: 'Undo' }).click();
+  await page.waitForTimeout(400);
+  assert.ok((await names()).some((n) => /spirulina/i.test(n)), 'undo restores the food');
+  // Short swipe reveals Delete; tapping the row closes it without opening the food
+  const row = page.locator('.swipe', { hasText: 'Plenish' });
+  await swipeLeft(row, 0.3);
+  assert.ok(await row.evaluate((w) => w.classList.contains('open')));
+  const bb = await row.boundingBox();
+  await page.touchscreen.tap(bb.x + bb.width - 30, bb.y + bb.height / 2); // the revealed Delete area
+  await page.waitForTimeout(500);
+  assert.ok(!(await names()).some((n) => n.includes('Plenish')));
+  assert.equal(await page.locator('.sheet.open').count(), 0, 'swiping never opens the food sheet');
+  // A plain tap still opens the food
+  await page.locator('.card .result', { hasText: 'Ground flaxseed' }).click();
+  await page.waitForTimeout(450);
+  assert.equal(await topSheet().locator('h2').textContent(), 'Ground flaxseed');
+  await closeTop();
+  // Saved meals too
+  await page.locator('[data-t="meals"]').click();
+  await page.waitForTimeout(400);
+  await swipeLeft(page.locator('.swipe', { hasText: 'Yoghurt bowl' }), 0.8);
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator('.card .result', { hasText: 'Yoghurt bowl' }).count(), 0);
+  await page.locator('#toast button', { hasText: 'Undo' }).click();
+  await page.waitForTimeout(400);
+  assert.equal(await page.locator('.card .result', { hasText: 'Yoghurt bowl' }).count(), 1);
+  // And inside the add-food sheet (My foods tab)
+  await page.goto(BASE + '#/today');
+  await page.waitForTimeout(400);
+  await page.locator('[data-meal="snacks"] [data-add]').click();
+  await topSheet().locator('[data-tab="mine"]').click();
+  await page.waitForTimeout(400);
+  await swipeLeft(topSheet().locator('.swipe', { hasText: 'Overnight oats' }), 0.8);
+  await page.waitForTimeout(300);
+  assert.equal(await topSheet().locator('.result', { hasText: 'Overnight oats' }).count(), 0);
+  await closeTop();
+});
+
+await step('Apple Health: sends only new amounts to the Shortcut, undo resends', async () => {
+  await page.goto(BASE + '#/today');
+  await page.waitForTimeout(500);
+  assert.ok(await page.locator('[aria-label="Apple Health"]').isHidden(), 'hidden until enabled');
+  await page.goto(BASE + '#/settings');
+  await page.waitForTimeout(400);
+  await page.locator('[data-henabled]').check();
+  await page.waitForTimeout(200);
+  await page.locator('[data-hguide]').click();
+  await page.waitForTimeout(400);
+  assert.match(await topSheet().textContent(), /Log Health Sample/);
+  assert.match(await topSheet().textContent(), /Dietary Energy/);
+  await closeTop();
+  await page.goto(BASE + '#/today');
+  await settle();
+  const card = page.locator('[aria-label="Apple Health"]');
+  assert.ok(await card.isVisible());
+  const eatenNow = await eaten();
+  await card.locator('[data-hsend]').click();
+  await page.waitForTimeout(900);
+  const urls = await page.evaluate(() => window.__opened);
+  assert.equal(urls.length, 1);
+  assert.ok(urls[0].startsWith('shortcuts://run-shortcut?name=Fuel%20to%20Health&input=text&text='));
+  const payload = JSON.parse(decodeURIComponent(urls[0].split('&text=')[1]));
+  assert.ok(Math.abs(payload.kcal - eatenNow) <= 1, `sent ${payload.kcal} vs eaten ${eatenNow}`);
+  assert.equal(payload.water, 750);
+  assert.match(payload.date, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+  for (const k of ['protein', 'carbs', 'fat', 'sodium', 'potassium', 'vitB12', 'selenium']) assert.equal(typeof payload[k], 'number', k);
+  assert.match(await card.locator('[data-hstatus]').textContent(), /Up to date/);
+  assert.ok(await card.locator('[data-hsend]').isDisabled());
+  // Log more: only the new amount is sent
+  await page.locator('[data-add="250"]').click();
+  await page.waitForTimeout(500);
+  await card.locator('[data-hsend]').click();
+  await page.waitForTimeout(900);
+  const p2 = JSON.parse(decodeURIComponent((await page.evaluate(() => window.__opened))[1].split('&text=')[1]));
+  assert.equal(p2.water, 250);
+  assert.equal(p2.kcal, 0);
+  // "Didn't arrive" lets the same amount be sent again
+  await card.locator('[data-hundo]').click();
+  await page.waitForTimeout(400);
+  assert.ok(!(await card.locator('[data-hsend]').isDisabled()));
+  await card.locator('[data-hsend]').click();
+  await page.waitForTimeout(900);
+  const p3 = JSON.parse(decodeURIComponent((await page.evaluate(() => window.__opened))[2].split('&text=')[1]));
+  assert.equal(p3.water, 250);
 });
 
 await step('upgrade from v1: old targets replaced, new nutrients filled into old entries', async () => {

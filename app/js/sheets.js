@@ -1,11 +1,27 @@
 // Bottom-sheet flows: add food, food detail / log / edit entry, link to CoFID,
 // custom food form, saved meals (recipes), barcode scanning.
-import { el, esc, $, $$, icons, openSheet, toast, confirmSheet, round1 } from './ui.js';
+import { el, esc, $, $$, icons, openSheet, toast, confirmSheet, round1, swipeToDelete } from './ui.js';
 import { MEALS, MICROS, scale, fmt, normNutrients, macroKcal, MICRO_KEYS } from './nutrients.js';
 import * as fooddb from './fooddb.js';
 import * as store from './store.js';
 
 export const changed = () => window.dispatchEvent(new Event('data-changed'));
+
+/** Delete a saved food (logged entries keep their own copy), with Undo. */
+export async function removeFood(food) {
+  const copy = { ...food };
+  await store.deleteFood(food.id);
+  changed();
+  toast(`Deleted ${food.name.slice(0, 26)}`, { label: 'Undo', run: async () => { await store.saveFood(copy); changed(); } });
+}
+
+/** Delete a saved meal, with Undo. */
+export async function removeRecipe(recipe) {
+  const copy = JSON.parse(JSON.stringify(recipe));
+  await store.deleteRecipe(recipe.id);
+  changed();
+  toast(`Deleted ${recipe.name.slice(0, 26)}`, { label: 'Undo', run: async () => { await store.saveRecipe(copy); changed(); } });
+}
 const mealLabel = (k) => MEALS.find((m) => m.key === k)?.label || k;
 
 function sourceTag(food) {
@@ -102,7 +118,14 @@ export function openAddFood({ date, meal }) {
     return foods.filter((f) => words.every((w) => `${f.name} ${f.brand || ''}`.toLowerCase().includes(w)));
   };
 
-  async function render() {
+  // Renders are queued so two overlapping refreshes can't both append rows.
+  let chain = Promise.resolve();
+  function render() {
+    chain = chain.then(renderNow).catch((e) => console.error(e));
+    return chain;
+  }
+
+  async function renderNow() {
     stopScan?.();
     stopScan = null;
     $$(body, '[data-tab]').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === tab));
@@ -123,8 +146,9 @@ export function openAddFood({ date, meal }) {
       for (const f of shown) {
         const row = foodRow(f, { quick: true });
         bindRow(row, f);
-        list.appendChild(row);
+        list.appendChild(swipeToDelete(row, { onDelete: () => removeFood(f) }));
       }
+      if (shown.length) list.appendChild(el('<p class="hint">Swipe left on a food to delete it.</p>'));
       return;
     }
     if (tab === 'meals') {
@@ -153,7 +177,7 @@ export function openAddFood({ date, meal }) {
           changed();
           toast(`Added ${r.name}`, { label: 'Undo', run: async () => { for (const e of created) await store.deleteEntry(e.id); changed(); } });
         };
-        list.appendChild(row);
+        list.appendChild(swipeToDelete(row, { onDelete: () => removeRecipe(r) }));
       }
       return;
     }
@@ -524,11 +548,10 @@ export function openFoodForm(food, { onSaved } = {}) {
         <label class="field"><span>Unit</span><select class="input" data-f="unit"><option value="g">grams (g)</option><option value="ml">millilitres (ml)</option></select></label>
       </div>
       <p class="note" data-basis-note>Enter values exactly as on the label. They're converted to per 100 when saved.</p>
-      <div class="grid2">${numField('kcal', 'Calories', 'kcal')}${numField('protein', 'Protein', 'g')}${numField('carbs', 'Carbs', 'g')}${numField('fat', 'Fat', 'g')}</div>
+      <div class="grid2">${numField('kcal', 'Calories', 'kcal')}${numField('protein', 'Protein', 'g')}${numField('carbs', 'Carbs', 'g')}${numField('fat', 'Fat', 'g')}${numField('sodium', 'Sodium', 'mg')}</div>
+      <p class="note" style="margin-top:0">Sodium is in milligrams. If the label only lists salt, sodium (mg) = salt (g) × 400.</p>
       <div class="list-h">Micronutrients <span style="text-transform:none;letter-spacing:0;font-weight:600">· leave blank if unknown</span></div>
-      <div class="grid2">
-        <label class="field"><span>Salt <i class="unit">(g)</i></span><input class="input num" type="number" inputmode="decimal" step="any" min="0" data-salt placeholder="fills sodium" value="${f.per100?.sodium != null ? Math.round((f.per100.sodium / 400) * 100) / 100 : ''}"></label>
-        ${MICROS.map((m) => numField(m.key, m.label, m.unit)).join('')}</div>
+      <div class="grid2">${MICROS.filter((m) => m.key !== 'sodium').map((m) => numField(m.key, m.label, m.unit)).join('')}</div>
       <div class="list-h">Serving sizes</div>
       <div data-servings></div>
       <button type="button" class="btn sm" data-add-serv style="margin-top:6px">${icons.plus} Add serving</button>
@@ -561,11 +584,6 @@ export function openFoodForm(food, { onSaved } = {}) {
   const basisNote = () => ($(body, '[data-basis-note]').textContent = `Enter values per ${$(body, '[data-basis]').value || 100} ${unitSel.value}, exactly as on the label. They're converted to per 100 ${unitSel.value} when saved.`);
   unitSel.onchange = basisNote;
   $(body, '[data-basis]').oninput = basisNote;
-  // UK labels show salt; sodium (mg) = salt (g) × 1000 / 2.5.
-  const saltIn = $(body, '[data-salt]');
-  const naIn = $(body, '[data-n="sodium"]');
-  saltIn.oninput = () => { naIn.value = saltIn.value === '' ? '' : Math.round(Number(saltIn.value) * 400 * 10) / 10; };
-  naIn.addEventListener('input', () => { saltIn.value = naIn.value === '' ? '' : Math.round((Number(naIn.value) / 400) * 100) / 100; });
 
   $(foot, '[data-save]').onclick = async () => {
     const name = $(body, '[data-f="name"]').value.trim();
@@ -634,11 +652,15 @@ export function openFoodPicker(onPick) {
   const input = $(body, 'input');
   const list = $(body, '[data-list]');
   const pick = (food) => { onPick(food); s.close(); };
+  let seq = 0;
   const render = async () => {
+    const my = ++seq;
     await fooddb.load();
     const q = input.value.toLowerCase().trim();
+    const all = await store.getFoods();
+    if (my !== seq) return;
     list.innerHTML = '';
-    const mine = (await store.getFoods()).filter((f) => !q || `${f.name} ${f.brand || ''}`.toLowerCase().includes(q))
+    const mine = all.filter((f) => !q || `${f.name} ${f.brand || ''}`.toLowerCase().includes(q))
       .sort((a, b) => (b.favourite - a.favourite) || a.name.localeCompare(b.name));
     if (mine.length) list.appendChild(el('<div class="list-h">My foods & favourites</div>'));
     for (const f of mine.slice(0, 40)) { const r = foodRow(f); r.onclick = () => pick(f); list.appendChild(r); }

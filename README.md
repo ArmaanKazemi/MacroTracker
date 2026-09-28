@@ -14,7 +14,9 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
 - **Logging:** by g, ml or custom serving sizes ("1 scoop = 25 g").
 - **Custom foods, favourites and saved meals.** Favourites log in one tap. Saved meals also log in one tap, or you can adjust the amounts before logging.
 - **Settings:** calorie and macro goals (with live "macros add up to X kcal"), water goal, micronutrient targets and upper limits, and **Export / Import JSON** backups.
-- **Custom foods** have a **Salt** field that fills in sodium for you (sodium = salt ÷ 2.5), since UK labels list salt.
+- **Custom foods:** sodium is entered in **mg**, next to the macros. If a label only lists salt, sodium (mg) = salt (g) × 400.
+- **Deleting:** swipe left on any food or saved meal (Foods screen, or the lists in the add-food sheet) to delete it. A long swipe deletes immediately; a short one reveals a **Delete** button. **Undo** appears for a few seconds. Foods you've already logged stay in your history.
+- **Apple Health:** send your daily nutrition and water to Apple Health through an Apple Shortcut. See below.
 
 Colours: green = on track, amber = close to the goal, red = over the goal (or a micronutrient that is low).
 
@@ -40,6 +42,17 @@ Colours: green = on track, amber = close to the goal, red = over the goal (or a 
 5. The first time you use **Scan**, allow camera access.
 
 On Android (Chrome), use **⋮ → Install app** or **Add to Home screen**.
+
+### Apple Health
+
+iPhone web apps can't talk to Apple Health directly. Fuel sends your numbers to an Apple **Shortcut** instead, and the Shortcut writes them into Health. You build the Shortcut once. The app walks you through it: **Settings → Apple Health → How to set it up**.
+
+- Turn on **Show "Send to Health" on Today**, then tap **Send to Health** whenever you want to sync. The Shortcuts app opens briefly; swipe back to Fuel afterwards.
+- Only amounts added since your last send are sent, so tapping it more than once never double-counts.
+- If a send doesn't arrive, tap **Didn't arrive? Mark as not sent** and send again.
+- Sent: calories, protein, carbs, fat, water, fibre, sodium, potassium, calcium, magnesium, iron, zinc, vitamins A, C, D, K and B12, folate, iodine and selenium. Omega-3s aren't sent, because Health has no type for them.
+- Editing or deleting food after sending can't reduce Health from Fuel. Adjust those in the Health app.
+- It can't sync automatically in the background. That's an iOS limit for web apps.
 
 ### Keep your data safe
 

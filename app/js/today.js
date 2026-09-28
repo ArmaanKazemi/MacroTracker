@@ -5,6 +5,7 @@ import * as store from './store.js';
 import * as fooddb from './fooddb.js';
 import { openAddFood, openFoodDetail, changed } from './sheets.js';
 import { openSheet } from './ui.js';
+import * as health from './health.js';
 
 const R = 104;
 const C = 2 * Math.PI * R;
@@ -83,6 +84,17 @@ export function mountToday(view, state) {
     </section>`);
   view.appendChild(water);
 
+  const healthCard = el(`
+    <section class="card" aria-label="Apple Health" hidden>
+      <div class="row">
+        <div style="flex:1;min-width:0"><div class="eyebrow">Apple Health</div><div class="small muted" data-hstatus style="margin-top:4px"></div></div>
+        <button class="chip primary" type="button" data-hsend>Send to Health</button>
+      </div>
+      <p class="note" data-hwarn hidden></p>
+      <button class="btn sm" type="button" data-hundo hidden style="background:transparent;color:var(--muted);padding:0 2px;min-height:36px">Didn't arrive? Mark as not sent</button>
+    </section>`);
+  view.appendChild(healthCard);
+
   const mealsBox = el('<div></div>');
   view.appendChild(mealsBox);
   for (const m of MEALS) {
@@ -127,7 +139,42 @@ export function mountToday(view, state) {
     body.onsubmit = (e) => { e.preventDefault(); go(); };
   };
 
+  $(healthCard, '[data-hsend]').onclick = async () => {
+    const p = await health.pending(state.date);
+    if (!p.any) return toast('Nothing new to send');
+    const parts = [['kcal', 'kcal'], ['protein', 'g protein'], ['carbs', 'g carbs'], ['fat', 'g fat'], ['water', 'ml water']]
+      .filter(([k]) => p.delta[k] > 0).map(([k, u]) => `${Math.round(p.delta[k]).toLocaleString('en-GB')} ${u}`);
+    toast(`Sending ${parts.join(', ') || 'micronutrients'}…`);
+    setTimeout(() => health.send(state.date).then(() => refreshHealth()), 350);
+  };
+  $(healthCard, '[data-hundo]').onclick = async () => {
+    if (await health.undoLastSend()) toast('Marked as not sent — tap Send to try again');
+    refreshHealth();
+  };
+
+  async function refreshHealth() {
+    const settings = await store.getSettings();
+    healthCard.hidden = !settings.health?.enabled;
+    if (healthCard.hidden) return;
+    const p = await health.pending(state.date);
+    const when = p.lastSentAt ? new Date(p.lastSentAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
+    const parts = [];
+    if (p.delta.kcal > 0) parts.push(`${Math.round(p.delta.kcal).toLocaleString('en-GB')} kcal`);
+    if (p.delta.water > 0) parts.push(`${Math.round(p.delta.water).toLocaleString('en-GB')} ml water`);
+    $(healthCard, '[data-hstatus]').textContent = p.any
+      ? `${parts.join(' · ') || 'New nutrients'} not sent yet${when ? ` · last sent ${when}` : ''}`
+      : when ? `Up to date · last sent ${when}` : 'Nothing logged to send yet';
+    $(healthCard, '[data-hsend]').disabled = !p.any;
+    const warn = $(healthCard, '[data-hwarn]');
+    warn.hidden = !p.reduced.length;
+    warn.textContent = p.reduced.length
+      ? 'Some amounts went down after you sent them (an entry was edited or deleted). Apple Health can only be added to from here, so adjust those in the Health app.'
+      : '';
+    $(healthCard, '[data-hundo]').hidden = !(await health.canUndo(state.date));
+  }
+
   async function refresh() {
+    refreshHealth();
     top.replaceChildren(el('<h1 class="title">Fuel</h1>'), dateSwitcher(state.date, (d) => { state.date = d; refresh(); }));
     const [settings, entries, waterList] = await Promise.all([store.getSettings(), store.entriesFor(state.date), store.waterFor(state.date)]);
     await fooddb.load();
