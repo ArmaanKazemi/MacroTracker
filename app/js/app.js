@@ -6,7 +6,7 @@ import { mountToday } from './today.js';
 import { mountNutrients, mountFoods, mountSettings, guessMeal } from './views.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.3.2';
+window.APP_VERSION = '2.4.0';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), microMode: 'day', foodsTab: 'fav' };
