@@ -139,7 +139,7 @@ export function openAddFood({ date, meal }) {
       const shown = filterFoods(foods);
       if (tab === 'mine') {
         const nb = el(`<button class="btn sm block" type="button" style="margin:4px 0 8px">${icons.plus} New custom food</button>`);
-        nb.onclick = () => openFoodForm(null, { onSaved: (f) => { render(); openDetail(f); } });
+        nb.onclick = () => openFoodForm(null, { onSaved: (f) => { render(); openDetail(f); }, logging: true });
         list.appendChild(nb);
       }
       if (!shown.length) list.appendChild(el(`<p class="empty">${tab === 'fav' ? 'No favourites yet. Tap the star on any food to add it here.' : 'No foods yet.'}</p>`));
@@ -195,7 +195,7 @@ export function openAddFood({ date, meal }) {
         list.appendChild(el('<p class="empty">Search generic foods (works offline) and UK branded products.</p>'));
       }
       const nb = el(`<button class="btn sm block" type="button" style="margin-top:14px">${icons.plus} Create custom food</button>`);
-      nb.onclick = () => openFoodForm(null, { onSaved: (f) => openDetail(f) });
+      nb.onclick = () => openFoodForm(null, { onSaved: (f) => openDetail(f), logging: true });
       list.appendChild(nb);
       return;
     }
@@ -234,7 +234,7 @@ export function openAddFood({ date, meal }) {
       }, 450);
     }
     const nb = el(`<button class="btn sm block" type="button" style="margin-top:14px">${icons.plus} Create custom food</button>`);
-    nb.onclick = () => openFoodForm({ name: q }, { onSaved: (f) => openDetail(f) });
+    nb.onclick = () => openFoodForm({ name: q }, { onSaved: (f) => openDetail(f), logging: true });
     list.appendChild(nb);
   }
 
@@ -258,7 +258,7 @@ export function openAddFood({ date, meal }) {
         if (!food) {
           status.innerHTML = `No product found for <b>${esc(code)}</b>. `;
           const b = el('<button class="btn sm" type="button">Create it as a custom food</button>');
-          b.onclick = () => openFoodForm({ barcode: code }, { onSaved: (f) => openDetail(f) });
+          b.onclick = () => openFoodForm({ barcode: code }, { onSaved: (f) => openDetail(f), logging: true });
           status.appendChild(b);
           return;
         }
@@ -534,8 +534,18 @@ export function openLinkPicker(initialQuery, onPick) {
 // ======================================================================
 // Custom food form (create / edit)
 // ======================================================================
-export function openFoodForm(food, { onSaved } = {}) {
+const SAVE_PREF = 'fuel-save-custom';
+function saveByDefault() {
+  try { return localStorage.getItem(SAVE_PREF) !== 'no'; } catch { return true; }
+}
+
+/**
+ * Create / edit a food. With `logging: true` (opened while adding food to a meal),
+ * a "Save to My foods" switch lets a one-off food be logged without being saved.
+ */
+export function openFoodForm(food, { onSaved, logging = false } = {}) {
   const editing = !!food?.id;
+  const canQuick = logging && !editing;
   const f = { name: '', brand: '', unit: 'g', per100: normNutrients(), servings: [], favourite: false, source: 'custom', ...(food || {}) };
   const numField = (key, label, unit) =>
     `<label class="field"><span>${label}${unit ? ` <i class="unit">(${unit})</i>` : ''}</span><input class="input num" type="number" inputmode="decimal" step="any" min="0" data-n="${key}" value="${f.per100?.[key] ?? ''}" placeholder="${key === 'kcal' || key === 'protein' || key === 'carbs' || key === 'fat' ? '0' : 'no data'}"></label>`;
@@ -543,6 +553,7 @@ export function openFoodForm(food, { onSaved } = {}) {
     <form>
       <label class="field"><span>Name</span><input class="input" data-f="name" required value="${esc(f.name)}" placeholder="e.g. Overnight oats"></label>
       <label class="field"><span>Brand (optional)</span><input class="input" data-f="brand" value="${esc(f.brand)}"></label>
+      ${canQuick ? `<div class="toggle" style="margin:4px 0 2px;padding:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:14px"><span><b>Save to My foods</b><br><small class="muted" data-save-note></small></span><label class="switch"><input type="checkbox" data-keep ${saveByDefault() ? 'checked' : ''} aria-label="Save to My foods"><span></span></label></div>` : ''}
       <div class="grid2">
         <label class="field"><span>Nutrition per</span><input class="input num" type="number" inputmode="decimal" step="any" min="0" data-basis value="100"></label>
         <label class="field"><span>Unit</span><select class="input" data-f="unit"><option value="g">grams (g)</option><option value="ml">millilitres (ml)</option></select></label>
@@ -555,12 +566,27 @@ export function openFoodForm(food, { onSaved } = {}) {
       <div class="list-h">Serving sizes</div>
       <div data-servings></div>
       <button type="button" class="btn sm" data-add-serv style="margin-top:6px">${icons.plus} Add serving</button>
-      <div class="toggle" style="margin-top:14px"><span>Favourite</span><label class="switch"><input type="checkbox" data-fav ${f.favourite ? 'checked' : ''} aria-label="Favourite"><span></span></label></div>
+      <div class="toggle" data-fav-row style="margin-top:6px"><span>Favourite</span><label class="switch"><input type="checkbox" data-fav ${f.favourite ? 'checked' : ''} aria-label="Favourite"><span></span></label></div>
       ${f.barcode ? `<p class="note">Barcode: ${esc(f.barcode)}</p>` : ''}
     </form>`);
   $(body, '[data-f="unit"]').value = f.unit;
   const foot = el(`<div class="btns">${editing ? '<button class="btn danger" type="button" data-del>Delete</button>' : ''}<button class="btn go" type="button" data-save>${editing ? 'Save' : 'Create food'}</button></div>`);
   const s = openSheet({ title: editing ? 'Edit food' : 'New food', body, foot, tall: true });
+  const saveToggle = $(body, '[data-keep]');
+  const syncSave = () => {
+    if (!saveToggle) return;
+    const on = saveToggle.checked;
+    $(body, '[data-save-note]').textContent = on ? 'Keep it for next time' : 'Just log it this once';
+    $(body, '[data-fav-row]').hidden = !on;
+    $(foot, '[data-save]').textContent = on ? 'Create food' : 'Continue to log';
+  };
+  if (saveToggle) {
+    saveToggle.onchange = () => {
+      try { localStorage.setItem(SAVE_PREF, saveToggle.checked ? 'yes' : 'no'); } catch { /* private mode */ }
+      syncSave();
+    };
+    syncSave();
+  }
 
   let servings = [...(f.servings || [])];
   const renderServ = () => {
@@ -607,6 +633,13 @@ export function openFoodForm(food, { onSaved } = {}) {
       favourite: $(body, '[data-fav]').checked,
     };
     if (!editing && out.source !== 'off') out.source = 'custom';
+    if (saveToggle && !saveToggle.checked) {
+      // One-off: not stored. The logged entry keeps its own copy of the nutrition.
+      out.favourite = false;
+      s.close();
+      onSaved?.(out);
+      return;
+    }
     const saved = await store.saveFood(out);
     if (editing) await store.relinkEntries(saved).catch(() => 0);
     changed();
