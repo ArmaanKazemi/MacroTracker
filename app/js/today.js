@@ -6,7 +6,7 @@ import * as fooddb from './fooddb.js';
 import { openAddFood, openFoodDetail, changed } from './sheets.js';
 import { openSheet } from './ui.js';
 import * as health from './health.js';
-import { laurels, mealIcons, hydriaSvg, HYDRIA_H } from './art.js';
+import { laurels, mealIcons, hydriaSvg, HYDRIA_H, playSpill } from './art.js';
 import { supplementsCard } from './supplements.js';
 
 // Open arc gauge: 250° sweep, open at the bottom.
@@ -97,6 +97,8 @@ export function mountToday(view, state) {
       </div>
     </section>`);
   view.appendChild(water);
+
+  let lastWaterMl = null;
 
   view.appendChild(sectionHead('Supplements'));
   const supps = supplementsCard(() => state.date);
@@ -253,6 +255,9 @@ export function mountToday(view, state) {
     $(water, '.level').style.transform = `translateY(${HYDRIA_H * (1 - frac) + (frac > 0 ? 0 : 6)}px)`;
     $(water, '.glass').classList.toggle('full', ml >= wgoal);
     $(water, '.glass').classList.toggle('over', ml > wgoal);
+    // Overflow plays when you first pass the goal, and again each time you drink more.
+    if (ml > wgoal && ml !== lastWaterMl) playSpill($(water, '.glass'));
+    lastWaterMl = ml;
     animateNumber($(water, '[data-wv]'), ml / 1000, (v) => v.toFixed(2));
     $(water, '[data-wg]').textContent = (wgoal / 1000).toFixed(2).replace(/\.?0+$/, '');
     $(water, '[data-wleft]').textContent = ml > wgoal ? `Overflowing: ${Math.round(ml - wgoal).toLocaleString('en-GB')} ml past your goal.` : ml >= wgoal ? 'Goal reached — nice work.' : `${Math.round(wgoal - ml).toLocaleString('en-GB')} ml to go · ${waterList.length} ${waterList.length === 1 ? 'drink' : 'drinks'}`;

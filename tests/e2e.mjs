@@ -1038,6 +1038,15 @@ await step('water jar overflows once the goal is beaten', async () => {
   assert.match(await glass.getAttribute('class'), /\bover\b/);
   assert.match(await page.locator('[data-wleft]').textContent(), /Overflowing: .* ml past your goal/);
   assert.equal(await glass.locator('.spill').evaluate((g) => getComputedStyle(g).opacity), '1');
+  assert.ok(await glass.locator('.bead').count() >= 8, 'condensation beads on the jar');
+  assert.equal(await glass.locator('.spill .stream').count(), 0, 'no dashed streams');
+  // drops replay when you drink more, the pool just stays
+  await page.locator('[data-add="250"]').click();
+  await page.waitForTimeout(700);
+  const moving = await glass.locator('.trickle').first().evaluate((g) => g.getCTM().f !== 0 || Number(getComputedStyle(g).opacity) > 0);
+  assert.ok(moving, 'overflow drops running');
+  await page.waitForTimeout(2800);
+  assert.equal(await glass.locator('.puddle').evaluate((e) => getComputedStyle(e).transform), 'none', 'pool stays');
 });
 
 await step('central + button opens add food; appearance switch applies themes', async () => {
