@@ -229,6 +229,9 @@ async function main() {
     console.log('\nCandidate foods for favourite links:');
     for (const r of rows.filter((r) => kw.test(r[1]))) console.log(`  ${r[0]}  ${r[1]}`);
     for (const [id, code] of Object.entries(aliases)) console.log(`  alias ${id} -> ${code} ${rows.find((r) => r[0] === code)?.[1]}`);
+    // Raw staples people search for, to check naming and search coverage.
+    console.log('\nRaw chicken / meat / fish entries:');
+    for (const r of rows.filter((r) => /\braw\b/i.test(r[1]) && /chicken|turkey|beef|salmon|cod|pork/i.test(r[1]))) console.log(`  ${r[0]}  ${r[1]}  (${r[3]} kcal)`);
   }
   const json = { source: 'CoFID (McCance & Widdowson), UK Government', fields: FIELDS, foods: rows, aliases };
   await writeFile(join(outDir, 'cofid.json'), JSON.stringify(json));
