@@ -284,10 +284,11 @@ export function openAddFood({ date, meal }) {
     const box = el(`
       <div>
         <div class="scan-box"><video playsinline muted autoplay></video></div>
-        <p class="note" data-status>Point the camera at a barcode.</p>
+        <p class="note" data-status>Starting the camera…</p>
+        <label class="btn block scan-photo">${icons.camera} Take a photo of the barcode<input type="file" accept="image/*" capture="environment" data-photo hidden></label>
         <form class="row" data-manual style="gap:8px">
           <input class="input" inputmode="numeric" pattern="[0-9]*" placeholder="Or type the barcode" aria-label="Barcode number">
-          <button class="btn sm" type="submit">Look up</button>
+          <button class="btn sm" type="submit" style="white-space:nowrap">Look up</button>
         </form>
       </div>`);
     list.appendChild(box);
@@ -310,6 +311,21 @@ export function openAddFood({ date, meal }) {
         status.textContent = navigator.onLine ? `Lookup failed: ${e.message}` : 'You are offline. Barcode lookup needs a connection.';
       }
     };
+    // Photo route: the phone's own camera focuses much better on small barcodes.
+    $(box, '[data-photo]').onchange = async (e) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+      status.textContent = 'Reading the barcode…';
+      try {
+        const { decodePhoto } = await import('./scanner.js');
+        const code = await decodePhoto(file);
+        if (code) lookupCode(code);
+        else status.textContent = "Couldn't find a barcode in that photo. Fill the frame with the barcode, keep it flat and in good light, or type the numbers below.";
+      } catch (err) {
+        status.textContent = `Couldn't read the photo (${err.message}). You can type the barcode instead.`;
+      }
+    };
     $(box, '[data-manual]').onsubmit = (e) => {
       e.preventDefault();
       const v = $(box, '[data-manual] input').value.replace(/\D/g, '');
@@ -317,8 +333,15 @@ export function openAddFood({ date, meal }) {
     };
     import('./scanner.js').then(({ startScan }) =>
       startScan($(box, 'video'), (code) => { stopScan = null; lookupCode(code); })
-        .then((s) => { if (tab === 'scan' && !sheet.closed) stopScan = s; else s(); })
-        .catch((e) => { status.textContent = `Camera unavailable (${e.message}). You can type the barcode instead.`; }));
+        .then((s) => {
+          if (tab === 'scan' && !sheet.closed) { stopScan = s; status.textContent = 'Hold the barcode flat inside the box, about a hand’s width away. If it won’t read, take a photo instead.'; } else s();
+        })
+        .catch((e) => {
+          const denied = /denied|allowed|permission/i.test(`${e.name} ${e.message}`);
+          status.textContent = denied
+            ? 'Camera access is off for Pithos. Take a photo of the barcode instead, or allow the camera in Settings → Safari → Camera.'
+            : `Live camera unavailable (${e.message}). Take a photo of the barcode instead, or type it.`;
+        }));
   }
 
   $$(body, '[data-tab]').forEach((b) => (b.onclick = () => { tab = b.dataset.tab; render(); }));

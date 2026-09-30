@@ -29,6 +29,8 @@ async function mockOff(ctx) {
   await ctx.route('https://world.openfoodfacts.org/**', (route) => {
     const u = route.request().url();
     if (u.includes('/api/v2/product/5000000000017')) return route.fulfill({ json: { status: 1, product: OFF_PRODUCT } });
+    if (u.includes('/api/v2/product/5000000000012')) return route.fulfill({ json: { status: 1, product: { ...OFF_PRODUCT, code: '5000000000012', product_name: 'Photo Scanned Bar' } } });
+    if (u.includes('/api/v2/product/0123456789012')) return route.fulfill({ json: { status: 1, product: { ...OFF_PRODUCT, code: '0123456789012', product_name: 'UPC Oat Bar' } } });
     if (u.includes('/api/v2/product/')) return route.fulfill({ status: 404, json: { status: 0 } });
     if (u.includes('search.pl')) return route.fulfill({ json: { products: [OFF_PRODUCT] } });
     return route.abort();
@@ -37,6 +39,8 @@ async function mockOff(ctx) {
   await ctx.route('https://search.openfoodfacts.org/**', (route) => {
     const u = route.request().url();
     if (/q=[^&]*protein/i.test(u)) return route.fulfill({ json: { hits: [{ ...OFF_PRODUCT, countries_tags: ['en:united-kingdom'] }] } });
+    if (/q=code(:|%3A)5000000000017/i.test(u)) return route.fulfill({ json: { hits: [OFF_PRODUCT] } });
+    if (/q=code/i.test(u)) return route.fulfill({ json: { hits: [] } });
     return route.abort();
   });
 }
@@ -161,6 +165,45 @@ await step('barcode manual lookup finds product', async () => {
   await topSheet().locator('[data-manual] button').click();
   await page.waitForTimeout(600);
   assert.match(await topSheet().locator('[data-status]').textContent(), /No product found/);
+  // 12-digit UPC codes are also tried as EAN-13 with a leading 0
+  await topSheet().locator('[data-manual] input').fill('123456789012');
+  await topSheet().locator('[data-manual] button').click();
+  await page.waitForTimeout(700);
+  assert.equal(await topSheet().locator('h2').textContent(), 'UPC Oat Bar');
+  await closeTop();
+  // product API down: the search service answers instead
+  await page.route('https://world.openfoodfacts.org/**', (r) => r.abort());
+  await topSheet().locator('[data-manual] input').fill('5000000000017');
+  await topSheet().locator('[data-manual] button').click();
+  await page.waitForTimeout(800);
+  assert.equal(await topSheet().locator('h2').textContent(), 'Test Protein Bar');
+  await closeTop();
+  await page.unroute('https://world.openfoodfacts.org/**');
+  // the photo route is offered alongside the live camera, and reads a real EAN-13 from an image
+  assert.equal(await topSheet().locator('[data-photo]').getAttribute('capture'), 'environment');
+  const png = await page.evaluate(() => {
+    // Draw EAN-13 5000000000012 (quiet zones, guards, L/G/R patterns by first digit).
+    const L = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];
+    const G = L.map((p) => [...p].map((b) => (b === '0' ? '1' : '0')).reverse().join(''));
+    const R = L.map((p) => [...p].map((b) => (b === '0' ? '1' : '0')).join(''));
+    const PARITY = ['LLLLLL', 'LLGLGG', 'LLGGLG', 'LLGGGL', 'LGLLGG', 'LGGLLG', 'LGGGLL', 'LGLGLG', 'LGLGGL', 'LGGLGL'];
+    const d = '5000000000012'.split('').map(Number);
+    let bits = '101';
+    for (let i = 1; i <= 6; i++) bits += (PARITY[d[0]][i - 1] === 'L' ? L : G)[d[i]];
+    bits += '01010';
+    for (let i = 7; i <= 12; i++) bits += R[d[i]];
+    bits += '101';
+    const m = 6, c = document.createElement('canvas');
+    c.width = (bits.length + 22) * m; c.height = 360;
+    const x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+    x.fillStyle = '#000';
+    [...bits].forEach((b, i) => { if (b === '1') x.fillRect((i + 11) * m, 40, m, 280); });
+    return c.toDataURL('image/png').split(',')[1];
+  });
+  await topSheet().locator('[data-photo]').setInputFiles({ name: 'barcode.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  await topSheet().locator('h2', { hasText: 'Photo Scanned Bar' }).waitFor({ timeout: 8000 });
+  await closeTop();
   await closeTop();
 });
 
