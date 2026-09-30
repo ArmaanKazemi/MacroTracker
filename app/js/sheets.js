@@ -250,9 +250,10 @@ export function openAddFood({ date, meal }) {
       offList.innerHTML = '<div class="spin" aria-label="Searching"></div>';
       clearTimeout(offTimer);
       const query = q;
-      offTimer = setTimeout(async () => {
+      const run = async () => {
         offCtrl?.abort();
         offCtrl = new AbortController();
+        offList.innerHTML = '<div class="spin" aria-label="Searching"></div>';
         try {
           const res = await fooddb.offSearch(query, offCtrl.signal);
           if (query !== q) return;
@@ -260,10 +261,15 @@ export function openAddFood({ date, meal }) {
           if (!res.length) offList.innerHTML = '<p class="empty">No branded matches.</p>';
           for (const f of res) { const r = foodRow(f); bindRow(r, f); offList.appendChild(r); }
         } catch (e) {
-          if (e.name === 'AbortError') return;
-          offList.innerHTML = `<p class="empty">Couldn't reach Open Food Facts (${esc(e.message)}).</p>`;
+          if (e.name === 'AbortError' || query !== q) return;
+          offList.innerHTML = `<p class="empty">Open Food Facts didn't respond (${esc(e.message)}). It's often busy for a moment.</p>`;
+          const retry = el('<button class="btn sm" type="button" data-off-retry>Try again</button>');
+          retry.onclick = run;
+          offList.appendChild(retry);
         }
-      }, 450);
+      };
+      // Wait until typing pauses so each search costs one request.
+      offTimer = setTimeout(run, 650);
     }
     const nb = el(`<button class="btn sm block" type="button" style="margin-top:14px">${icons.plus} Create custom food</button>`);
     nb.onclick = () => openFoodForm({ name: q }, { onSaved: (f) => openDetail(f), logging: true });
