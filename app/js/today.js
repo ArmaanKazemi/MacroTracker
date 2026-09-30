@@ -7,6 +7,7 @@ import { openAddFood, openFoodDetail, changed } from './sheets.js';
 import { openSheet } from './ui.js';
 import * as health from './health.js';
 import { laurels, mealIcons, hydriaSvg, HYDRIA_H } from './art.js';
+import { supplementsCard } from './supplements.js';
 
 // Open arc gauge: 250° sweep, open at the bottom.
 const CX = 150, CY = 142, R = 116, SWEEP = 125;
@@ -96,6 +97,10 @@ export function mountToday(view, state) {
       </div>
     </section>`);
   view.appendChild(water);
+
+  view.appendChild(sectionHead('Supplements'));
+  const supps = supplementsCard(() => state.date);
+  view.appendChild(supps.el);
 
   const healthCard = el(`
     <section class="card" aria-label="Apple Health" hidden>
@@ -247,10 +252,14 @@ export function mountToday(view, state) {
     const frac = Math.min(1, ml / wgoal);
     $(water, '.level').style.transform = `translateY(${HYDRIA_H * (1 - frac) + (frac > 0 ? 0 : 6)}px)`;
     $(water, '.glass').classList.toggle('full', ml >= wgoal);
+    $(water, '.glass').classList.toggle('over', ml > wgoal);
     animateNumber($(water, '[data-wv]'), ml / 1000, (v) => v.toFixed(2));
     $(water, '[data-wg]').textContent = (wgoal / 1000).toFixed(2).replace(/\.?0+$/, '');
-    $(water, '[data-wleft]').textContent = ml >= wgoal ? 'Goal reached — nice work.' : `${Math.round(wgoal - ml).toLocaleString('en-GB')} ml to go · ${waterList.length} ${waterList.length === 1 ? 'drink' : 'drinks'}`;
+    $(water, '[data-wleft]').textContent = ml > wgoal ? `Overflowing: ${Math.round(ml - wgoal).toLocaleString('en-GB')} ml past your goal.` : ml >= wgoal ? 'Goal reached — nice work.' : `${Math.round(wgoal - ml).toLocaleString('en-GB')} ml to go · ${waterList.length} ${waterList.length === 1 ? 'drink' : 'drinks'}`;
     $(water, '[data-undo]').disabled = !waterList.length;
+
+    // Supplements
+    await supps.refresh(entries);
 
     // Meals
     for (const m of MEALS) {

@@ -91,5 +91,14 @@ export function hydriaSvg() {
     </g>
     <path class="outline" d="${HYDRIA_PATH}" fill="none" style="stroke:var(--vessel-line)" stroke-width="3" stroke-linejoin="round"/>
     <path d="M34 10 H66" style="stroke:var(--vessel-line)" stroke-width="3.2" stroke-linecap="round"/>
+    <!-- overflow: shown once the water goal is beaten -->
+    <g class="spill" aria-hidden="true">
+      <ellipse class="puddle" cx="50" cy="141" rx="44" ry="4.5" style="fill:var(--water-top)"/>
+      <path class="stream" d="M33 9 C27 12 26 20 25 29 C16 40 11 60 11 80 C11 101 20 119 33 131 C37 135 40 138 42 140" fill="none" style="stroke:var(--water-top)" stroke-width="3.2" stroke-linecap="round"/>
+      <path class="stream s2" d="M67 9 C73 12 74 20 75 29 C84 40 89 60 89 80 C89 101 80 119 67 131 C63 135 60 138 58 140" fill="none" style="stroke:var(--water-top)" stroke-width="3.2" stroke-linecap="round"/>
+      <circle class="drop" cx="36" cy="7" r="2.2" style="fill:var(--water-top)"/>
+      <circle class="drop d2" cx="50" cy="6" r="1.8" style="fill:var(--water-top)"/>
+      <circle class="drop d3" cx="64" cy="7" r="2.2" style="fill:var(--water-top)"/>
+    </g>
   </svg>`;
 }
