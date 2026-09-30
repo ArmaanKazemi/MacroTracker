@@ -123,13 +123,13 @@ export function mountNutrients(view, state) {
 }
 
 // ======================================================================
-// Foods (my foods, favourites, saved meals)
+// Foods (my foods with starred ones first, saved meals)
 // ======================================================================
 export function mountFoods(view, state) {
   view.innerHTML = '';
-  let tab = state.foodsTab || 'fav';
+  let tab = state.foodsTab === 'meals' ? 'meals' : 'mine';
   view.append(el('<div class="topbar"><h1 class="title">Foods</h1></div>'));
-  const seg = el(`<div class="seg" role="tablist"><button role="tab" data-t="fav">Favourites</button><button role="tab" data-t="mine">My foods</button><button role="tab" data-t="meals">Saved meals</button></div>`);
+  const seg = el(`<div class="seg" role="tablist"><button role="tab" data-t="mine">My foods</button><button role="tab" data-t="meals">Saved meals</button></div>`);
   const actions = el(`<div class="btns" style="margin:0 0 12px"><button class="btn sm" type="button" data-nf>${icons.plus} New food</button><button class="btn sm" type="button" data-nm>${icons.plus} New meal</button></div>`);
   const card = el('<section class="card"></section>');
   const hint = el('<p class="hint">Swipe left on an item to delete it.</p>');
@@ -163,16 +163,14 @@ export function mountFoods(view, state) {
       }
       return;
     }
-    const foods = (await store.getFoods())
-      .filter((f) => (tab === 'fav' ? f.favourite : f.source !== 'generic'))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    if (!foods.length) card.innerHTML = `<p class="empty">${tab === 'fav' ? 'No favourites yet.' : 'No custom foods yet.'}</p>`;
+    const foods = (await store.getFoods()).filter(store.isMine).sort(store.byMine);
+    if (!foods.length) card.innerHTML = '<p class="empty">No foods yet. Foods you create, scan or save appear here; tap the star on a food to pin it to the top.</p>';
     hint.hidden = !foods.length;
     for (const f of foods) {
       const { per100, estimated } = store.resolve(f);
       const noData = MICROS.filter((m) => per100[m.key] === null).length;
       const row = el(`<button class="result" type="button"><div class="item-main">
-        <div class="item-name">${esc(f.name)}${f.favourite && tab !== 'fav' ? ' <span class="c-amber">★</span>' : ''}</div>
+        <div class="item-name">${f.favourite ? '<span class="star-mark" aria-label="Starred">★</span> ' : ''}${esc(f.name)}</div>
         <div class="macros-line"><b>${fmt(per100.kcal, 'kcal')}</b> kcal · P ${fmt(per100.protein)} · C ${fmt(per100.carbs)} · F ${fmt(per100.fat)} <span class="muted">per 100${f.unit || 'g'}</span>
         ${noData ? ` · <span class="pill na">${noData} no data</span>` : estimated.length ? ' · <span class="pill est">micros est.</span>' : ''}</div></div></button>`);
       row.onclick = () => openFoodDetail(f, { date: todayKey(), meal: guessMeal(), onLogged: () => { changed(); toast(`Logged ${f.name.slice(0, 28)} to today`); } });
