@@ -49,17 +49,49 @@ function autofocus(video) {
 }
 
 /**
- * Start scanning into `video`. Calls onCode(code) once, then stops.
- * Returns a stop() function.
+ * Mirror the camera onto a canvas. iPhone Safari sometimes leaves a <video> inside a
+ * sheet black even though frames are arriving (the barcode still reads); drawing the
+ * frames ourselves always shows the picture. Returns a stop function.
  */
-export async function startScan(video, onCode) {
+function mirror(video, canvas) {
+  if (!canvas) return () => {};
+  const ctx = canvas.getContext('2d');
+  let raf = 0;
+  const draw = () => {
+    raf = requestAnimationFrame(draw);
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const cw = Math.round(canvas.clientWidth * dpr), ch = Math.round(canvas.clientHeight * dpr);
+    if (!cw || !ch) return;
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    // object-fit: cover
+    const k = Math.max(cw / vw, ch / vh);
+    const w = vw * k, h = vh * k;
+    ctx.drawImage(video, (cw - w) / 2, (ch - h) / 2, w, h);
+  };
+  draw();
+  return () => cancelAnimationFrame(raf);
+}
+
+/**
+ * Start scanning into `video` (and draw the preview onto `canvas`). Calls onCode(code)
+ * once, then stops. Returns a stop() function.
+ */
+export async function startScan(video, onCode, canvas = null) {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error('camera not available in this browser');
   let stopped = false;
   let stream = null;
   let zxControls = null;
+  let stopMirror = () => {};
+  video.muted = true;
+  video.playsInline = true;
+  video.setAttribute('playsinline', '');
+  video.setAttribute('webkit-playsinline', '');
 
   const stop = () => {
     stopped = true;
+    stopMirror();
     zxControls?.stop?.();
     if (stream) stream.getTracks().forEach((t) => t.stop());
     const s = video.srcObject;
@@ -78,6 +110,7 @@ export async function startScan(video, onCode) {
     video.srcObject = stream;
     await video.play();
     autofocus(video);
+    stopMirror = mirror(video, canvas);
     const det = new window.BarcodeDetector({ formats: FORMATS });
     const tick = async () => {
       if (stopped) return;
@@ -98,6 +131,7 @@ export async function startScan(video, onCode) {
       if (result) found(result.getText());
     });
     autofocus(video);
+    if (!stopped) stopMirror = mirror(video, canvas);
   }
   return stop;
 }

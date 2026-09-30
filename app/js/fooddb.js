@@ -82,6 +82,42 @@ export function search(q, limit = 60) {
   return out.slice(0, limit).map((x) => x[1]);
 }
 
+// UK/US spellings count as the same word.
+const SPELLING = { yogurt: 'yoghurt', yogurts: 'yoghurts', fiber: 'fibre', flavored: 'flavoured', flavor: 'flavour', color: 'colour', whey: 'whey', catsup: 'ketchup', ketchups: 'ketchup' };
+const normText = (t) => (t || '').toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9%]+/g, ' ').trim()
+  .split(' ').map((w) => SPELLING[w] || w).join(' ');
+const COOKED = /\b(cooked|boiled|grilled|fried|roast(ed)?|baked|steamed|stewed|poached|casseroled|microwaved|toasted|dried|canned|tinned)\b/;
+
+/**
+ * How well a food name answers a search (higher is better). Used to rank saved,
+ * generic and branded foods together in one list.
+ */
+export function relevance(query, name, brand = '') {
+  const q = normText(query);
+  const words = q.split(' ').filter(Boolean);
+  if (!words.length) return 0;
+  const n = normText(name);
+  const nameWords = n.split(' ');
+  const hay = `${n} ${normText(brand)}`;
+  const same = (x, w) => x === w || x === `${w}s` || `${x}s` === w || x === `${w}es` || x.replace(/ies$/, 'y') === w.replace(/ies$/, 'y');
+  let s = 0, matched = 0;
+  for (const w of words) {
+    if (nameWords.some((x) => same(x, w))) { matched++; s += 10; }
+    else if (nameWords.some((x) => x.startsWith(w))) { matched++; s += 7; }
+    else if (hay.includes(w)) { matched++; s += 4; }
+  }
+  s -= 25 * (words.length - matched);
+  if (n.startsWith(q)) s += 6; else if (n.includes(q)) s += 3;
+  if (same(nameWords[0], words[0])) s += 6;
+  s -= Math.max(0, nameWords.length - words.length) * 1.2; // extra words = less specific
+  // "chicken breast" without a cooking word most likely means the plain, raw food.
+  if (!COOKED.test(q)) {
+    if (/\braw\b/.test(n)) s += 8;
+    if (COOKED.test(n) || /\b(coated|breaded|battered|in sauce|ready meal)\b/.test(n)) s -= 8;
+  }
+  return s;
+}
+
 export function microCount(per100) {
   return MICRO_KEYS.filter((k) => per100[k] !== null).length;
 }
@@ -151,7 +187,7 @@ const SEARCH = 'https://search.openfoodfacts.org/search';
 const offCache = new Map();
 const hasEnergy = (p) => p.nutriments && (p.nutriments['energy-kcal_100g'] !== undefined || p.nutriments['energy_100g'] !== undefined);
 
-async function getJson(url, signal, ms = 9000) {
+async function getJson(url, signal, ms = 12000) {
   const ctrl = new AbortController();
   const stop = () => ctrl.abort();
   signal?.addEventListener('abort', stop, { once: true });
@@ -210,29 +246,39 @@ export async function offSearch(q, signal) {
 }
 
 /**
- * Look a barcode up on Open Food Facts: the product API first, then the search service
- * as a backup, each with a time limit. 12-digit UPC codes are also tried with a leading
- * 0 (the EAN-13 form most UK products are stored under).
+ * Look a barcode up on Open Food Facts. The product API (for the code and, for 12-digit
+ * UPCs, the EAN-13 form with a leading 0) and the search service are asked at the same
+ * time; the first to find the product wins. Only if nothing answers is it an error.
  */
 export async function offBarcode(code) {
   const codes = code.length === 12 ? [code, '0' + code] : [code];
-  let lastErr = null;
-  for (const c of codes) {
+  const errors = [];
+  const attempt = async (fn, isProduct) => {
     try {
-      const json = await getJson(`${OFF}/api/v2/product/${encodeURIComponent(c)}.json?fields=${OFF_FIELDS}`, null, 9000);
-      if (json.status === 1 && json.product) return offToFood({ ...json.product, code: json.product.code || c });
+      const food = await fn();
+      if (food) return food;
     } catch (e) {
-      // 404 = not in the database; anything else = OFF unreachable, try the backup.
-      if (!/error 404/.test(e.message)) lastErr = e;
+      if (isProduct && !/error 404/.test(e.message)) errors.push(e);
     }
-  }
+    throw new Error('not found');
+  };
+  const tries = [
+    ...codes.map((c) => attempt(async () => {
+      const json = await getJson(`${OFF}/api/v2/product/${encodeURIComponent(c)}.json?fields=${OFF_FIELDS}`, null, 15000);
+      return json.status === 1 && json.product ? offToFood({ ...json.product, code: json.product.code || c }) : null;
+    }, true)),
+    attempt(async () => {
+      const json = await getJson(`${SEARCH}?q=${codes.map((c) => `code:${c}`).join(' OR ')}&page_size=5&fields=${OFF_FIELDS}`, null, 15000);
+      const hit = (json.hits || []).find((p) => codes.includes(p.code));
+      return hit ? offToFood(hit) : null;
+    }, false),
+  ];
   try {
-    const json = await getJson(`${SEARCH}?q=${codes.map((c) => `code:${c}`).join(' OR ')}&page_size=5&fields=${OFF_FIELDS}`, null, 9000);
-    const hit = (json.hits || []).find((p) => codes.includes(p.code));
-    if (hit) return offToFood(hit);
+    return await Promise.any(tries);
   } catch {
-    /* backup unavailable: only an error if the product API failed too */
+    // Every source failed or had nothing. Unreachable product API = real error; otherwise not found.
+    const productDown = errors.length === codes.length; // product API unreachable for every form of the code
+    if (productDown) throw new Error(`Open Food Facts didn't respond (${errors[0].message})`);
+    return null;
   }
-  if (lastErr) throw new Error(`Open Food Facts didn't respond (${lastErr.message})`);
-  return null;
 }

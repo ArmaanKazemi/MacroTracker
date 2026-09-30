@@ -235,46 +235,59 @@ export function openAddFood({ date, meal }) {
       list.appendChild(nb);
       return;
     }
-    const info = fooddb.info();
-    const generic = fooddb.search(q, 30);
-    list.appendChild(el(`<div class="list-h">${info.full ? 'Generic foods · CoFID' : 'Generic foods · starter set'}</div>`));
-    if (!generic.length) list.appendChild(el('<p class="empty">No generic matches.</p>'));
-    for (const g of generic) {
-      const food = { source: 'generic', genericId: g.id, name: g.name, unit: 'g', servings: [] };
-      const row = foodRow(food);
-      bindRow(row, food);
-      list.appendChild(row);
-    }
-    const offBox = el('<div><div class="list-h">Branded · Open Food Facts</div><div data-off></div></div>');
-    list.appendChild(offBox);
-    const offList = $(offBox, '[data-off]');
-    if (!navigator.onLine) {
-      offList.innerHTML = '<p class="empty">You are offline. Branded search needs a connection.</p>';
-    } else {
-      offList.innerHTML = '<div class="spin" aria-label="Searching"></div>';
-      clearTimeout(offTimer);
-      const query = q;
-      const run = async () => {
-        offCtrl?.abort();
-        offCtrl = new AbortController();
-        offList.innerHTML = '<div class="spin" aria-label="Searching"></div>';
-        try {
-          const res = await fooddb.offSearch(query, offCtrl.signal);
-          if (query !== q) return;
-          offList.innerHTML = '';
-          if (!res.length) offList.innerHTML = '<p class="empty">No branded matches.</p>';
-          for (const f of res) { const r = foodRow(f); bindRow(r, f); offList.appendChild(r); }
-        } catch (e) {
-          if (e.name === 'AbortError' || query !== q) return;
-          offList.innerHTML = `<p class="empty">Open Food Facts didn't respond (${esc(e.message)}). It's often busy for a moment.</p>`;
-          const retry = el('<button class="btn sm" type="button" data-off-retry>Try again</button>');
-          retry.onclick = run;
-          offList.appendChild(retry);
-        }
-      };
-      // Wait until typing pauses so each search costs one request.
-      offTimer = setTimeout(run, 650);
-    }
+    // One list, best match first, whatever the source: your saved foods, the UK
+    // database and branded products (which arrive a moment later) are ranked together.
+    const query = q;
+    const saved = (await store.getFoods()).filter((f) => fooddb.relevance(query, f.name, f.brand) > 0);
+    const savedGeneric = new Set(saved.filter((f) => f.genericId).map((f) => f.genericId));
+    const savedCodes = new Set(saved.filter((f) => f.barcode).map((f) => f.barcode));
+    const generic = fooddb.search(query, 40).filter((g) => !savedGeneric.has(g.id))
+      .map((g) => ({ source: 'generic', genericId: g.id, name: g.name, unit: 'g', servings: [] }));
+    let branded = [];
+    let offState = navigator.onLine ? 'loading' : 'offline';
+    let offError = '';
+    const results = el('<div data-results></div>');
+    const offStatus = el('<div data-off></div>');
+    list.append(results, offStatus);
+    const score = (f) => fooddb.relevance(query, f.name, f.brand)
+      + (f.id ? 6 + (f.favourite ? 3 : 0) + (f.lastUsed ? 2 : 0) : 0) // foods you use
+      + (f.source === 'generic' ? 1 : 0); // plain generic over a branded twin
+    const draw = () => {
+      if (query !== q) return;
+      const all = [...saved, ...generic, ...branded.filter((f) => !savedCodes.has(f.barcode))]
+        .map((f) => [score(f), f]).sort((a, b) => b[0] - a[0]).slice(0, 50);
+      results.innerHTML = '';
+      if (!all.length && offState !== 'loading') results.appendChild(el('<p class="empty">No matches. Try fewer words, or create it below.</p>'));
+      for (const [, f] of all) { const r = foodRow(f); bindRow(r, f); results.appendChild(r); }
+      offStatus.innerHTML = '';
+      if (offState === 'loading') offStatus.appendChild(el('<p class="note searching"><span class="spin sm" aria-hidden="true"></span> Checking branded products…</p>'));
+      else if (offState === 'offline') offStatus.appendChild(el('<p class="note">Offline: showing saved and generic foods only.</p>'));
+      else if (offState === 'error') {
+        offStatus.appendChild(el(`<p class="note">Branded products didn't load (${esc(offError)}). Open Food Facts is sometimes busy.</p>`));
+        const retry = el('<button class="btn sm" type="button" data-off-retry>Try again</button>');
+        retry.onclick = run;
+        offStatus.appendChild(retry);
+      }
+    };
+    const run = async () => {
+      offCtrl?.abort();
+      offCtrl = new AbortController();
+      offState = 'loading';
+      draw();
+      try {
+        branded = await fooddb.offSearch(query, offCtrl.signal);
+        offState = 'done';
+      } catch (e) {
+        if (e.name === 'AbortError' || query !== q) return;
+        offState = 'error';
+        offError = e.message;
+      }
+      draw();
+    };
+    draw();
+    clearTimeout(offTimer);
+    // Wait until typing pauses so each search costs one request.
+    if (offState === 'loading') offTimer = setTimeout(run, 650);
     const nb = el(`<button class="btn sm block" type="button" style="margin-top:14px">${icons.plus} Create custom food</button>`);
     nb.onclick = () => openFoodForm({ name: q }, { onSaved: (f) => openDetail(f), logging: true });
     list.appendChild(nb);
@@ -283,7 +296,7 @@ export function openAddFood({ date, meal }) {
   function renderScan() {
     const box = el(`
       <div>
-        <div class="scan-box"><video playsinline muted autoplay></video></div>
+        <div class="scan-box"><video playsinline webkit-playsinline muted autoplay></video><canvas aria-hidden="true"></canvas></div>
         <p class="note" data-status>Starting the camera…</p>
         <label class="btn block scan-photo">${icons.camera} Take a photo of the barcode<input type="file" accept="image/*" capture="environment" data-photo hidden></label>
         <form class="row" data-manual style="gap:8px">
@@ -332,7 +345,7 @@ export function openAddFood({ date, meal }) {
       if (v) lookupCode(v);
     };
     import('./scanner.js').then(({ startScan }) =>
-      startScan($(box, 'video'), (code) => { stopScan = null; lookupCode(code); })
+      startScan($(box, 'video'), (code) => { stopScan = null; lookupCode(code); }, $(box, 'canvas'))
         .then((s) => {
           if (tab === 'scan' && !sheet.closed) { stopScan = s; status.textContent = 'Hold the barcode flat inside the box, about a hand’s width away. If it won’t read, take a photo instead.'; } else s();
         })
