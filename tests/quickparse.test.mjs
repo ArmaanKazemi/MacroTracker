@@ -49,6 +49,37 @@ near(it.typed.sodium, 900, 'g sodium converted to mg');
 it = one('tablet 25mcg vitamin d');
 assert.equal(it.typed.vitD, 25);
 
+// Real example: numbers-first shorthand, then words-first, µg/mg units, and an untracked vitamin
+it = one('sweet potato lamb bowl 877kcal 65.4p 69.9c 37.6f sugar 16.2g sat fat 14.1g fibre 12.5g salt 1.6g vitamin a 2200µg vitamin c 75mg vitamin e 1.8mg potassium 2100mg calcium 390mg magnesium 160mg iron 6.2mg zinc 10.9mg vitamin b12 6µg');
+assert.equal(it.name, 'sweet potato lamb bowl');
+assert.deepEqual({ ...it.typed, sodium: Math.round(it.typed.sodium) }, {
+  kcal: 877, protein: 65.4, carbs: 69.9, fat: 37.6, sugars: 16.2, satfat: 14.1, fibre: 12.5, sodium: 640,
+  vitA: 2200, vitC: 75, potassium: 2100, calcium: 390, magnesium: 160, iron: 6.2, zinc: 10.9, vitB12: 6,
+});
+assert.deepEqual(it.ignored, ['vitamin e']);
+// Same with the Greek mu (μ) some keyboards type, thousands separators and "energy"
+it = one('lunch energy 2,100 kj protein 40g vitamin d 10μg potassium 1,200mg');
+assert.equal(it.name, 'lunch');
+assert.equal(Math.round(it.typed.kcal), 502);
+assert.equal(it.typed.vitD, 10);
+assert.equal(it.typed.potassium, 1200);
+// Value before word, all the way through
+it = one('curry 700 kcal 30 g protein 900 mg sodium 5 g fibre');
+assert.deepEqual(it.typed, { kcal: 700, protein: 30, sodium: 900, fibre: 5 });
+
+// Formats AI chat apps tend to produce
+it = one('Sweet potato lamb bowl – 877 kcal, 65.4 g protein, 69.9 g carbs, 37.6 g fat, 1.6 g salt');
+assert.equal(it.name, 'Sweet potato lamb bowl');
+assert.deepEqual({ ...it.typed, sodium: Math.round(it.typed.sodium) }, { kcal: 877, protein: 65.4, carbs: 69.9, fat: 37.6, sodium: 640 });
+it = one('Chicken salad | Calories: 420 kcal | Protein: 38 g | Carbs: 12 g | Fat: 22 g | Sodium: 610 mg');
+assert.equal(it.name, 'Chicken salad');
+assert.deepEqual(it.typed, { kcal: 420, protein: 38, carbs: 12, fat: 22, sodium: 610 });
+it = one('Porridge: Energy 350kcal, Fat 8g, of which saturates 2g, Carbohydrate 55g, of which sugars 12g, Fibre 7g, Protein 14g, Salt 0.1g');
+assert.equal(it.name, 'Porridge');
+assert.deepEqual({ ...it.typed, sodium: Math.round(it.typed.sodium) }, { kcal: 350, fat: 8, satfat: 2, carbs: 55, sugars: 12, fibre: 7, protein: 14, sodium: 40 });
+const two = parseQuickLog('Protein shake 250kcal 30p\nBanana 105 kcal 1g protein 27g carbs');
+assert.deepEqual(two.map((x) => [x.name, x.typed.kcal, x.typed.protein]), [['Protein shake', 250, 30], ['Banana', 105, 1]]);
+
 // Food names that look like nutrients stay food names
 it = one('30g protein powder');
 assert.deepEqual([it.name, it.amount, it.typed], ['protein powder', 30, null]);

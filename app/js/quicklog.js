@@ -146,9 +146,10 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
           <div class="item-main">
             <div class="item-name">${esc(row.food.name)} <span class="tag">${row.typed ? 'Typed' : row.food.source === 'generic' ? (fooddb.info().full ? 'CoFID' : 'Generic') : 'Yours'}</span></div>
             <div class="item-meta num"><b>${n.kcal === null ? '—' : fmt(n.kcal, 'kcal')}</b> kcal · P ${fmt(n.protein)} · C ${fmt(n.carbs)} · F ${fmt(n.fat)}${extras.map((k) => ` · ${esc(label(k))} ${fmt(row.it.typed[k])}${unitOf(k)}`).join('')}</div>
+            ${row.it.ignored?.length ? `<div class="item-meta">Not tracked: ${esc(row.it.ignored.join(', '))}</div>` : ''}
             ${row.typed ? '<div class="item-meta">1 portion, your values</div>' : `
             <div class="ql-amt"><input class="input num" type="number" inputmode="decimal" min="0" step="any" value="${Math.round(row.amount * 10) / 10}" aria-label="Amount"> <span>${esc(row.food.unit || 'g')}${row.servingLabel ? ` · ${fmt(row.qty)} × ${esc(row.servingLabel)}` : ''}${row.note ? ` · <i>${esc(row.note)}</i>` : ''}</span></div>`}
-            <div class="item-meta ql-typed">“${esc(row.it.raw)}”</div>
+            ${row.typed ? '' : `<div class="item-meta ql-typed">“${esc(row.it.raw)}”</div>`}
           </div>
           ${row.typed ? '' : '<button class="btn sm" type="button" data-change>Change</button>'}
           <button class="iconbtn" type="button" data-rm aria-label="Remove">${icons.close}</button>`;
@@ -169,7 +170,8 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
 
   let timer = 0;
   text.oninput = () => { clearTimeout(timer); timer = setTimeout(build, 350); };
-  text.focus();
+  // No auto-focus: focusing while the sheet slides up makes iOS scroll it to the
+  // bottom. The box sits at the top, so one tap opens the keyboard.
 
   logBtn.onclick = async () => {
     const m = $(foot, '[data-meal]').value;
