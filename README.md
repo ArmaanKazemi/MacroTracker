@@ -12,7 +12,7 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
   - Tracked: fibre, potassium, magnesium, folate, vitamins C, A, K, D and B12, iron, zinc, calcium, iodine, selenium, omega-3 ALA, EPA + DHA, and sodium.
   - Going over an upper limit turns the bar red ("Over upper limit"). The limits for magnesium (supplements only), folate (supplements / fortified foods) and vitamin A (preformed only) can't be judged from food totals, so they're shown but never flagged.
   - **Sodium works the other way round:** it's a limit (2,300 mg by default). The bar is green below 90%, amber from 90% and red once you reach the limit.
-- **Barcodes:** tapping **Scan** opens the camera straight away; take a photo of the barcode and Pithos reads it (a live scanner is still available). Scanned products show **Save to My foods** and **Edit values**: Open Food Facts data is crowd-sourced and can be out of date, so correct it from the pack once and your copy is used every time you scan it after that.
+- **Barcodes:** **Scan** starts the live scanner; if it struggles, tap **Take a photo of the barcode** (the phone's camera focuses better and Pithos reads the code from the photo), or type the number. Scanned products show **Save to My foods** and **Edit values**: Open Food Facts data is crowd-sourced and can be out of date, so correct it from the pack once and your copy is used every time you scan it after that.
 - **Food search:**
   - UK CoFID (McCance & Widdowson) generic foods, bundled so search works offline.
   - UK branded products from Open Food Facts, plus camera barcode scanning.
