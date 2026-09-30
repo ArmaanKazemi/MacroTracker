@@ -33,6 +33,12 @@ async function mockOff(ctx) {
     if (u.includes('search.pl')) return route.fulfill({ json: { products: [OFF_PRODUCT] } });
     return route.abort();
   });
+  // Newer search service: answers for "protein", unreachable otherwise (exercises the fallback).
+  await ctx.route('https://search.openfoodfacts.org/**', (route) => {
+    const u = route.request().url();
+    if (/q=[^&]*protein/i.test(u)) return route.fulfill({ json: { hits: [{ ...OFF_PRODUCT, countries_tags: ['en:united-kingdom'] }] } });
+    return route.abort();
+  });
 }
 
 let passed = 0;
@@ -818,6 +824,24 @@ await step('goals: macros turn red until balanced to the calorie goal', async ()
     await page.locator(`[data-s="${k}"]`).dispatchEvent('change');
   }
   await page.waitForTimeout(200);
+});
+
+await step('branded search falls back to the classic OFF search, and offers Try again when both are down', async () => {
+  await page.goto(BASE + '#/today');
+  await settle();
+  await page.locator('[data-meal="lunch"] [data-add]').click();
+  // new service unreachable for this query -> classic search.pl answers
+  await topSheet().locator('input[type=search]').fill('test bar');
+  await topSheet().locator('.result', { hasText: 'Test Protein Bar' }).waitFor({ timeout: 5000 });
+  // both down -> friendly message and a retry button that works once OFF is back
+  await page.route('https://world.openfoodfacts.org/**', (r) => r.abort());
+  await topSheet().locator('input[type=search]').fill('granola bar');
+  await topSheet().locator('[data-off-retry]').waitFor({ timeout: 5000 });
+  assert.match(await topSheet().locator('[data-off]').textContent(), /didn't respond/);
+  await page.unroute('https://world.openfoodfacts.org/**');
+  await topSheet().locator('[data-off-retry]').click();
+  await topSheet().locator('[data-off] .result', { hasText: 'Test Protein Bar' }).waitFor({ timeout: 5000 });
+  await closeTop();
 });
 
 await step('central + button opens add food; appearance switch applies themes', async () => {

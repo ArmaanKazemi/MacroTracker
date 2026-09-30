@@ -106,6 +106,8 @@ If the workflow can't fetch the spreadsheet (for example, if gov.uk changes its 
   - Once the full CoFID file is built, these links automatically point at the real CoFID entries (raspberries, blueberries, Greek yoghurt, linseed, peanut butter, oat drink…).
   - Whey protein and peanut powder aren't in CoFID, so they keep the starter estimates.
   - You can change any link from the food's detail sheet.
+- **Raw poultry in CoFID:** CoFID has no "chicken breast, raw". Raw breast is listed as *light meat* and leg/thigh as *dark meat*, so the app shows them as "Chicken, light meat (breast), raw" and "Chicken, dark meat (leg/thigh), raw" (same for turkey), and searching "chicken breast" finds them.
+- **Branded search:** tries Open Food Facts' newer search service first, then the classic one, each with a time limit. Results are cached for 10 minutes, and if OFF is busy there's a **Try again** button.
 - **Open Food Facts:** minerals and vitamins are converted from OFF's grams to mg or µg. Sodium comes from salt ÷ 2.5 when only salt is listed. When a product doesn't list a value, it shows **no data**. Branded products rarely list iodine, selenium or omega-3s.
 - **Totals:** when some logged foods have no data for a nutrient, the Nutrients screen says so ("2 logged foods have no data for Vitamin K — the real total may be higher").
 

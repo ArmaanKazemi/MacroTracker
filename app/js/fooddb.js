@@ -4,8 +4,16 @@ import { normNutrients, MICRO_KEYS } from './nutrients.js';
 let loaded = null;
 const state = { full: false, rows: [], byId: new Map(), aliases: {}, source: '' };
 
+// CoFID calls raw poultry cuts "light meat" (breast) and "dark meat" (leg/thigh).
+// Say so in the name, so searching "chicken breast" or "turkey thigh" finds them.
+export function displayName(name) {
+  if (!/^(chicken|turkey)\b/i.test(name)) return name;
+  return name.replace(/\blight meat\b/i, 'light meat (breast)').replace(/\bdark meat\b/i, 'dark meat (leg/thigh)');
+}
+
 function rowToFood(fields, row) {
-  const [id, name, group, ...vals] = row;
+  const [id, rawName, group, ...vals] = row;
+  const name = displayName(rawName);
   const n = {};
   fields.forEach((k, i) => (n[k] = vals[i]));
   return { id, name, group, per100: normNutrients(n), lower: name.toLowerCase() };
@@ -136,14 +144,69 @@ export function offToFood(p) {
   };
 }
 
-export async function offSearch(q, signal) {
+// Branded search. Tries Open Food Facts' newer search service first (fast, CORS-friendly),
+// then the classic search endpoint, each with a timeout. Results are cached per query
+// so retyping doesn't spend OFF's rate limit.
+const SEARCH = 'https://search.openfoodfacts.org/search';
+const offCache = new Map();
+const hasEnergy = (p) => p.nutriments && (p.nutriments['energy-kcal_100g'] !== undefined || p.nutriments['energy_100g'] !== undefined);
+
+async function getJson(url, signal, ms = 9000) {
+  const ctrl = new AbortController();
+  const stop = () => ctrl.abort();
+  signal?.addEventListener('abort', stop, { once: true });
+  const timer = setTimeout(() => ctrl.abort(new Error('timed out')), ms);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`error ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    throw ctrl.signal.aborted ? new Error('timed out') : e;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', stop);
+  }
+}
+
+async function searchNew(q, signal) {
+  const url = `${SEARCH}?q=${encodeURIComponent(q)}&page_size=40&langs=en&fields=${OFF_FIELDS},countries_tags`;
+  const json = await getJson(url, signal);
+  const hits = (json.hits || []).filter(hasEnergy);
+  // UK products first, then everything else.
+  const uk = (p) => (p.countries_tags || []).includes('en:united-kingdom');
+  return [...hits.filter(uk), ...hits.filter((p) => !uk(p))].slice(0, 30);
+}
+
+async function searchClassic(q, signal) {
   const url = `${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=30&fields=${OFF_FIELDS}&tagtype_0=countries&tag_contains_0=contains&tag_0=united-kingdom`;
-  const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(`Open Food Facts error ${res.status}`);
-  const json = await res.json();
-  return (json.products || [])
-    .filter((p) => p.nutriments && (p.nutriments['energy-kcal_100g'] !== undefined || p.nutriments['energy_100g'] !== undefined))
-    .map(offToFood);
+  const json = await getJson(url, signal);
+  return (json.products || []).filter(hasEnergy);
+}
+
+export async function offSearch(q, signal) {
+  const key = q.trim().toLowerCase();
+  const hit = offCache.get(key);
+  if (hit && Date.now() - hit.t < 10 * 60 * 1000) return hit.foods;
+  let products = null;
+  let firstErr = null;
+  try {
+    products = await searchNew(q, signal);
+  } catch (e) {
+    if (e.name === 'AbortError') throw e;
+    firstErr = e;
+  }
+  if (!products || !products.length) {
+    try {
+      products = await searchClassic(q, signal);
+    } catch (e) {
+      if (e.name === 'AbortError') throw e;
+      if (!products) throw new Error(firstErr ? `${firstErr.message}; ${e.message}` : e.message);
+    }
+  }
+  const foods = products.map(offToFood);
+  offCache.set(key, { t: Date.now(), foods });
+  return foods;
 }
 
 export async function offBarcode(code) {
