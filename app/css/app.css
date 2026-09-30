@@ -550,3 +550,28 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 
 /* Goals that don't add up */
 .input.bad { border-color: var(--red); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 14%, transparent); color: var(--red); }
+
+/* ---------- Quick log ---------- */
+.ql-open { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px; margin: 2px 0 12px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--card)); color: var(--text); }
+.ql-open svg { width: 26px; height: 26px; flex: none; color: var(--accent); }
+.ql-open span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ql-open b { font-size: 16px; }
+.ql-open small { color: var(--muted); font-size: 13px; }
+.switch { display: inline-block; }
+.ql-text { font-family: inherit; min-height: 110px; padding: 12px 14px; line-height: 1.4; resize: vertical; font-size: 16px; }
+.ql-help { margin: 8px 0 4px; font-size: 14px; color: var(--muted); }
+.ql-help summary { color: var(--accent); font-weight: 650; cursor: pointer; }
+.ql-help ul { margin: 8px 0 0; padding-left: 18px; }
+.ql-help li { margin: 4px 0; }
+.ql-row { display: flex; align-items: flex-start; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); }
+.ql-row:first-child { margin-top: 10px; }
+.ql-row .item-main { flex: 1; min-width: 0; }
+.ql-row .item-meta { white-space: normal; }
+.ql-row.missing .item-name { color: var(--red); }
+.ql-row .iconbtn { width: 36px; height: 36px; }
+.ql-row .iconbtn svg { width: 16px; height: 16px; }
+.ql-amt { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 13px; color: var(--muted); }
+.ql-amt .input { width: 92px; min-height: 38px; padding: 0 10px; }
+.ql-typed { font-style: italic; opacity: 0.8; }
+.ql-total { border-top: 1px solid var(--line); padding: 12px 0 4px; text-align: right; color: var(--muted); }
+.ql-total b { color: var(--text); font-family: var(--serif); font-size: 20px; }

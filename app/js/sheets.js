@@ -4,6 +4,7 @@ import { el, esc, $, $$, icons, openSheet, toast, confirmSheet, round1, swipeToD
 import { MEALS, MICROS, MICRO_GROUPS, SUBS, scale, fmt, normNutrients, macroKcal, MICRO_KEYS, totals } from './nutrients.js';
 import * as fooddb from './fooddb.js';
 import * as store from './store.js';
+import { openQuickLog } from './quicklog.js';
 
 export const changed = () => window.dispatchEvent(new Event('data-changed'));
 
@@ -217,6 +218,9 @@ export function openAddFood({ date, meal }) {
   async function renderSearch() {
     await fooddb.load();
     if (!q.trim()) {
+      const ql = el(`<button class="ql-open" type="button" data-quicklog>${icons.edit}<span><b>Quick log</b><small>Type everything you had: “200g chicken, 2 eggs, wrap 450kcal 35p”</small></span></button>`);
+      ql.onclick = () => openQuickLog({ date, meal, onLogged: () => sheet.close() });
+      list.appendChild(ql);
       const same = await sameAsYesterday({ date, meal });
       if (same) list.appendChild(same);
       const recent = (await store.getFoods()).filter((f) => f.lastUsed).sort((a, b) => b.lastUsed - a.lastUsed).slice(0, 12);

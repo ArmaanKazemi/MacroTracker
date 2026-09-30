@@ -6,6 +6,7 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
 
 - **Today:** a calorie ring (eaten / goal / remaining), protein, carb and fat bars (with *of which sugars* under carbs and *of which saturates* under fat), an animated water glass, four meal sections and a date switcher.
 - **Meals:** tap a meal's name on Today to open its page: every food in it, total calories against the recommended range, and nutrition (protein, carbs with sugars and fibre, fat with saturates, sodium, potassium, and all vitamins and minerals) against that meal's share of your daily goals. Remove foods there with ✕ or a swipe (with Undo). The chevron on a meal card collapses its list; that's remembered.
+- **Quick log:** in the add-food sheet, tap **Quick log** and type everything you had, one food per line or separated by commas, e.g. `200g chicken breast, 2 eggs, 1 scoop impact whey` or `chicken wrap 450kcal 35p 40c 12f sodium 800mg`. Your saved foods are matched first, then CoFID. Amounts can be grams/ml, counts ("2 eggs", "half a banana") or your serving names ("1 scoop"). You can give your own values: kcal, protein/p, carbs/c, fat/f, sugar, sat fat, fibre, sodium (mg), salt (g, converted to sodium) and any vitamin or mineral. Check the list, change a match or an amount, then **Log all** (Undo available). No AI, works offline, free.
 - **Same as yesterday?** When you add food to a meal, yesterday's version of that meal is offered at the top. One tap copies it all (Undo available). It also appears on an empty meal's page.
 - **Nutrients:** 17 nutrients, each with a daily target and an optional upper limit, all editable in Settings. They're shown as progress bars with *Low / % / Met* flags, plus a 7-day average with a per-day strip so nutrients that are consistently low stand out.
   - Tracked: fibre, potassium, magnesium, folate, vitamins C, A, K, D and B12, iron, zinc, calcium, iodine, selenium, omega-3 ALA, EPA + DHA, and sodium.
@@ -135,6 +136,7 @@ There's no build step for the app itself. It's plain HTML, CSS and ES modules.
 node tests/serve.mjs 8080        # then open http://127.0.0.1:8080
 cd tools && npm install          # xlsx + playwright
 node ../tests/cofid-parser.test.mjs
+node ../tests/quickparse.test.mjs   # Quick log text parser
 node ../tests/e2e.mjs            # 24 end-to-end checks on an iPhone-sized viewport
 ```
 
