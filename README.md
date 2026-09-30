@@ -48,7 +48,7 @@ Design: "modern classical". Warm ivory paper, ink and terracotta, with serif num
 2. Tap the **Share** button, then **Add to Home Screen**, then **Add**.
 3. Launch **Pithos** from the home screen. It opens full-screen, like a native app.
 4. Use it once while online, so the app and food database are cached for offline use.
-5. The first time you use **Scan**, allow camera access.
+5. The first time you use **Scan**, allow camera access. If the live camera struggles to read a barcode, tap **Take a photo of the barcode**: the iPhone camera focuses better, and Pithos reads the code from the photo.
 
 On Android (Chrome), use **⋮ → Install app** or **Add to Home screen**.
 

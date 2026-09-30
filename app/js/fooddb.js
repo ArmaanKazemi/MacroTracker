@@ -209,11 +209,30 @@ export async function offSearch(q, signal) {
   return foods;
 }
 
+/**
+ * Look a barcode up on Open Food Facts: the product API first, then the search service
+ * as a backup, each with a time limit. 12-digit UPC codes are also tried with a leading
+ * 0 (the EAN-13 form most UK products are stored under).
+ */
 export async function offBarcode(code) {
-  const res = await fetch(`${OFF}/api/v2/product/${encodeURIComponent(code)}.json?fields=${OFF_FIELDS}`);
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Open Food Facts error ${res.status}`);
-  const json = await res.json();
-  if (json.status !== 1 || !json.product) return null;
-  return offToFood(json.product);
+  const codes = code.length === 12 ? [code, '0' + code] : [code];
+  let lastErr = null;
+  for (const c of codes) {
+    try {
+      const json = await getJson(`${OFF}/api/v2/product/${encodeURIComponent(c)}.json?fields=${OFF_FIELDS}`, null, 9000);
+      if (json.status === 1 && json.product) return offToFood({ ...json.product, code: json.product.code || c });
+    } catch (e) {
+      // 404 = not in the database; anything else = OFF unreachable, try the backup.
+      if (!/error 404/.test(e.message)) lastErr = e;
+    }
+  }
+  try {
+    const json = await getJson(`${SEARCH}?q=${codes.map((c) => `code:${c}`).join(' OR ')}&page_size=5&fields=${OFF_FIELDS}`, null, 9000);
+    const hit = (json.hits || []).find((p) => codes.includes(p.code));
+    if (hit) return offToFood(hit);
+  } catch {
+    /* backup unavailable: only an error if the product API failed too */
+  }
+  if (lastErr) throw new Error(`Open Food Facts didn't respond (${lastErr.message})`);
+  return null;
 }

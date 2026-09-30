@@ -375,9 +375,9 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .big-input { font-family: var(--serif); font-size: 32px; font-weight: 600; text-align: center; min-height: 62px; }
 .preview { display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 6px; margin: 14px 0; }
 .preview .stat-v { font-size: 24px; }
-.scan-box { position: relative; border-radius: 18px; overflow: hidden; background: #000; aspect-ratio: 3 / 4; max-height: 52vh; width: 100%; }
+.scan-box { position: relative; border-radius: 18px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; max-height: 38vh; width: 100%; }
 .scan-box video { width: 100%; height: 100%; object-fit: cover; }
-.scan-box::after { content: ""; position: absolute; left: 12%; right: 12%; top: 42%; height: 16%; border: 2px solid rgba(255, 255, 255, 0.85); border-radius: 12px; box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.35); }
+.scan-box::after { content: ""; position: absolute; left: 10%; right: 10%; top: 34%; height: 32%; pointer-events: none; border: 2px solid rgba(255, 255, 255, 0.85); border-radius: 12px; box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.35); }
 
 /* ---------- Swipe to delete ---------- */
 .swipe { position: relative; overflow: hidden; transition: height 0.22s var(--ease), opacity 0.22s; }
@@ -575,3 +575,7 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .ql-typed { font-style: italic; opacity: 0.8; }
 .ql-total { border-top: 1px solid var(--line); padding: 12px 0 4px; text-align: right; color: var(--muted); }
 .ql-total b { color: var(--text); font-family: var(--serif); font-size: 20px; }
+
+/* Barcode scanning */
+.scan-photo { margin: 4px 0 12px; cursor: pointer; }
+.scan-photo svg { width: 20px; height: 20px; }
