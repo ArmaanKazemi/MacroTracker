@@ -1,6 +1,6 @@
 // Service worker: precache the app shell + food database so everything works offline.
 // Bump VERSION whenever you change any app file so phones pick up the update.
-const VERSION = 'pithos-v2.10.1';
+const VERSION = 'pithos-v2.11.0';
 
 const SHELL = [
   './',
@@ -15,6 +15,7 @@ const SHELL = [
   'js/meal.js',
   'js/quicklog.js',
   'js/quickparse.js',
+  'js/supplements.js',
   'js/nutrients.js',
   'js/scanner.js',
   'js/sheets.js',

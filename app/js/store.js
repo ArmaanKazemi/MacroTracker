@@ -149,6 +149,27 @@ export function defaultAmount(food) {
   return { amount: 100, servingLabel: null, qty: null };
 }
 
+// ---------- supplements ----------
+// The list lives in kv (so it's in backups). Taking one logs an entry with meal
+// 'supplements': it isn't shown in a meal, but its nutrients count towards the day.
+export const getSupplements = async () => (await db.get('kv', 'supplements')) || [];
+export const saveSupplements = (list) => db.put('kv', list, 'supplements');
+
+/** Nutrients for one dose: what you listed, and 0 for everything else (not "no data"). */
+export function supplementNutrients(given = {}) {
+  return Object.fromEntries(ALL_KEYS.map((k) => [k, Number.isFinite(given[k]) ? given[k] : 0]));
+}
+
+export async function takeSupplement(s, date) {
+  const e = {
+    id: 'e-' + db.uid(), date, meal: 'supplements', foodId: null, suppId: s.id,
+    name: s.name, brand: '', unit: 'g', amount: 100, servingLabel: s.dose || 'dose', qty: 1,
+    per100: supplementNutrients(s.nutrients), estimated: [], recipe: null, ts: Date.now(),
+  };
+  await db.put('entries', e);
+  return e;
+}
+
 // ---------- entries ----------
 export const entriesFor = (date) => db.byDate('entries', date);
 export const entriesBetween = (from, to) => db.byDateRange('entries', from, to);

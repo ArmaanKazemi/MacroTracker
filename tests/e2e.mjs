@@ -983,6 +983,63 @@ await step('quick log: type several foods and your own values, log them all at o
   assert.equal(await eaten(), before);
 });
 
+await step('supplements: add, tick off (counts towards nutrients), untick, edit', async () => {
+  await page.goto(BASE + '#/nutrients');
+  await page.waitForTimeout(1300); // let the numbers finish counting up
+  const vitD = async () => Number((await page.locator('[data-k="vitD"] [data-v]').textContent()).replace(/,/g, ''));
+  const before = await vitD();
+  await page.goto(BASE + '#/today');
+  await settle();
+  const card = page.locator('.supps');
+  await card.locator('[data-add-supp]').click();
+  await page.waitForTimeout(400);
+  const s = topSheet();
+  await s.locator('[data-name]').fill('Vitamin D3');
+  await s.locator('[data-dose]').fill('1 capsule');
+  await s.locator('[data-text]').fill('vitamin d 25µg, vitamin k 100mcg');
+  assert.match(await s.locator('[data-parsed]').textContent(), /Vitamin D 25µg · Vitamin K 100µg/);
+  await s.locator('[data-save]').click();
+  await settle();
+  const row = card.locator('.supp-row', { hasText: 'Vitamin D3' });
+  assert.match(await row.textContent(), /1 capsule · Vitamin D 25µg/);
+  assert.equal(await row.getAttribute('aria-checked'), 'false');
+  const kcal = await eaten();
+  await row.click();
+  await settle();
+  assert.equal(await row.getAttribute('aria-checked'), 'true');
+  assert.match(await card.locator('[data-count]').textContent(), /1 of 1 taken/);
+  assert.equal(await eaten(), kcal, 'no calories added');
+  assert.equal(await page.locator('[data-meal] .item', { hasText: 'Vitamin D3' }).count(), 0, 'not shown in a meal');
+  await page.goto(BASE + '#/nutrients');
+  await page.waitForTimeout(1300);
+  assert.ok(Math.abs(await vitD() - (before + 25)) < 0.11, 'counts towards vitamin D');
+  await page.goto(BASE + '#/today');
+  await settle();
+  await card.locator('.supp-row', { hasText: 'Vitamin D3' }).click();
+  await settle();
+  assert.equal(await card.locator('.supp-row', { hasText: 'Vitamin D3' }).getAttribute('aria-checked'), 'false', 'untick removes it');
+  // edit
+  await card.locator('.supp-row', { hasText: 'Vitamin D3' }).locator('[data-edit]').click();
+  await page.waitForTimeout(400);
+  await topSheet().locator('[data-dose]').fill('2 capsules');
+  await topSheet().locator('[data-save]').click();
+  await settle();
+  assert.match(await card.locator('.supp-row', { hasText: 'Vitamin D3' }).textContent(), /2 capsules/);
+});
+
+await step('water jar overflows once the goal is beaten', async () => {
+  await page.goto(BASE + '#/today');
+  await settle();
+  const glass = page.locator('.glass');
+  const goal = Number(await page.locator('[data-wg]').textContent()) * 1000;
+  let have = Number(await page.locator('[data-wv]').textContent()) * 1000;
+  while (have <= goal) { await page.locator('[data-add="500"]').click(); await page.waitForTimeout(250); have += 500; }
+  await settle();
+  assert.match(await glass.getAttribute('class'), /\bover\b/);
+  assert.match(await page.locator('[data-wleft]').textContent(), /Overflowing: .* ml past your goal/);
+  assert.equal(await glass.locator('.spill').evaluate((g) => getComputedStyle(g).opacity), '1');
+});
+
 await step('central + button opens add food; appearance switch applies themes', async () => {
   await page.goto(BASE + '#/today');
   await page.waitForTimeout(400);
