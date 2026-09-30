@@ -80,12 +80,15 @@ await step('home screen renders with goal and empty meals', async () => {
 
 await step('pre-loaded favourites are seeded', async () => {
   await page.locator('[data-meal="breakfast"] [data-add]').click();
-  await topSheet().locator('[data-tab="fav"]').click();
+  await topSheet().locator('[data-tab="mine"]').click();
   await page.waitForTimeout(300);
   const names = await topSheet().locator('.item-name').allTextContents();
   for (const n of ['Fage Total 0% Greek yoghurt', 'Impact Whey + Collagen protein powder', "Lizi's protein granola", 'Ground flaxseed', 'Morrisons 100% smooth peanut butter', 'Peanut butter powder', 'Naturya spirulina powder', 'Plenish oat milk', 'Raspberries, raw', 'Blueberries, raw']) {
     assert.ok(names.some((x) => x.includes(n)), `missing favourite ${n}`);
   }
+  // one merged My foods tab: starred foods pinned first and marked
+  assert.equal(await topSheet().locator('[data-tab="fav"]').count(), 0, 'no separate Favourites tab');
+  assert.equal(await topSheet().locator('.result').first().locator('.star-mark').count(), 1);
 });
 
 await step('one-tap log a favourite serving (1 scoop = 96 kcal)', async () => {
@@ -204,6 +207,47 @@ await step('barcode manual lookup finds product', async () => {
   await topSheet().locator('[data-photo]').setInputFiles({ name: 'barcode.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
   await topSheet().locator('h2', { hasText: 'Photo Scanned Bar' }).waitFor({ timeout: 8000 });
   await closeTop();
+  await closeTop();
+});
+
+await step('scan opens the camera at once; scanned product: save to My foods, edit values, corrected copy used next time', async () => {
+  await page.goto(BASE + '#/today');
+  await settle();
+  await page.locator('[data-meal="snacks"] [data-add]').click();
+  await page.waitForTimeout(300);
+  const chooser = page.waitForEvent('filechooser', { timeout: 3000 });
+  await topSheet().locator('[data-tab="scan"]').click();
+  assert.ok(await chooser, 'tapping Scan opens the camera / photo picker straight away');
+  assert.ok(await topSheet().locator('[data-live-btn]').isVisible(), 'live scanning still offered');
+  await topSheet().locator('[data-manual] input').fill('5000000000012');
+  await topSheet().locator('[data-manual] button').click();
+  await topSheet().locator('h2', { hasText: 'Photo Scanned Bar' }).waitFor({ timeout: 5000 });
+  const d = topSheet();
+  assert.match(await d.textContent(), /check them against the pack/);
+  // save without logging
+  await d.locator('[data-save-mine]').click();
+  await page.waitForTimeout(300);
+  assert.equal(await d.locator('[data-save-mine]').count(), 0, 'saved');
+  // correct the values from the label
+  await d.locator('[data-edit-values]').click();
+  await page.waitForTimeout(450);
+  const f = topSheet();
+  await f.locator('[data-n="kcal"]').fill('320');
+  await f.locator('[data-save]').click();
+  await page.waitForTimeout(450);
+  assert.match(await topSheet().locator('[data-preview]').textContent(), /^192/, '320 kcal/100 g × 60 g serving');
+  await closeTop();
+  // scanning it again uses your corrected copy
+  await topSheet().locator('[data-manual] input').fill('5000000000012');
+  await topSheet().locator('[data-manual] button').click();
+  await page.waitForTimeout(500);
+  assert.match(await topSheet().locator('[data-preview]').textContent(), /^192/);
+  await closeTop();
+  assert.match(await topSheet().locator('[data-status]').textContent(), /your saved copy/);
+  // and it's in My foods
+  await topSheet().locator('[data-tab="mine"]').click();
+  await page.waitForTimeout(300);
+  assert.equal(await topSheet().locator('.result', { hasText: 'Photo Scanned Bar' }).count(), 1);
   await closeTop();
 });
 
@@ -354,7 +398,7 @@ await step('date switcher: previous day is independent and editable', async () =
   assert.equal(await eaten(), 0);
   assert.equal(await page.locator('.datesw .label span').textContent(), 'Yesterday');
   await page.locator('[data-meal="dinner"] [data-add]').click();
-  await topSheet().locator('[data-tab="fav"]').click();
+  await topSheet().locator('[data-tab="mine"]').click();
   await page.waitForTimeout(300);
   await topSheet().locator('.result', { hasText: 'Ground flaxseed' }).locator('[data-quick]').click();
   await page.waitForTimeout(300);
@@ -504,7 +548,7 @@ async function swipeLeft(locator, fraction) {
 await step('swipe left to delete foods and saved meals (with undo)', async () => {
   await page.goto(BASE + '#/foods');
   await page.waitForTimeout(500);
-  await page.locator('[data-t="fav"]').click();
+  await page.locator('[data-t="mine"]').click();
   await page.waitForTimeout(300);
   const names = () => page.locator('.card .item-name').allTextContents();
   const before = (await names()).length;

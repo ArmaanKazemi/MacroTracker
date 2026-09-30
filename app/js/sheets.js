@@ -45,7 +45,7 @@ function foodRow(food, { quick = false } = {}) {
   const row = el(`
     <div class="result" role="button" tabindex="0">
       <div class="item-main">
-        <div class="item-name">${esc(food.name)}${food.brand && !food.name.includes(food.brand) ? ` <span class="muted small">${esc(food.brand)}</span>` : ''}<span class="tag">${sourceTag(food)}</span></div>
+        <div class="item-name">${food.favourite ? '<span class="star-mark" aria-label="Starred">★</span> ' : ''}${esc(food.name)}${food.brand && !food.name.includes(food.brand) ? ` <span class="muted small">${esc(food.brand)}</span>` : ''}<span class="tag">${sourceTag(food)}</span></div>
         <div class="macros-line">${macrosLine(per100, quick ? d.amount : 100, food.unit || 'g')}${quick && amountLabel ? ` <span class="muted">(${esc(amountLabel)})</span>` : ''}</div>
       </div>
       ${quick ? `<button class="iconbtn accent" type="button" data-quick aria-label="Log ${esc(food.name)}">${icons.plus}</button>` : ''}
@@ -98,7 +98,6 @@ export function openAddFood({ date, meal }) {
       <div class="search">${icons.search}<input class="input" type="search" placeholder="Search foods" enterkeyhint="search" autocomplete="off" aria-label="Search foods"></div>
       <div class="seg" role="tablist" style="margin-top:10px">
         <button role="tab" data-tab="search">Search</button>
-        <button role="tab" data-tab="fav">Favourites</button>
         <button role="tab" data-tab="mine">My foods</button>
         <button role="tab" data-tab="meals">Meals</button>
         <button role="tab" data-tab="scan">Scan</button>
@@ -163,17 +162,14 @@ export function openAddFood({ date, meal }) {
     input.parentElement.style.display = tab === 'scan' ? 'none' : '';
     list.innerHTML = '';
     if (tab === 'search') return renderSearch();
-    if (tab === 'fav' || tab === 'mine') {
-      const foods = (await store.getFoods())
-        .filter((f) => (tab === 'fav' ? f.favourite : f.source !== 'generic'))
-        .sort((a, b) => (b.lastUsed || 0) - (a.lastUsed || 0) || a.name.localeCompare(b.name));
+    if (tab === 'mine') {
+      // Everything you've made, scanned or saved; starred foods pinned to the top.
+      const foods = (await store.getFoods()).filter(store.isMine).sort(store.byMine);
       const shown = filterFoods(foods);
-      if (tab === 'mine') {
-        const nb = el(`<button class="btn sm block" type="button" style="margin:4px 0 8px">${icons.plus} New custom food</button>`);
-        nb.onclick = () => openFoodForm(null, { onSaved: (f) => { render(); openDetail(f); }, logging: true });
-        list.appendChild(nb);
-      }
-      if (!shown.length) list.appendChild(el(`<p class="empty">${tab === 'fav' ? 'No favourites yet. Tap the star on any food to add it here.' : 'No foods yet.'}</p>`));
+      const nb = el(`<button class="btn sm block" type="button" style="margin:4px 0 8px">${icons.plus} New custom food</button>`);
+      nb.onclick = () => openFoodForm(null, { onSaved: (f) => { render(); openDetail(f); }, logging: true });
+      list.appendChild(nb);
+      if (!shown.length) list.appendChild(el('<p class="empty">No foods yet. Foods you create, scan or save appear here; tap the star to pin one to the top.</p>'));
       for (const f of shown) {
         const row = foodRow(f, { quick: true });
         bindRow(row, f);
@@ -293,75 +289,99 @@ export function openAddFood({ date, meal }) {
     list.appendChild(nb);
   }
 
+  // ---- Scanning ----
+  // Tapping Scan opens the phone's camera straight away (a photo reads far more reliably
+  // than a live web view on iPhone). Live scanning is still there as a button.
+  const photoInput = el('<input type="file" accept="image/*" capture="environment" data-photo hidden>');
+  body.appendChild(photoInput);
+  let scanStatus = null;
+  const say = (html) => { if (scanStatus) scanStatus.innerHTML = html; };
+
+  const lookupCode = async (code) => {
+    say(`Looking up <b>${esc(code)}</b>…`);
+    try {
+      const local = (await store.getFoods()).find((f) => f.barcode === code);
+      const food = local || (await fooddb.offBarcode(code));
+      if (!food) {
+        say(`No product found for <b>${esc(code)}</b>. `);
+        const b = el('<button class="btn sm" type="button">Create it as a custom food</button>');
+        b.onclick = () => openFoodForm({ barcode: code }, { onSaved: (f) => openDetail(f), logging: true });
+        scanStatus?.appendChild(b);
+        return;
+      }
+      say(`Found: ${esc(food.name)}${local ? ' (your saved copy)' : ''}`);
+      openDetail(food);
+    } catch (e) {
+      say(navigator.onLine ? `Lookup failed: ${esc(e.message)}` : 'You are offline. Barcode lookup needs a connection.');
+    }
+  };
+  photoInput.onchange = async () => {
+    const file = photoInput.files?.[0];
+    photoInput.value = '';
+    if (!file) return;
+    say('Reading the barcode…');
+    try {
+      const { decodePhoto } = await import('./scanner.js');
+      const code = await decodePhoto(file);
+      if (code) lookupCode(code);
+      else say("Couldn't find a barcode in that photo. Fill the frame with the barcode, keep it flat and in good light, then try again, or type the numbers below.");
+    } catch (err) {
+      say(`Couldn't read the photo (${esc(err.message)}). You can type the barcode instead.`);
+    }
+  };
+
   function renderScan() {
     const box = el(`
       <div>
-        <div class="scan-box"><video playsinline webkit-playsinline muted autoplay></video><canvas aria-hidden="true"></canvas></div>
-        <p class="note" data-status>Starting the camera…</p>
-        <label class="btn block scan-photo">${icons.camera} Take a photo of the barcode<input type="file" accept="image/*" capture="environment" data-photo hidden></label>
-        <form class="row" data-manual style="gap:8px">
+        <p class="note" data-status>Take a photo of the barcode and Pithos reads it.</p>
+        <button class="btn go block" type="button" data-take>${icons.camera} Take a photo of the barcode</button>
+        <div class="scan-live" data-live hidden>
+          <div class="scan-box"><video playsinline webkit-playsinline muted autoplay></video><canvas aria-hidden="true"></canvas></div>
+        </div>
+        <button class="btn block" type="button" data-live-btn style="margin-top:10px">Live scan instead</button>
+        <form class="row" data-manual style="gap:8px;margin-top:12px">
           <input class="input" inputmode="numeric" pattern="[0-9]*" placeholder="Or type the barcode" aria-label="Barcode number">
           <button class="btn sm" type="submit" style="white-space:nowrap">Look up</button>
         </form>
       </div>`);
     list.appendChild(box);
-    const status = $(box, '[data-status]');
-    const lookupCode = async (code) => {
-      status.textContent = `Looking up ${code}…`;
-      try {
-        const local = (await store.getFoods()).find((f) => f.barcode === code);
-        const food = local || (await fooddb.offBarcode(code));
-        if (!food) {
-          status.innerHTML = `No product found for <b>${esc(code)}</b>. `;
-          const b = el('<button class="btn sm" type="button">Create it as a custom food</button>');
-          b.onclick = () => openFoodForm({ barcode: code }, { onSaved: (f) => openDetail(f), logging: true });
-          status.appendChild(b);
-          return;
-        }
-        status.textContent = `Found: ${food.name}`;
-        openDetail(food);
-      } catch (e) {
-        status.textContent = navigator.onLine ? `Lookup failed: ${e.message}` : 'You are offline. Barcode lookup needs a connection.';
-      }
-    };
-    // Photo route: the phone's own camera focuses much better on small barcodes.
-    $(box, '[data-photo]').onchange = async (e) => {
-      const file = e.target.files?.[0];
-      e.target.value = '';
-      if (!file) return;
-      status.textContent = 'Reading the barcode…';
-      try {
-        const { decodePhoto } = await import('./scanner.js');
-        const code = await decodePhoto(file);
-        if (code) lookupCode(code);
-        else status.textContent = "Couldn't find a barcode in that photo. Fill the frame with the barcode, keep it flat and in good light, or type the numbers below.";
-      } catch (err) {
-        status.textContent = `Couldn't read the photo (${err.message}). You can type the barcode instead.`;
-      }
-    };
+    scanStatus = $(box, '[data-status]');
+    $(box, '[data-take]').onclick = () => photoInput.click();
     $(box, '[data-manual]').onsubmit = (e) => {
       e.preventDefault();
       const v = $(box, '[data-manual] input').value.replace(/\D/g, '');
       if (v) lookupCode(v);
     };
-    import('./scanner.js').then(({ startScan }) =>
-      startScan($(box, 'video'), (code) => { stopScan = null; lookupCode(code); }, $(box, 'canvas'))
-        .then((s) => {
-          if (tab === 'scan' && !sheet.closed) { stopScan = s; status.textContent = 'Hold the barcode flat inside the box, about a hand’s width away. If it won’t read, take a photo instead.'; } else s();
-        })
-        .catch((e) => {
-          const denied = /denied|allowed|permission/i.test(`${e.name} ${e.message}`);
-          status.textContent = denied
-            ? 'Camera access is off for Pithos. Take a photo of the barcode instead, or allow the camera in Settings → Safari → Camera.'
-            : `Live camera unavailable (${e.message}). Take a photo of the barcode instead, or type it.`;
-        }));
+    // Live camera view, only when asked for.
+    $(box, '[data-live-btn]').onclick = (e) => {
+      e.currentTarget.hidden = true;
+      $(box, '[data-live]').hidden = false;
+      say('Starting the camera…');
+      import('./scanner.js').then(({ startScan }) =>
+        startScan($(box, 'video'), (code) => { stopScan = null; lookupCode(code); }, $(box, 'canvas'))
+          .then((s) => {
+            if (tab === 'scan' && !sheet.closed) { stopScan = s; say('Hold the barcode flat inside the box, about a hand’s width away.'); } else s();
+          })
+          .catch((err) => {
+            $(box, '[data-live]').hidden = true;
+            const denied = /denied|allowed|permission/i.test(`${err.name} ${err.message}`);
+            say(denied
+              ? 'Camera access is off for Pithos. Take a photo instead, or allow the camera in Settings → Safari → Camera.'
+              : `Live camera unavailable (${esc(err.message)}). Take a photo instead, or type the barcode.`);
+          }));
+    };
   }
 
-  $$(body, '[data-tab]').forEach((b) => (b.onclick = () => { tab = b.dataset.tab; render(); }));
+  $$(body, '[data-tab]').forEach((b) => (b.onclick = () => {
+    // Open the camera inside the tap itself; iOS only allows it from a user gesture.
+    if (b.dataset.tab === 'scan') photoInput.click();
+    tab = b.dataset.tab;
+    render();
+  }));
   input.oninput = () => { q = input.value; if (tab === 'scan') tab = 'search'; render(); };
   window.addEventListener('data-changed', function onChange() {
     if (sheet.closed) return window.removeEventListener('data-changed', onChange);
-    if (tab === 'fav' || tab === 'mine' || tab === 'meals' || (tab === 'search' && !q)) render();
+    if (tab === 'mine' || tab === 'meals' || (tab === 'search' && !q)) render();
   });
   render();
   return sheet;
@@ -418,10 +438,10 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
       </div>
       <div class="preview num" data-preview></div>
       <label class="field"><span>Meal</span><select class="input" data-meal>${MEALS.map((m) => `<option value="${m.key}">${m.label}</option>`).join('')}</select></label>
+      <div data-actions style="margin-top:4px"></div>
       <div class="list-h" style="display:flex;align-items:center;gap:8px">Micronutrients <span class="spacer"></span><span data-micro-count style="letter-spacing:0;text-transform:none;font-weight:600"></span></div>
       <div data-link></div>
       <div data-micros></div>
-      <div data-actions style="margin-top:16px"></div>
     </div>`);
   const foot = el(`<div class="btns">${entry ? '<button class="btn danger" type="button" data-del>Delete</button>' : ''}<button class="btn go" type="button" data-save>${entry ? 'Save' : 'Log food'}</button></div>`);
   const sheet = openSheet({ title: food.name, body, foot });
@@ -461,7 +481,8 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     await store.saveFood(saved);
     food = { ...saved };
     renderFav();
-    toast(food.favourite ? 'Added to favourites' : 'Removed from favourites');
+    renderActions();
+    toast(food.favourite ? 'Starred: pinned to the top of My foods' : 'Unstarred');
     changed();
   };
 
@@ -599,13 +620,50 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     render();
   };
 
-  // Extra actions
+  // Extra actions: save to My foods, and edit values (branded data can be out of date).
   const actions = $(body, '[data-actions]');
-  if (food.id && (food.source === 'custom' || food.source === 'preset' || food.source === 'off')) {
-    const b = el('<button class="btn sm block" type="button">Edit food details</button>');
-    b.onclick = () => openFoodForm(food, { onSaved: (f) => { food = { ...f }; servings = f.servings || []; if (sel !== 'unit' && sel >= servings.length) sel = 'unit'; renderUnits(); renderDynamic(); sheet.el.querySelector('h2').textContent = f.name; } });
-    actions.appendChild(b);
+  const afterEdit = (f) => {
+    food = { ...f };
+    servings = f.servings || [];
+    if (sel !== 'unit' && sel >= servings.length) sel = 'unit';
+    renderUnits();
+    renderDynamic();
+    renderActions();
+    sheet.el.querySelector('h2').textContent = f.name;
+  };
+  function renderActions() {
+    actions.innerHTML = '';
+    if (entry && !food.id) return; // an old entry whose food no longer exists
+    const editable = food.source === 'custom' || food.source === 'preset' || food.source === 'off';
+    if (food.source === 'off') {
+      actions.appendChild(el('<p class="note" style="margin-top:0">Values come from Open Food Facts, which volunteers fill in. They can be out of date, so check them against the pack. Your corrected copy is used next time you scan it.</p>'));
+    }
+    const btns = el('<div class="btns" style="flex-wrap:wrap"></div>');
+    if (!store.isMine(food)) {
+      const save = el(`<button class="btn sm" type="button" data-save-mine>${icons.plus} Save to My foods</button>`);
+      save.onclick = async () => {
+        const saved = await store.persistFood(food);
+        saved.mine = true;
+        await store.saveFood(saved);
+        afterEdit(saved);
+        changed();
+        toast('Saved to My foods');
+      };
+      btns.appendChild(save);
+    }
+    if (editable) {
+      const b = el(`<button class="btn sm" type="button" data-edit-values>${food.source === 'off' ? 'Edit values' : 'Edit food details'}</button>`);
+      b.onclick = async () => {
+        // Editing keeps your own copy in My foods (for scanned products, matched by barcode).
+        let saved = food.id ? food : await store.persistFood(food);
+        if (!saved.mine) { saved.mine = true; await store.saveFood(saved); }
+        openFoodForm(saved, { onSaved: (f) => { afterEdit(f); changed(); } });
+      };
+      btns.appendChild(b);
+    }
+    if (btns.children.length) actions.appendChild(btns);
   }
+  renderActions();
 
   renderDynamic();
 

@@ -7,10 +7,10 @@ import { mountNutrients, mountFoods, mountSettings, guessMeal } from './views.js
 import { mountMeal } from './meal.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.9.3';
+window.APP_VERSION = '2.10.0';
 
 const view = document.getElementById('view');
-const state = { date: todayKey(), microMode: 'day', foodsTab: 'fav' };
+const state = { date: todayKey(), microMode: 'day', foodsTab: 'mine' };
 const routes = { today: mountToday, nutrients: mountNutrients, foods: mountFoods, settings: mountSettings, meal: mountMeal };
 let current = null;
 let currentName = '';

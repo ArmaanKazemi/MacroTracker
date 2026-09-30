@@ -123,6 +123,15 @@ export async function saveFood(food) {
 }
 export const deleteFood = (id) => db.del('foods', id);
 
+/**
+ * Foods shown in "My foods": ones you made, scanned, saved or starred. UK-database foods
+ * that were only stored because you logged them stay out (they're in Recent instead).
+ */
+export const isMine = (f) => !!(f && f.id && (f.favourite || f.mine || f.source !== 'generic'));
+
+/** My foods order: starred first, then most recently used, then A–Z. */
+export const byMine = (a, b) => (b.favourite ? 1 : 0) - (a.favourite ? 1 : 0) || (b.lastUsed || 0) - (a.lastUsed || 0) || a.name.localeCompare(b.name);
+
 /** Persist a transient search result (generic or Open Food Facts) so it can be favourited / linked. */
 export async function persistFood(food) {
   if (food.id) return food;
