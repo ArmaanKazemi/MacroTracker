@@ -578,9 +578,7 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .ql-total b { color: var(--text); font-family: var(--serif); font-size: 20px; }
 
 /* Barcode scanning */
-.scan-box + *, [data-take] { margin-top: 4px; }
 [data-take] svg { width: 20px; height: 20px; }
-.scan-live { margin-top: 12px; }
 .spin.sm { display: inline-block; width: 14px; height: 14px; border-width: 2px; margin: 0 6px -2px 0; }
 .searching { display: flex; align-items: center; }
 

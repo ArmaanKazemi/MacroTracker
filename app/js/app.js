@@ -7,7 +7,7 @@ import { mountNutrients, mountFoods, mountSettings, guessMeal } from './views.js
 import { mountMeal } from './meal.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.10.0';
+window.APP_VERSION = '2.10.1';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), microMode: 'day', foodsTab: 'mine' };

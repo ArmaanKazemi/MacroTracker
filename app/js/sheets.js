@@ -290,8 +290,8 @@ export function openAddFood({ date, meal }) {
   }
 
   // ---- Scanning ----
-  // Tapping Scan opens the phone's camera straight away (a photo reads far more reliably
-  // than a live web view on iPhone). Live scanning is still there as a button.
+  // The Scan tab starts the live scanner; taking a photo of the barcode (read far more
+  // reliably on iPhone) and typing the number are options underneath.
   const photoInput = el('<input type="file" accept="image/*" capture="environment" data-photo hidden>');
   body.appendChild(photoInput);
   let scanStatus = null;
@@ -333,12 +333,9 @@ export function openAddFood({ date, meal }) {
   function renderScan() {
     const box = el(`
       <div>
-        <p class="note" data-status>Take a photo of the barcode and Pithos reads it.</p>
-        <button class="btn go block" type="button" data-take>${icons.camera} Take a photo of the barcode</button>
-        <div class="scan-live" data-live hidden>
-          <div class="scan-box"><video playsinline webkit-playsinline muted autoplay></video><canvas aria-hidden="true"></canvas></div>
-        </div>
-        <button class="btn block" type="button" data-live-btn style="margin-top:10px">Live scan instead</button>
+        <div class="scan-box"><video playsinline webkit-playsinline muted autoplay></video><canvas aria-hidden="true"></canvas></div>
+        <p class="note" data-status>Starting the camera…</p>
+        <button class="btn block" type="button" data-take>${icons.camera} Take a photo of the barcode</button>
         <form class="row" data-manual style="gap:8px;margin-top:12px">
           <input class="input" inputmode="numeric" pattern="[0-9]*" placeholder="Or type the barcode" aria-label="Barcode number">
           <button class="btn sm" type="submit" style="white-space:nowrap">Look up</button>
@@ -352,32 +349,20 @@ export function openAddFood({ date, meal }) {
       const v = $(box, '[data-manual] input').value.replace(/\D/g, '');
       if (v) lookupCode(v);
     };
-    // Live camera view, only when asked for.
-    $(box, '[data-live-btn]').onclick = (e) => {
-      e.currentTarget.hidden = true;
-      $(box, '[data-live]').hidden = false;
-      say('Starting the camera…');
-      import('./scanner.js').then(({ startScan }) =>
-        startScan($(box, 'video'), (code) => { stopScan = null; lookupCode(code); }, $(box, 'canvas'))
-          .then((s) => {
-            if (tab === 'scan' && !sheet.closed) { stopScan = s; say('Hold the barcode flat inside the box, about a hand’s width away.'); } else s();
-          })
-          .catch((err) => {
-            $(box, '[data-live]').hidden = true;
-            const denied = /denied|allowed|permission/i.test(`${err.name} ${err.message}`);
-            say(denied
-              ? 'Camera access is off for Pithos. Take a photo instead, or allow the camera in Settings → Safari → Camera.'
-              : `Live camera unavailable (${esc(err.message)}). Take a photo instead, or type the barcode.`);
-          }));
-    };
+    import('./scanner.js').then(({ startScan }) =>
+      startScan($(box, 'video'), (code) => { stopScan = null; lookupCode(code); }, $(box, 'canvas'))
+        .then((s) => {
+          if (tab === 'scan' && !sheet.closed) { stopScan = s; say('Hold the barcode flat inside the box, about a hand’s width away. If it won’t read, take a photo instead.'); } else s();
+        })
+        .catch((err) => {
+          const denied = /denied|allowed|permission/i.test(`${err.name} ${err.message}`);
+          say(denied
+            ? 'Camera access is off for Pithos. Take a photo of the barcode instead, or allow the camera in Settings → Safari → Camera.'
+            : `Live camera unavailable (${esc(err.message)}). Take a photo of the barcode instead, or type it.`);
+        }));
   }
 
-  $$(body, '[data-tab]').forEach((b) => (b.onclick = () => {
-    // Open the camera inside the tap itself; iOS only allows it from a user gesture.
-    if (b.dataset.tab === 'scan') photoInput.click();
-    tab = b.dataset.tab;
-    render();
-  }));
+  $$(body, '[data-tab]').forEach((b) => (b.onclick = () => { tab = b.dataset.tab; render(); }));
   input.oninput = () => { q = input.value; if (tab === 'scan') tab = 'search'; render(); };
   window.addEventListener('data-changed', function onChange() {
     if (sheet.closed) return window.removeEventListener('data-changed', onChange);

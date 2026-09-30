@@ -210,15 +210,22 @@ await step('barcode manual lookup finds product', async () => {
   await closeTop();
 });
 
-await step('scan opens the camera at once; scanned product: save to My foods, edit values, corrected copy used next time', async () => {
+await step('scan tab starts the live scanner with photo as an option; scanned product: save to My foods, edit values, corrected copy used next time', async () => {
   await page.goto(BASE + '#/today');
   await settle();
   await page.locator('[data-meal="snacks"] [data-add]').click();
   await page.waitForTimeout(300);
-  const chooser = page.waitForEvent('filechooser', { timeout: 3000 });
+  let opened = false;
+  const onChooser = () => { opened = true; };
+  page.on('filechooser', onChooser);
   await topSheet().locator('[data-tab="scan"]').click();
-  assert.ok(await chooser, 'tapping Scan opens the camera / photo picker straight away');
-  assert.ok(await topSheet().locator('[data-live-btn]').isVisible(), 'live scanning still offered');
+  await page.waitForTimeout(500);
+  assert.equal(opened, false, 'the photo camera does not open by itself');
+  assert.equal(await topSheet().locator('.scan-box video').count(), 1, 'live scanner shown');
+  const chooser = page.waitForEvent('filechooser', { timeout: 3000 });
+  await topSheet().locator('[data-take]').click();
+  assert.ok(await chooser, 'Take a photo opens the camera when tapped');
+  page.off('filechooser', onChooser);
   await topSheet().locator('[data-manual] input').fill('5000000000012');
   await topSheet().locator('[data-manual] button').click();
   await topSheet().locator('h2', { hasText: 'Photo Scanned Bar' }).waitFor({ timeout: 5000 });
