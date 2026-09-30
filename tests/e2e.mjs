@@ -873,6 +873,14 @@ await step('branded search falls back to the classic OFF search, and offers Try 
   await page.goto(BASE + '#/today');
   await settle();
   await page.locator('[data-meal="lunch"] [data-add]').click();
+  // one list ranked by relevance, no generic/branded sections
+  await topSheet().locator('input[type=search]').fill('protein bar');
+  await topSheet().locator('[data-results] .result', { hasText: 'Test Protein Bar' }).waitFor({ timeout: 5000 });
+  assert.equal(await topSheet().locator('[data-list] .list-h').count(), 0, 'no category headings');
+  assert.match(await topSheet().locator('[data-results] .result').first().textContent(), /Test Protein Bar/, 'best match first');
+  await topSheet().locator('input[type=search]').fill('raspberries');
+  await page.waitForTimeout(300);
+  assert.match(await topSheet().locator('[data-results] .result').first().textContent(), /Raspberries, raw/, 'your saved food ranks first');
   // new service unreachable for this query -> classic search.pl answers
   await topSheet().locator('input[type=search]').fill('test bar');
   await topSheet().locator('.result', { hasText: 'Test Protein Bar' }).waitFor({ timeout: 5000 });
@@ -880,10 +888,10 @@ await step('branded search falls back to the classic OFF search, and offers Try 
   await page.route('https://world.openfoodfacts.org/**', (r) => r.abort());
   await topSheet().locator('input[type=search]').fill('granola bar');
   await topSheet().locator('[data-off-retry]').waitFor({ timeout: 5000 });
-  assert.match(await topSheet().locator('[data-off]').textContent(), /didn't respond/);
+  assert.match(await topSheet().locator('[data-off]').textContent(), /didn't load/);
   await page.unroute('https://world.openfoodfacts.org/**');
   await topSheet().locator('[data-off-retry]').click();
-  await topSheet().locator('[data-off] .result', { hasText: 'Test Protein Bar' }).waitFor({ timeout: 5000 });
+  await topSheet().locator('[data-results] .result', { hasText: 'Test Protein Bar' }).waitFor({ timeout: 5000 });
   await closeTop();
 });
 
