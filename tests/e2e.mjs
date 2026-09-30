@@ -844,6 +844,43 @@ await step('branded search falls back to the classic OFF search, and offers Try 
   await closeTop();
 });
 
+await step('quick log: type several foods and your own values, log them all at once', async () => {
+  await page.goto(BASE + '#/today');
+  await settle();
+  const before = await eaten();
+  await page.locator('[data-meal="dinner"] [data-add]').click();
+  await page.waitForTimeout(400);
+  await topSheet().locator('[data-quicklog]').click();
+  await page.waitForTimeout(400);
+  const q = topSheet();
+  await q.locator('.ql-text').fill('1 scoop impact whey, 200g raspberries\nwrap 450kcal 35p 40c 12f sodium 800mg\nxyzzy');
+  await q.locator('.ql-total').waitFor({ timeout: 4000 });
+  assert.equal(await q.locator('.ql-row').count(), 4);
+  assert.match(await q.locator('.ql-row').nth(0).textContent(), /Impact Whey/);
+  assert.match(await q.locator('.ql-row').nth(1).textContent(), /Raspberries/);
+  assert.match(await q.locator('.ql-row').nth(2).textContent(), /Wrap[\s\S]*450[\s\S]*Sodium 800mg/);
+  assert.match(await q.locator('.ql-row').nth(3).textContent(), /No match for “xyzzy”/);
+  // change an amount before logging
+  await q.locator('.ql-row').nth(1).locator('.ql-amt input').fill('100');
+  await q.locator('.ql-row').nth(1).locator('.ql-amt input').dispatchEvent('change');
+  await page.waitForTimeout(500);
+  assert.equal(await q.locator('[data-log]').textContent(), 'Log 3 items');
+  await q.locator('[data-log]').click();
+  await settle();
+  assert.equal(await eaten(), before + 96 + 25 + 450, 'whey scoop + 100 g raspberries + typed wrap');
+  const wrap = await page.evaluate(async () => {
+    const store = await import('./js/store.js'); const ui = await import('./js/ui.js');
+    return (await store.entriesFor(ui.todayKey())).find((e) => e.name === 'Wrap');
+  });
+  assert.equal(wrap.meal, 'dinner');
+  assert.equal(wrap.per100.sodium, 800);
+  assert.equal(wrap.per100.protein, 35);
+  // undo removes all three
+  await page.locator('#toast button').click();
+  await settle();
+  assert.equal(await eaten(), before);
+});
+
 await step('central + button opens add food; appearance switch applies themes', async () => {
   await page.goto(BASE + '#/today');
   await page.waitForTimeout(400);
