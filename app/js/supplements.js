@@ -20,46 +20,45 @@ export function nutrientSummary(n = {}) {
 }
 
 export function supplementsCard(getDate) {
+  // Compact two-column pills: tap to tick off; "Edit" switches taps to opening the editor.
   const card = el(`
-    <section class="card supps" aria-label="Supplements">
-      <div class="supp-top"><span class="muted small" data-count></span></div>
-      <div data-list></div>
-      <button class="btn sm" type="button" data-add-supp>${icons.plus} Add supplement</button>
-    </section>`);
+    <div class="daily-page supps" aria-label="Supplements">
+      <div class="supp-top"><span class="muted small" data-count></span><button class="btn sm link" type="button" data-supp-edit hidden>Edit</button></div>
+      <div class="supp-grid" data-list></div>
+    </div>`);
   const list = $(card, '[data-list]');
-  $(card, '[data-add-supp]').onclick = () => openSupplementEditor(null);
+  let editing = false;
+  const editBtn = $(card, '[data-supp-edit]');
+  editBtn.onclick = () => { editing = !editing; card.classList.toggle('editing', editing); editBtn.textContent = editing ? 'Done' : 'Edit'; };
 
   async function refresh(entries) {
     const supps = await store.getSupplements();
     const taken = new Map(entries.filter((e) => e.meal === 'supplements' && e.suppId).map((e) => [e.suppId, e]));
     const done = supps.filter((s) => taken.has(s.id)).length;
-    $(card, '[data-count]').textContent = supps.length ? `${done} of ${supps.length} taken` : '';
+    $(card, '[data-count]').textContent = supps.length ? `${done} of ${supps.length} taken` : 'Add what you take, then tick them off each day.';
+    editBtn.hidden = !supps.length;
+    if (!supps.length && editing) editBtn.click();
     list.innerHTML = '';
-    if (!supps.length) {
-      list.appendChild(el('<p class="empty" style="margin:2px 0 10px">Add the supplements you take, then tick them off each day.</p>'));
-      return;
-    }
     for (const s of supps) {
       const e = taken.get(s.id);
-      const row = el(`
-        <div class="supp-row${e ? ' taken' : ''}" role="checkbox" aria-checked="${!!e}" tabindex="0">
+      const pill = el(`
+        <button class="supp-pill${e ? ' taken' : ''}" type="button" role="checkbox" aria-checked="${!!e}" title="${esc([s.dose, nutrientSummary(s.nutrients)].filter(Boolean).join(' · '))}">
           <span class="supp-check" aria-hidden="true">${e ? icons.check : ''}</span>
-          <div class="item-main">
-            <div class="item-name">${esc(s.name)}</div>
-            <div class="item-meta">${esc([s.dose, nutrientSummary(s.nutrients)].filter(Boolean).join(' · ')) || '&nbsp;'}</div>
-          </div>
-          <button class="iconbtn" type="button" data-edit aria-label="Edit ${esc(s.name)}">${icons.edit}</button>
-        </div>`);
-      const toggle = async () => {
+          <span class="supp-text"><span class="supp-name">${esc(s.name)}</span>${s.dose ? `<span class="supp-dose">${esc(s.dose)}</span>` : ''}</span>
+          <span class="supp-pen" aria-hidden="true">${icons.edit}</span>
+        </button>`);
+      pill.onclick = async () => {
+        if (editing) return openSupplementEditor(s);
         if (e) await store.deleteEntry(e.id);
         else { await store.takeSupplement(s, getDate()); navigator.vibrate?.(12); }
         changed();
       };
-      row.onclick = (ev) => { if (!ev.target.closest('[data-edit]')) toggle(); };
-      row.onkeydown = (ev) => { if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); toggle(); } };
-      $(row, '[data-edit]').onclick = () => openSupplementEditor(s);
-      list.appendChild(row);
+      list.appendChild(pill);
     }
+    const add = el(`<button class="supp-pill supp-add" type="button" data-add-supp>${icons.plus}<span class="supp-text"><span class="supp-name">Add</span></span></button>`);
+    add.onclick = () => openSupplementEditor(null);
+    list.appendChild(add);
+    return { done, total: supps.length };
   }
   return { el: card, refresh };
 }

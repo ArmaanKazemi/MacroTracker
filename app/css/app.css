@@ -590,17 +590,33 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .spill .puddle { transform-origin: 50px 141px; transform: scale(0.1, 0.5); opacity: 0.8; transition: transform 1.4s var(--ease) 1.2s; }
 .glass.over .spill .puddle { transform: none; }
 
-/* ---------- Supplements ---------- */
-.supps { padding: 12px 16px 14px; }
-.supp-top { display: flex; justify-content: flex-end; min-height: 4px; }
-.supp-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.supp-row:last-child { border-bottom: 0; }
-.supp-row .item-main { flex: 1; min-width: 0; }
-.supp-row .item-meta { white-space: normal; }
-.supp-check { width: 28px; height: 28px; flex: none; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; color: var(--on-accent); transition: background 0.2s, border-color 0.2s, transform 0.25s var(--spring); }
-.supp-check svg { width: 18px; height: 18px; }
-.supp-row.taken .supp-check { background: var(--green); border-color: var(--green); transform: scale(1.05); }
-.supp-row.taken .item-name { color: var(--muted); }
-.supp-row .iconbtn { width: 36px; height: 36px; border-color: transparent; background: transparent; color: var(--muted); }
-.supp-row .iconbtn svg { width: 17px; height: 17px; }
-[data-add-supp] { margin-top: 8px; }
+/* ---------- Water & supplements card (swipe between pages) ---------- */
+.daily { padding: 12px 0 10px; overflow: hidden; }
+.daily-tabs { margin: 0 14px 4px; }
+.daily-badge { font-size: 11px; color: var(--muted); font-weight: 650; margin-left: 2px; }
+.daily-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.daily-track::-webkit-scrollbar { display: none; }
+.daily-page { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; padding: 12px 18px 4px; box-sizing: border-box; }
+.daily-dots { display: flex; justify-content: center; gap: 6px; padding-top: 6px; }
+.daily-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background 0.2s, width 0.25s var(--ease); }
+.daily-dots i.on { background: var(--accent); width: 16px; border-radius: 3px; }
+
+/* ---------- Supplements: compact pills ---------- */
+.supp-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; margin-bottom: 6px; }
+.supp-top .btn.link { min-height: 30px; padding: 0 4px; background: transparent; border: 0; color: var(--accent); font-size: 14px; }
+.supp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.supp-pill { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--card-2); color: var(--text); text-align: left; min-width: 0; transition: background 0.2s, border-color 0.2s, transform 0.15s; }
+.supp-pill:active { transform: scale(0.97); }
+.supp-pill.taken { background: color-mix(in srgb, var(--green) 14%, var(--card)); border-color: color-mix(in srgb, var(--green) 45%, var(--line)); }
+.supp-check { width: 22px; height: 22px; flex: none; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; color: var(--on-accent); transition: background 0.2s, border-color 0.2s, transform 0.25s var(--spring); }
+.supp-check svg { width: 14px; height: 14px; }
+.supp-pill.taken .supp-check { background: var(--green); border-color: var(--green); }
+.supp-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.supp-name { font-weight: 650; font-size: 14px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.supp-dose { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.supp-pen { display: none; color: var(--muted); }
+.supp-pen svg { width: 15px; height: 15px; }
+.supps.editing .supp-pen { display: block; }
+.supps.editing .supp-pill:not(.supp-add) { border-style: dashed; }
+.supp-add { border-style: dashed; background: transparent; color: var(--muted); }
+.supp-add svg { width: 18px; height: 18px; flex: none; }
