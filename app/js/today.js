@@ -80,7 +80,7 @@ export function mountToday(view, state) {
   view.appendChild(macroCard);
 
   // Water and supplements share one card: swipe (or tap the tabs) between the two pages.
-  view.appendChild(sectionHead('Water & supplements'));
+  const dailyHead = sectionHead('Water & supplements');
   const daily = el(`
     <section class="card daily" aria-label="Water and supplements">
       <div class="seg daily-tabs" role="tablist">
@@ -110,7 +110,6 @@ export function mountToday(view, state) {
   const supps = supplementsCard(() => state.date);
   const track = $(daily, '.daily-track');
   track.append(water, supps.el);
-  view.appendChild(daily);
   const PAGE_KEY = 'pithos-daily-page';
   const showPage = (i, smooth = true) => track.scrollTo({ left: i * track.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
   const markPage = () => {
@@ -137,11 +136,12 @@ export function mountToday(view, state) {
       <p class="note" data-hwarn hidden></p>
       <button class="btn sm link" type="button" data-hundo hidden>Didn't arrive? Mark as not sent</button>
     </section>`);
-  view.appendChild(healthCard);
 
   view.appendChild(sectionHead('Meals'));
   const mealsBox = el('<div></div>');
   view.appendChild(mealsBox);
+  // Below the meals: water & supplements, then the Apple Health card.
+  view.append(dailyHead, daily, healthCard);
   for (const m of MEALS) {
     const card = el(`
       <section class="card meal" data-meal="${m.key}" aria-label="${m.label}">

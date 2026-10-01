@@ -992,6 +992,13 @@ await step('water & supplements share a swipe card; supplements: add, tick off (
   await settle();
   const daily = page.locator('.daily');
   assert.equal(await daily.locator('.daily-page').count(), 2, 'one card, two pages');
+  // order on Today: meals, then water & supplements, then Apple Health
+  const order = await page.evaluate(() => {
+    const kids = [...document.querySelector('#view').children];
+    const at = (sel) => kids.findIndex((k) => k.matches(sel) || k.querySelector(sel));
+    return [at('[data-meal="breakfast"]'), at('.daily'), at('[aria-label="Apple Health"]')];
+  });
+  assert.ok(order[0] < order[1] && order[1] < order[2], `cards in order: ${order}`);
   assert.equal(await page.locator('.section-h span', { hasText: /^Supplements$/ }).count(), 0, 'no separate supplements section');
   // tap the Supplements tab to swipe across
   await daily.locator('[data-page="1"]').click();
