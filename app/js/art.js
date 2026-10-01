@@ -70,8 +70,6 @@ const HYDRIA_PATH = 'M38 10 H62 V20 C62 24 70 26 74 32 C84 44 88 62 86 80 C84 10
 
 // A teardrop of radius r, point up, centred on its round bottom.
 const drop = (r) => `M0 ${-r * 2.1} C${r * 0.6} ${-r * 1.1} ${r} ${-r * 0.5} ${r} 0 A${r} ${r} 0 1 1 ${-r} 0 C${-r} ${-r * 0.5} ${-r * 0.6} ${-r * 1.1} 0 ${-r * 2.1} Z`;
-// Condensation beads on the outside of the jar [x, y, radius].
-const BEADS = [[25, 50, 2.2], [71, 45, 1.8], [19, 78, 2.4], [81, 69, 2], [31, 97, 1.8], [74, 100, 2.5], [23, 115, 1.9], [62, 121, 1.7], [45, 58, 1.6], [56, 86, 1.7], [38, 124, 1.5], [66, 30, 1.4]];
 // Drops that run from the rim down the outside of each side [path, radius, delay s].
 const LEFT = 'M35 11 C31 15 29 21 28 28 C19 38 13 58 13 80 C13 101 21 118 33 130 C37 134 41 137 44 139';
 const RIGHT = 'M65 11 C69 15 71 21 72 28 C81 38 87 58 87 80 C87 101 79 118 67 130 C63 134 59 137 56 139';
@@ -108,11 +106,10 @@ export function hydriaSvg() {
     </g>
     <path class="outline" d="${HYDRIA_PATH}" fill="none" style="stroke:var(--vessel-line)" stroke-width="3" stroke-linejoin="round"/>
     <path d="M34 10 H66" style="stroke:var(--vessel-line)" stroke-width="3.2" stroke-linecap="round"/>
-    <!-- overflow, once the water goal is beaten: beads of "sweat" on the jar, drops that
-         run over the rim and down the sides (replayed by playSpill), and a pool that stays -->
+    <!-- overflow, once the water goal is beaten: drops that run over the rim and down the
+         sides (replayed by playSpill), and a pool that stays -->
     <g class="spill" aria-hidden="true">
       <ellipse class="puddle" cx="50" cy="141" rx="42" ry="4.2" style="fill:var(--water-top)"/>
-      ${BEADS.map(([x, y, r]) => `<g class="bead" transform="translate(${x} ${y})"><path d="${drop(r)}" fill="rgba(255,255,255,.55)" style="stroke:var(--water-bottom)" stroke-width=".5"/><circle cx="${-r * 0.35}" cy="${r * 0.05}" r="${r * 0.3}" fill="#fff"/></g>`).join('')}
       ${TRICKLES.map(([path, r, delay]) => `
       <g class="trickle" data-delay="${delay}" opacity="0">
         <path d="${drop(r)}" style="fill:var(--water-top);stroke:var(--water-bottom)" stroke-width=".6"/><circle cx="${-r * 0.35}" cy="${r * 0.05}" r="${r * 0.3}" fill="#fff" opacity=".85"/>

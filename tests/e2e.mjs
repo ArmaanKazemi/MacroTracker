@@ -1038,7 +1038,7 @@ await step('water jar overflows once the goal is beaten', async () => {
   assert.match(await glass.getAttribute('class'), /\bover\b/);
   assert.match(await page.locator('[data-wleft]').textContent(), /Overflowing: .* ml past your goal/);
   assert.equal(await glass.locator('.spill').evaluate((g) => getComputedStyle(g).opacity), '1');
-  assert.ok(await glass.locator('.bead').count() >= 8, 'condensation beads on the jar');
+  assert.equal(await glass.locator('.bead').count(), 0, 'no droplets sitting on the jar');
   assert.equal(await glass.locator('.spill .stream').count(), 0, 'no dashed streams');
   // drops replay when you drink more, the pool just stays
   await page.locator('[data-add="250"]').click();
