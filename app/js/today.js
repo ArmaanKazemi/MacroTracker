@@ -79,9 +79,19 @@ export function mountToday(view, state) {
     </div>`).join('')}</section>`);
   view.appendChild(macroCard);
 
-  view.appendChild(sectionHead('Hydration'));
+  // Water and supplements share one card: swipe (or tap the tabs) between the two pages.
+  view.appendChild(sectionHead('Water & supplements'));
+  const daily = el(`
+    <section class="card daily" aria-label="Water and supplements">
+      <div class="seg daily-tabs" role="tablist">
+        <button role="tab" type="button" data-page="0">Water</button>
+        <button role="tab" type="button" data-page="1">Supplements <span class="daily-badge" data-supp-badge></span></button>
+      </div>
+      <div class="daily-track"></div>
+      <div class="daily-dots" aria-hidden="true"><i></i><i></i></div>
+    </section>`);
   const water = el(`
-    <section class="card" aria-label="Water">
+    <div class="daily-page" aria-label="Water">
       <div class="water">
         <div class="glass">${hydriaSvg()}</div>
         <div class="water-info">
@@ -95,14 +105,28 @@ export function mountToday(view, state) {
           </div>
         </div>
       </div>
-    </section>`);
-  view.appendChild(water);
-
+    </div>`);
   let lastWaterMl = null;
-
-  view.appendChild(sectionHead('Supplements'));
   const supps = supplementsCard(() => state.date);
-  view.appendChild(supps.el);
+  const track = $(daily, '.daily-track');
+  track.append(water, supps.el);
+  view.appendChild(daily);
+  const PAGE_KEY = 'pithos-daily-page';
+  const showPage = (i, smooth = true) => track.scrollTo({ left: i * track.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
+  const markPage = () => {
+    const i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+    daily.querySelectorAll('[data-page]').forEach((b) => b.setAttribute('aria-selected', String(Number(b.dataset.page) === i)));
+    daily.querySelectorAll('.daily-dots i').forEach((d, j) => d.classList.toggle('on', j === i));
+    try { localStorage.setItem(PAGE_KEY, String(i)); } catch { /* private mode */ }
+  };
+  daily.querySelectorAll('[data-page]').forEach((b) => (b.onclick = () => showPage(Number(b.dataset.page))));
+  track.addEventListener('scroll', () => requestAnimationFrame(markPage), { passive: true });
+  requestAnimationFrame(() => {
+    let start = 0;
+    try { start = Number(localStorage.getItem(PAGE_KEY)) || 0; } catch { /* private mode */ }
+    showPage(start, false);
+    markPage();
+  });
 
   const healthCard = el(`
     <section class="card" aria-label="Apple Health" hidden>
@@ -264,7 +288,8 @@ export function mountToday(view, state) {
     $(water, '[data-undo]').disabled = !waterList.length;
 
     // Supplements
-    await supps.refresh(entries);
+    const sum = await supps.refresh(entries);
+    $(daily, '[data-supp-badge]').textContent = sum.total ? `${sum.done}/${sum.total}` : '';
 
     // Meals
     for (const m of MEALS) {
