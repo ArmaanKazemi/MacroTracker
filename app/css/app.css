@@ -125,6 +125,11 @@ button { cursor: pointer; }
 .datesw .label small::before { content: ", "; }
 .datesw .label input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; border: 0; }
 .topbar .datesw { background: var(--card); border: 1px solid var(--line); border-radius: 999px; }
+/* Screens with a date: the switcher always sits on its own full-width row under the
+   title, so it doesn't jump between lines as the label ("Today" / "Yesterday, 2 Oct") changes. */
+.topbar.with-date { flex-direction: column; align-items: stretch; gap: 12px; flex-wrap: nowrap; }
+.topbar.with-date .datesw { justify-content: space-between; }
+.topbar.with-date .datesw .label { flex: 1; }
 
 /* ---------- Hero (calorie gauge) ---------- */
 .hero {

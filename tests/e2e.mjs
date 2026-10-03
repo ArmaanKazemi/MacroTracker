@@ -445,6 +445,19 @@ await step('goals: macro grams show calories they add up to; changes apply to ho
   assert.equal(await page.locator('[data-wg]').textContent(), '3');
 });
 
+await step('nutrients date switcher stays put between Today and Yesterday', async () => {
+  await page.goto(BASE + '#/nutrients');
+  await page.waitForTimeout(500);
+  const box = async () => { const b = await page.locator('.topbar .datesw').boundingBox(); return [Math.round(b.y), Math.round(b.x), Math.round(b.width)].join(','); };
+  const today = await box();
+  await page.locator('.topbar [data-prev]').click();
+  await page.waitForTimeout(400);
+  assert.match(await page.locator('.topbar .datesw').textContent(), /Yesterday/);
+  assert.equal(await box(), today, 'same position and width');
+  await page.locator('.topbar [data-next]').click();
+  await page.waitForTimeout(400);
+});
+
 await step('micronutrients: daily bars flag low nutrients and missing data; weekly average', async () => {
   await page.goto(BASE + '#/nutrients');
   await settle();
