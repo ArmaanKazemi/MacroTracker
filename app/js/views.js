@@ -22,7 +22,7 @@ export function guessMeal() {
 export function mountNutrients(view, state) {
   view.innerHTML = '';
   let mode = state.microMode || 'day';
-  const top = el('<div class="topbar"><h1 class="title">Nutrients</h1></div>');
+  const top = el('<div class="topbar with-date"><h1 class="title">Nutrients</h1></div>');
   const seg = el(`<div class="seg" role="tablist"><button role="tab" data-m="day">Day</button><button role="tab" data-m="week">7-day average</button></div>`);
   const summary = el(`<div class="micro-sum">
       <div class="card"><div class="stat-v num c-red" data-low>0</div><div class="stat-l">Low / over</div></div>
