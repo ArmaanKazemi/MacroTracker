@@ -85,11 +85,12 @@ export function defaultSettings() {
  * Returns { status: 'red'|'amber'|'green', pill: 'low'|'mid'|'ok', label }.
  */
 export function microStatus(def, value, target, upper) {
+  // Limits (sodium): the aim is to stay under, so there's no "getting there" —
+  // green while under the limit (showing how much of it is used), red once over.
   if (def.kind === 'limit') {
     if (!upper) return { status: 'green', pill: 'ok', label: 'OK' };
     const p = value / upper;
-    if (p >= 1) return { status: 'red', pill: 'low', label: 'Over limit' };
-    if (p >= 0.9) return { status: 'amber', pill: 'mid', label: 'Near limit' };
+    if (p > 1) return { status: 'red', pill: 'low', label: 'Over limit' };
     return { status: 'green', pill: 'ok', label: `${Math.round(p * 100)}% of limit` };
   }
   if (upper && !def.upperNote && value >= upper) return { status: 'red', pill: 'low', label: 'Over upper limit' };

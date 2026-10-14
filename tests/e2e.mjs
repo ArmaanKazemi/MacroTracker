@@ -471,6 +471,14 @@ await step('micronutrients: daily bars flag low nutrients and missing data; week
   assert.equal(await na.locator('[data-pill]').textContent(), 'Over limit');
   assert.match(await na.locator('.bar-val').textContent(), /\/ max 2,300 mg/);
   assert.match(await na.locator('.fill').getAttribute('class'), /bg-red/);
+  // a limit has no "getting there": green right up to the limit, red only once over
+  const st = await page.evaluate(async () => {
+    const { MICROS, microStatus } = await import('./js/nutrients.js');
+    const na = MICROS.find((m) => m.key === 'sodium');
+    return [2100, 2300, 2301].map((v) => microStatus(na, v, null, 2300));
+  });
+  assert.deepEqual(st.map((s) => s.status), ['green', 'green', 'red']);
+  assert.equal(st[0].label, '91% of limit');
   const ca = page.locator('[data-k="calcium"]');
   assert.equal(await ca.locator('[data-pill]').textContent(), 'Over upper limit');
   assert.match(await ca.locator('[data-ul]').textContent(), /Above the upper limit of 100 mg/);

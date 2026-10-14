@@ -268,7 +268,7 @@ export function mountToday(view, state) {
       const g = settings[s.key] ?? s.limit;
       $(row, '[data-v]').textContent = fmt(v);
       $(row, '[data-g]').textContent = g;
-      row.className = `macro-sub${g && v >= g ? ' over' : g && v >= g * 0.9 ? ' near' : ''}`;
+      row.className = `macro-sub${g && v > g ? ' over' : ''}`; // a limit: fine until it's passed
       row.title = t[s.key].missing ? `${t[s.key].missing} logged ${t[s.key].missing === 1 ? 'food has' : 'foods have'} no ${s.label.toLowerCase()} data` : '';
     }
 
