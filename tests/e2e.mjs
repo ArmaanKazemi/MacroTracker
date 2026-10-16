@@ -998,7 +998,28 @@ await step('quick log: type several foods and your own values, log them all at o
   assert.equal(wrap.meal, 'dinner');
   assert.equal(wrap.per100.sodium, 800);
   assert.equal(wrap.per100.protein, 35);
-  // undo removes all three
+  // a typed amount is kept: the values are for 150 g, stored per 100 g
+  await page.locator('#toast button').click();
+  await settle();
+  await page.locator('[data-meal="dinner"] [data-add]').click();
+  await page.waitForTimeout(400);
+  await topSheet().locator('[data-quicklog]').click();
+  await page.waitForTimeout(400);
+  await topSheet().locator('.ql-text').fill('greek yoghurt 150g 99kcal 15p 9c 0.45f');
+  await topSheet().locator('.ql-total').waitFor({ timeout: 4000 });
+  assert.match(await topSheet().locator('.ql-row').nth(0).textContent(), /150 g, your values/);
+  await topSheet().locator('[data-log]').click();
+  await settle();
+  assert.equal(await eaten(), before + 99);
+  const yog = await page.evaluate(async () => {
+    const store = await import('./js/store.js'); const ui = await import('./js/ui.js');
+    return (await store.entriesFor(ui.todayKey())).find((e) => e.name === 'Greek yoghurt');
+  });
+  assert.equal(yog.amount, 150);
+  assert.equal(yog.unit, 'g');
+  assert.equal(yog.servingLabel ?? null, null);
+  assert.equal(yog.per100.kcal, 66);
+  assert.equal(yog.per100.protein, 10);
   await page.locator('#toast button').click();
   await settle();
   assert.equal(await eaten(), before);

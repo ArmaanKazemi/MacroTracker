@@ -104,8 +104,15 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
       const o = overrides.get(it.raw) || {};
       if (o.removed) return null;
       if (it.typed && !o.food) {
+        // Values are for what was eaten. With an amount ("150g") they're stored per 100 g
+        // so the entry reads 150 g; without one it's a single portion.
+        const amt = it.amount > 0 ? it.amount : null;
         const per100 = normNutrients(it.typed);
-        return { it, typed: true, food: { name: cap(it.name || 'Quick entry'), unit: 'g', per100, source: 'custom', servings: [] }, amount: 100, servingLabel: 'portion', qty: 1, note: null };
+        if (amt) for (const k in per100) if (per100[k] !== null) per100[k] = (per100[k] * 100) / amt;
+        const food = { name: cap(it.name || 'Quick entry'), unit: amt ? it.unit || 'g' : 'g', per100, source: 'custom', servings: [] };
+        return amt
+          ? { it, typed: true, food, amount: amt, servingLabel: null, qty: null, note: null }
+          : { it, typed: true, food, amount: 100, servingLabel: 'portion', qty: 1, note: null };
       }
       const food = o.food || matchMine(it.name, mine) || matchGeneric(it.name);
       if (!food) return { it, food: null };
@@ -147,7 +154,7 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
             <div class="item-name">${esc(row.food.name)} <span class="tag">${row.typed ? 'Typed' : row.food.source === 'generic' ? (fooddb.info().full ? 'CoFID' : 'Generic') : 'Yours'}</span></div>
             <div class="item-meta num"><b>${n.kcal === null ? '—' : fmt(n.kcal, 'kcal')}</b> kcal · P ${fmt(n.protein)} · C ${fmt(n.carbs)} · F ${fmt(n.fat)}${extras.map((k) => ` · ${esc(label(k))} ${fmt(row.it.typed[k])}${unitOf(k)}`).join('')}</div>
             ${row.it.ignored?.length ? `<div class="item-meta">Not tracked: ${esc(row.it.ignored.join(', '))}</div>` : ''}
-            ${row.typed ? '<div class="item-meta">1 portion, your values</div>' : `
+            ${row.typed ? `<div class="item-meta">${row.servingLabel ? '1 portion' : `${fmt(row.amount)} ${esc(row.food.unit)}`}, your values</div>` : `
             <div class="ql-amt"><input class="input num" type="number" inputmode="decimal" min="0" step="any" value="${Math.round(row.amount * 10) / 10}" aria-label="Amount"> <span>${esc(row.food.unit || 'g')}${row.servingLabel ? ` · ${fmt(row.qty)} × ${esc(row.servingLabel)}` : ''}${row.note ? ` · <i>${esc(row.note)}</i>` : ''}</span></div>`}
             ${row.typed ? '' : `<div class="item-meta ql-typed">“${esc(row.it.raw)}”</div>`}
           </div>
@@ -180,7 +187,7 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
     for (const row of items.filter((x) => x.food)) {
       let food = row.food;
       if (row.typed && saveTyped) {
-        food = await store.saveFood({ ...food, servings: [{ label: 'portion', amount: 100 }], favourite: false, createdAt: Date.now() });
+        food = await store.saveFood({ ...food, servings: row.servingLabel ? [{ label: 'portion', amount: 100 }] : [], favourite: false, createdAt: Date.now() });
       }
       created.push(await store.logFood(food, { date, meal: m, amount: row.amount, servingLabel: row.servingLabel || null, qty: row.qty || null }));
     }
