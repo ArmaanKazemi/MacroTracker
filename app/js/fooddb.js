@@ -118,8 +118,8 @@ export function relevance(query, name, brand = '') {
   return s;
 }
 
-export function microCount(per100) {
-  return MICRO_KEYS.filter((k) => per100[k] !== null).length;
+export function microCount(per100, keys = MICRO_KEYS) {
+  return [...keys].filter((k) => per100[k] !== null).length;
 }
 
 // ---------------- Open Food Facts ----------------
@@ -143,6 +143,21 @@ const OFF_MAP = [
   ['iodine', 'iodine', 1e6],
   ['selenium', 'selenium', 1e6],
   ['ala', 'alpha-linolenic-acid', 1],
+  ['vitE', 'vitamin-e', 1000],
+  ['vitB1', 'vitamin-b1', 1000],
+  ['vitB2', 'vitamin-b2', 1000],
+  ['vitB3', 'vitamin-pp', 1000],
+  ['vitB5', 'pantothenic-acid', 1000],
+  ['vitB6', 'vitamin-b6', 1000],
+  ['vitB7', 'biotin', 1e6],
+  ['choline', 'choline', 1000],
+  ['phosphorus', 'phosphorus', 1000],
+  ['copper', 'copper', 1000],
+  ['manganese', 'manganese', 1000],
+  ['chromium', 'chromium', 1e6],
+  ['molybdenum', 'molybdenum', 1e6],
+  ['chloride', 'chloride', 1000],
+  ['fluoride', 'fluoride', 1000],
 ];
 
 export function offToFood(p) {

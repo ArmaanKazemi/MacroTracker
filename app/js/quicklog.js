@@ -107,8 +107,9 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
         // Values are for what was eaten. With an amount ("150g") they're stored per 100 g
         // so the entry reads 150 g; without one it's a single portion.
         const amt = it.amount > 0 ? it.amount : null;
+        // Anything not typed counts as 0 (not "no data").
         const per100 = normNutrients(it.typed);
-        if (amt) for (const k in per100) if (per100[k] !== null) per100[k] = (per100[k] * 100) / amt;
+        for (const k in per100) per100[k] = per100[k] === null ? 0 : amt ? (per100[k] * 100) / amt : per100[k];
         const food = { name: cap(it.name || 'Quick entry'), unit: amt ? it.unit || 'g' : 'g', per100, source: 'custom', servings: [] };
         return amt
           ? { it, typed: true, food, amount: amt, servingLabel: null, qty: null, note: null }
@@ -147,8 +148,8 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
         const n = scale(per100, row.amount);
         for (const k of Object.keys(tot)) tot[k] += n[k] || 0;
         const extras = row.typed ? Object.keys(row.it.typed).filter((k) => !['kcal', 'protein', 'carbs', 'fat'].includes(k)) : [];
-        const label = (k) => (SUBS.find((s) => s.key === k)?.label || MICROS.find((m) => m.key === k)?.label || k);
-        const unitOf = (k) => (SUBS.find((s) => s.key === k)?.unit || MICROS.find((m) => m.key === k)?.unit || 'g');
+        const label = (k) => (SUBS.find((s) => s.key === k)?.label || MICROS.find((m) => m.key === k)?.label || (k === 'retinol' ? 'Retinol' : k));
+        const unitOf = (k) => (SUBS.find((s) => s.key === k)?.unit || MICROS.find((m) => m.key === k)?.unit || (k === 'retinol' ? 'µg' : 'g'));
         r.innerHTML = `
           <div class="item-main">
             <div class="item-name">${esc(row.food.name)} <span class="tag">${row.typed ? 'Typed' : row.food.source === 'generic' ? (fooddb.info().full ? 'CoFID' : 'Generic') : 'Yours'}</span></div>

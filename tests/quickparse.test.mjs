@@ -49,14 +49,14 @@ near(it.typed.sodium, 900, 'g sodium converted to mg');
 it = one('tablet 25mcg vitamin d');
 assert.equal(it.typed.vitD, 25);
 
-// Real example: numbers-first shorthand, then words-first, µg/mg units, and an untracked vitamin
+// Real example: numbers-first shorthand, then words-first, µg/mg units
 it = one('sweet potato lamb bowl 877kcal 65.4p 69.9c 37.6f sugar 16.2g sat fat 14.1g fibre 12.5g salt 1.6g vitamin a 2200µg vitamin c 75mg vitamin e 1.8mg potassium 2100mg calcium 390mg magnesium 160mg iron 6.2mg zinc 10.9mg vitamin b12 6µg');
 assert.equal(it.name, 'sweet potato lamb bowl');
 assert.deepEqual({ ...it.typed, sodium: Math.round(it.typed.sodium) }, {
   kcal: 877, protein: 65.4, carbs: 69.9, fat: 37.6, sugars: 16.2, satfat: 14.1, fibre: 12.5, sodium: 640,
-  vitA: 2200, vitC: 75, potassium: 2100, calcium: 390, magnesium: 160, iron: 6.2, zinc: 10.9, vitB12: 6,
+  vitA: 2200, vitC: 75, vitE: 1.8, potassium: 2100, calcium: 390, magnesium: 160, iron: 6.2, zinc: 10.9, vitB12: 6,
 });
-assert.deepEqual(it.ignored, ['vitamin e']);
+assert.deepEqual(it.ignored, []);
 // Same with the Greek mu (μ) some keyboards type, thousands separators and "energy"
 it = one('lunch energy 2,100 kj protein 40g vitamin d 10μg potassium 1,200mg');
 assert.equal(it.name, 'lunch');
@@ -95,6 +95,16 @@ const many = parseQuickLog('200g chicken breast, 2 eggs\n1 scoop impact whey + 3
 assert.deepEqual(many.map((x) => x.name), ['chicken breast', 'eggs', 'impact whey', 'lizis granola', 'banana']);
 assert.deepEqual(parseQuickLog('  ,, \n'), []);
 
+// Every nutrient is accepted (tracked or not), value then name, any case
+it = one('Multivitamin 15MG Vitamin E 550mg CHOLINE 1.3mg vitamin b6 1.2mg thiamin 1.3mg Riboflavin 16mg niacin 5mg pantothenic acid 30µg biotin 700mg phosphorus 0.9mg copper 2.3mg manganese 35µg chromium 45µg molybdenum 2300mg chloride 4mg fluoride 300µg retinol');
+assert.equal(it.name, 'Multivitamin');
+assert.deepEqual(it.typed, {
+  vitE: 15, choline: 550, vitB6: 1.3, vitB1: 1.2, vitB2: 1.3, vitB3: 16, vitB5: 5, vitB7: 30, phosphorus: 700,
+  copper: 0.9, manganese: 2.3, chromium: 35, molybdenum: 45, chloride: 2300, fluoride: 4, retinol: 300,
+});
+assert.deepEqual(one('b complex 1.3mg b6 2.4µg b12').typed, { vitB6: 1.3, vitB12: 2.4 });
+// Untracked extras are still recognised and dropped
+assert.deepEqual(one('bar 200kcal cholesterol 5mg').ignored, ['cholesterol']);
 // Helpers
 assert.deepEqual(extractNutrients('no numbers here').nutrients, {});
 assert.equal(extractAmount('1/2 cup rice').count, 0.5);

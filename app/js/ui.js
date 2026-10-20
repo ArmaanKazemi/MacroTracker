@@ -48,7 +48,7 @@ export function targetStatus(value, goal) {
 export function setFill(fillEl, frac, status) {
   const f = Math.max(0, Math.min(1, frac || 0));
   fillEl.style.transform = `scaleX(${f})`;
-  fillEl.classList.remove('bg-green', 'bg-amber', 'bg-red');
+  fillEl.classList.remove('bg-green', 'bg-amber', 'bg-red', 'bg-none');
   fillEl.classList.add(`bg-${status}`);
 }
 
