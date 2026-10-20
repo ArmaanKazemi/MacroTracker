@@ -312,6 +312,8 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .days i { height: 6px; border-radius: 3px; background: var(--track); }
 .days i.bg-green { background: var(--green); } .days i.bg-amber { background: var(--amber); } .days i.bg-red { background: var(--red); }
 .nodata { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.nodata .ul-note { display: block; font-size: 11.5px; margin-top: 2px; }
+.fill.bg-none { background: var(--muted); opacity: .45; }
 .mtable { margin-top: 6px; }
 .mrow { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
 .mrow .input { min-height: 44px; padding: 0 10px; }
@@ -625,3 +627,24 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .supps.editing .supp-pill:not(.supp-add) { border-style: dashed; }
 .supp-add { border-style: dashed; background: transparent; color: var(--muted); }
 .supp-add svg { width: 18px; height: 18px; flex: none; }
+
+/* ---------- Tracked nutrients ---------- */
+.trk-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; margin-top: 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--card-2); color: var(--text); text-decoration: none; }
+.trk-link small { font-size: 13px; }
+.trk-chev { display: grid; place-items: center; color: var(--muted); }
+.trk-chev svg { width: 18px; height: 18px; transform: rotate(180deg); }
+.trk-presets button[aria-selected="true"] { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(60, 40, 20, 0.12); }
+.trk-gh { display: flex; align-items: center; gap: 4px; }
+.trk-gh .btn.link { font-family: inherit; text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--accent); min-height: 30px; padding: 0 6px; }
+.trk-card { padding-top: 4px; padding-bottom: 4px; }
+.trk-row + .trk-row { border-top: 1px solid var(--line); }
+.trk-row .toggle { min-height: 52px; }
+.trk-row:not(.on) .mname { color: var(--muted); }
+.trk-detail { padding: 0 0 12px; }
+.trk-detail .field { margin-top: 0; }
+.trk-detail .input { min-height: 44px; }
+.trk-none { text-align: left; min-height: 44px; display: flex; align-items: center; }
+.trk-ulnote { margin-top: 2px; }
+.trk-reset-row[hidden] { display: none; }
+.trk-reset-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.trk-reset-row .btn.link { color: var(--accent); min-height: 32px; font-size: 13.5px; }

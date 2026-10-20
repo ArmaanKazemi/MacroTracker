@@ -10,7 +10,14 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
 - **Water & supplements:** one card on Today; swipe sideways (or tap the tabs) between the water jar and your supplements. Supplements are compact two-column pills. Add each supplement with its dose and, optionally, what one dose contains (e.g. `vitamin d 25µg, epa+dha 500mg`). Tap a pill to tick it off for the day; anything it contains counts towards your nutrient totals (and Apple Health), without adding calories or "no data" warnings. Tap **Edit**, then a pill, to change or delete it.
 - **Water:** the jar fills as you drink. Once you beat your goal, a few drops roll over the rim and down the sides, and a pool forms at the base. The drops replay each time you drink more; the pool just stays.
 - **Same as yesterday?** When you add food to a meal, yesterday's version of that meal is offered at the top. One tap copies it all (Undo available). It also appears on an empty meal's page.
-- **Nutrients:** 17 nutrients, each with a daily target and an optional upper limit, all editable in Settings. They're shown as progress bars with *Low / % / Met* flags, plus a 7-day average with a per-day strip so nutrients that are consistently low stand out.
+- **Nutrients:** the vitamins, minerals, fibre and fats you track, each with a daily target and an optional upper limit. They're shown as progress bars with *Low / % / Met* flags, plus a 7-day average with a per-day strip so nutrients that are consistently low stand out.
+- **Tracked nutrients** (Settings → Tracked nutrients): switch any of 32 nutrients on or off. Grouped as Vitamins (A, C, D, E, K, B1, B2, B3, B5, B6, biotin, folate, B12, choline), Minerals (sodium, potassium, calcium, magnesium, iron, zinc, iodine, selenium, phosphorus, copper, manganese, chromium, molybdenum, chloride, fluoride) and Fibre & fats (fibre, ALA, EPA + DHA).
+  - Presets: **Core** (the original 17, the default), **Extended** (Core plus vitamin E, choline, B6, B1, B2, B3, phosphorus) and **Everything**. Each group also has **Select all** and **Clear**, and any switch can be changed afterwards.
+  - Each nutrient's daily target and upper limit can be edited, with **Reset to default**. Defaults are US adult male values.
+  - A switched-off nutrient is hidden everywhere (Nutrients, meal pages, food details, the custom-food form, the Low/Getting there/On target counts), but its data is kept: switch it back on and its history returns.
+  - A nutrient switched on for the first time counts from that day: earlier days show its value but aren't marked low, and the 7-day average skips them.
+  - Some upper limits only apply to part of what you eat, and say so under the limit. Vitamin A's 3,000 µg is for preformed vitamin A (retinol) only, so it's only checked against foods that give retinol separately. Niacin, folate, vitamin E and magnesium limits count supplements only.
+  - Quick log and supplements understand every nutrient, tracked or not (e.g. `15mg vitamin e 550mg choline 1.3mg vitamin b6`). In Quick log, anything you don't type counts as 0.
   - Tracked: fibre, potassium, magnesium, folate, vitamins C, A, K, D and B12, iron, zinc, calcium, iodine, selenium, omega-3 ALA, EPA + DHA, and sodium.
   - Going over an upper limit turns the bar red ("Over upper limit"). The limits for magnesium (supplements only), folate (supplements / fortified foods) and vitamin A (preformed only) can't be judged from food totals, so they're shown but never flagged.
   - **Sodium works the other way round:** it's a limit (2,300 mg by default). The bar stays green while you're under it (showing how much of the limit you've used) and turns red only once you go over. Limits never count as "getting there".
@@ -22,8 +29,8 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
 - **Logging:** by g, ml or custom serving sizes ("1 scoop = 25 g"). Add a serving from any food's sheet with **Add serving size**, and change or delete one with **Edit servings**. Changes save as you type, and deleting has Undo.
 - **My foods and saved meals.** My foods holds everything you've created, scanned or saved; tap the star on a food to pin it to the top. Foods log in one tap. Saved meals also log in one tap, or you can adjust the amounts before logging.
 - **Sugars and saturated fat:** tracked like a UK label, as "of which" values under carbs and fat. Each has a daily maximum (UK reference intakes: 90 g sugars, 20 g saturates, editable in Settings). The number turns red once you go over. Values come from CoFID and Open Food Facts, or you type them in for custom foods.
-- **Settings:** calorie and macro goals (with live "macros add up to X kcal"), water goal, micronutrient targets and upper limits, and **Export / Import JSON** backups.
-- **Custom foods:** micronutrients are grouped into **Vitamins**, **Minerals** and **Fibre & omega-3s** (the same grouping is used on the Nutrients screen, food details and Settings). Sodium sits under Minerals and is entered in **mg**. If a label only lists salt, sodium (mg) = salt (g) × 400.
+- **Settings:** calorie and macro goals (with live "macros add up to X kcal"), water goal, tracked nutrients with their targets and upper limits, and **Export / Import JSON** backups.
+- **Custom foods:** micronutrients are grouped into **Vitamins**, **Minerals** and **Fibre & fats** (the same grouping is used on the Nutrients screen, food details and Settings). Sodium sits under Minerals and is entered in **mg**. If a label only lists salt, sodium (mg) = salt (g) × 400.
 - **One-off foods:** when you create a food while adding to a meal, turn off **Save to My foods** to log it just this once without keeping it in your lists. The switch remembers your last choice.
 - **Removing logged food:** swipe left on a food in any meal on Today to remove it (Undo appears). You can also do it on the meal's page.
 - **Balanced goals:** in Settings, when protein, carbs and fat don't add up to your calorie goal they turn red. Tap **Balance macros** to fit them to the calorie goal (protein is kept; carbs and fat are rescaled in the same proportion), or set the calorie goal to match the macros instead.
@@ -102,6 +109,7 @@ If the workflow can't fetch the spreadsheet (for example, if gov.uk changes its 
   - Vitamin K is K1.
   - Omega-3s come from the "per 100 g food" fatty-acid columns: ALA is C18:3 n-3; EPA + DHA is C20:5 n-3 + C22:6 n-3.
   - Folate is total folate in µg, not DFE, and vitamin A is retinol equivalents, not RAE. Your targets are in DFE and RAE, so treat those two as close approximations.
+  - Also read: vitamin E, thiamin (B1), riboflavin (B2), niacin (B3, as niacin equivalents), pantothenate (B5), B6, biotin, phosphorus, copper, manganese, chloride, and retinol (used only for vitamin A's upper limit). CoFID has no choline, chromium, molybdenum or fluoride, so those show **no data** unless you enter them.
   - "Tr" (trace) counts as 0. "N" or blank counts as **no data**.
 - **Starter set** (`tools/starter-foods.mjs`): about 75 common foods with *approximate* values. It's used for search only until `cofid.json` exists.
 - **Pre-loaded favourites:**
@@ -140,7 +148,7 @@ node tests/serve.mjs 8080        # then open http://127.0.0.1:8080
 cd tools && npm install          # xlsx + playwright
 node ../tests/cofid-parser.test.mjs
 node ../tests/quickparse.test.mjs   # Quick log text parser
-node ../tests/e2e.mjs            # 24 end-to-end checks on an iPhone-sized viewport
+node ../tests/e2e.mjs            # 37 end-to-end checks on an iPhone-sized viewport
 ```
 
 The e2e suite covers:

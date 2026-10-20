@@ -1,6 +1,6 @@
 // Nutrients, Foods and Settings screens.
 import { el, esc, $, $$, icons, animateNumber, setFill, dateSwitcher, toast, addDays, parseKey, todayKey, confirmSheet, swipeToDelete } from './ui.js';
-import { MICROS, MICRO_GROUPS, MACROS, SUBS, totals, fmt, macroKcal, defaultSettings, microStatus } from './nutrients.js';
+import { MICROS, MACROS, SUBS, totals, fmt, macroKcal, microStatus, limitPart, trackedGroups, trackedSince } from './nutrients.js';
 import * as store from './store.js';
 import * as fooddb from './fooddb.js';
 import * as db from './db.js';
@@ -29,7 +29,18 @@ export function mountNutrients(view, state) {
       <div class="card"><div class="stat-v num c-amber" data-mid>0</div><div class="stat-l">Getting there</div></div>
       <div class="card"><div class="stat-v num c-green" data-ok>0</div><div class="stat-l">On target</div></div>
     </div>`);
-  const card = el(`<div>${MICRO_GROUPS.map((g) => `
+  const card = el('<div></div>');
+  const foot = el('<p class="note" data-foot style="padding:0 4px"></p>');
+  view.append(top, seg, summary, card, foot);
+  $$(seg, '[data-m]').forEach((b) => (b.onclick = () => { mode = state.microMode = b.dataset.m; refresh(); }));
+
+  // Rows for the tracked nutrients only; rebuilt when the tracked set changes.
+  let built = '';
+  function build(groups) {
+    const sig = groups.map((g) => g.keys.join()).join('|');
+    if (sig === built) return;
+    built = sig;
+    card.innerHTML = groups.length ? groups.map((g) => `
     <div class="sub-h page">${g.label}</div>
     <section class="card" aria-label="${g.label}">${g.items.map((m) => `
     <div class="bar-row" data-k="${m.key}">
@@ -38,21 +49,26 @@ export function mountNutrients(view, state) {
       <div class="days" data-days hidden>${'<i></i>'.repeat(7)}</div>
       <div class="nodata" data-ul hidden></div>
       <div class="nodata" data-nd hidden></div>
-    </div>`).join('')}</section>`).join('')}</div>`);
-  const foot = el('<p class="note" data-foot style="padding:0 4px"></p>');
-  view.append(top, seg, summary, card, foot);
-  $$(seg, '[data-m]').forEach((b) => (b.onclick = () => { mode = state.microMode = b.dataset.m; refresh(); }));
+    </div>`).join('')}</section>`).join('')
+      : '<section class="card"><p class="empty">No nutrients are tracked. Choose some in Settings → Tracked nutrients.</p></section>';
+  }
 
   async function refresh() {
     top.replaceChildren(el('<h1 class="title">Nutrients</h1>'), dateSwitcher(state.date, (d) => { state.date = d; refresh(); }));
     $$(seg, '[data-m]').forEach((b) => b.setAttribute('aria-selected', b.dataset.m === mode));
     const settings = await store.getSettings();
-    let values; // key -> { value, missing }
+    const groups = trackedGroups(settings);
+    const tracked = groups.flatMap((g) => g.items);
+    build(groups);
+    // A nutrient only counts from the day it was switched on: earlier days aren't marked low.
+    const counts = (m, d) => { const since = trackedSince(settings, m.key); return !since || d >= since; };
+    let values; // key -> { value, missing, limit }
     let perDay = null;
-    let loggedDays = 1;
+    let days = [];
     if (mode === 'day') {
       const list = await store.entriesFor(state.date);
-      values = totals(list);
+      const t = totals(list);
+      values = Object.fromEntries(tracked.map((m) => [m.key, { ...t[m.key], limit: limitPart(m, list), n: list.length ? 1 : 0 }]));
       foot.textContent = list.length ? '' : 'Nothing logged on this day yet.';
     } else {
       const from = addDays(state.date, -6);
@@ -61,32 +77,42 @@ export function mountNutrients(view, state) {
       for (let i = 0; i < 7; i++) {
         const d = addDays(from, i);
         const list = all.filter((e) => e.date === d);
-        perDay.push(list.length ? totals(list) : null);
+        days.push(d);
+        perDay.push(list.length ? { t: totals(list), list } : null);
       }
-      const logged = perDay.filter(Boolean);
-      loggedDays = logged.length;
       values = {};
-      for (const m of MICROS) {
-        const sum = logged.reduce((s, t) => s + t[m.key].value, 0);
-        const missing = logged.reduce((s, t) => s + t[m.key].missing, 0);
-        values[m.key] = { value: loggedDays ? sum / loggedDays : 0, missing };
+      for (const m of tracked) {
+        // Average over logged days since the nutrient was switched on.
+        const use = perDay.filter((x, i) => x && counts(m, days[i]));
+        const n = use.length;
+        const avg = (f) => (n ? use.reduce((s, x) => s + f(x), 0) / n : 0);
+        const lims = use.map((x) => limitPart(m, x.list));
+        values[m.key] = {
+          value: avg((x) => x.t[m.key].value),
+          missing: use.reduce((s, x) => s + x.t[m.key].missing, 0),
+          limit: lims.includes(null) ? null : n ? lims.reduce((a, b) => a + b, 0) / n : 0,
+          n,
+        };
       }
+      const loggedDays = perDay.filter(Boolean).length;
       const f = parseKey(from).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
       const t = parseKey(state.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
       foot.textContent = loggedDays
-        ? `Average of ${loggedDays} logged ${loggedDays === 1 ? 'day' : 'days'}, ${f} – ${t}. Days with nothing logged are skipped. The strip under each bar shows each day.`
+        ? `Average of ${loggedDays} logged ${loggedDays === 1 ? 'day' : 'days'}, ${f} – ${t}. Days with nothing logged, and days before a nutrient was switched on, are skipped. The strip under each bar shows each day.`
         : `Nothing logged between ${f} and ${t}.`;
     }
     let low = 0, mid = 0, ok = 0;
-    for (const m of MICROS) {
+    for (const m of tracked) {
       const row = $(card, `[data-k="${m.key}"]`);
       const target = m.kind === 'limit' ? null : settings.micros[m.key] || m.target;
       const upper = settings.upper?.[m.key] ?? m.upper;
       const scaleTo = m.kind === 'limit' ? upper : target;
-      const { value, missing } = values[m.key];
-      const st = microStatus(m, value, target, upper);
-      const hasData = mode === 'week' ? loggedDays > 0 : true;
-      if (hasData) { if (st.status === 'red') low++; else if (st.status === 'amber') mid++; else ok++; }
+      const { value, missing, limit, n } = values[m.key];
+      // Before it was switched on (day view), the value is shown but not judged.
+      const notYet = mode === 'day' ? !counts(m, state.date) : !n && perDay.some((x, i) => x && !counts(m, days[i]));
+      const judged = !notYet;
+      const st = judged ? microStatus(m, value, target, upper, limit) : { status: 'none', pill: 'na', label: 'Not tracked yet' };
+      if (judged && (mode === 'day' || n)) { if (st.status === 'red') low++; else if (st.status === 'amber') mid++; else ok++; }
       animateNumber($(row, '[data-v]'), value, (v) => fmt(v));
       $(row, '[data-t]').textContent = scaleTo ? Number(scaleTo).toLocaleString('en-GB') : '—';
       setFill($(row, '.fill'), scaleTo ? value / scaleTo : 0, st.status);
@@ -99,19 +125,23 @@ export function mountNutrients(view, state) {
       // Upper-limit info, shown once the target is met (or always when exceeded).
       const ul = $(row, '[data-ul]');
       const ulText = upper ? `${Number(upper).toLocaleString('en-GB')} ${m.unit}` : '';
-      if (m.kind !== 'limit' && upper && (value >= (target || 0) || value >= upper)) {
+      const over = upper && limit !== null && limit > upper;
+      if (m.kind !== 'limit' && upper && (value >= (target || 0) || over || (m.upperNote && value > upper))) {
         ul.hidden = false;
-        if (m.upperNote) ul.innerHTML = `Upper limit ${ulText} applies ${esc(m.upperNote)} — food totals aren't flagged.`;
-        else if (value >= upper) ul.innerHTML = `<span class="c-red">Above the upper limit of ${ulText}.</span>`;
-        else ul.innerHTML = `Upper limit ${ulText}.`;
+        const note = m.upperNote ? `<small class="ul-note">${esc(m.upperNote)}</small>` : '';
+        const part = m.ulPart === 'supplements' ? ' from supplements' : m.ulPart === 'retinol' ? ' from preformed vitamin A' : '';
+        ul.innerHTML = over && judged
+          ? `<span class="c-red">Above the upper limit of ${ulText}${part}.</span>${note}`
+          : `Upper limit ${ulText}.${note}`;
       } else ul.hidden = true;
-      const days = $(row, '[data-days]');
-      days.hidden = mode !== 'week';
+      const strip = $(row, '[data-days]');
+      strip.hidden = mode !== 'week';
       if (perDay) {
-        $$(days, 'i').forEach((cell, i) => {
-          const t = perDay[i];
-          cell.className = t ? `bg-${microStatus(m, t[m.key].value, target, upper).status}` : '';
-          cell.title = t ? `${fmt(t[m.key].value)} ${m.unit}` : 'Nothing logged';
+        $$(strip, 'i').forEach((cell, i) => {
+          const x = perDay[i];
+          const on = x && counts(m, days[i]);
+          cell.className = on ? `bg-${microStatus(m, x.t[m.key].value, target, upper, limitPart(m, x.list)).status}` : '';
+          cell.title = x ? `${fmt(x.t[m.key].value)} ${m.unit}${on ? '' : ' (before tracking)'}` : 'Nothing logged';
         });
       }
     }
@@ -168,7 +198,7 @@ export function mountFoods(view, state) {
     hint.hidden = !foods.length;
     for (const f of foods) {
       const { per100, estimated } = store.resolve(f);
-      const noData = MICROS.filter((m) => per100[m.key] === null).length;
+      const noData = [...store.trackedKeys()].filter((k) => per100[k] === null).length;
       const row = el(`<button class="result" type="button"><div class="item-main">
         <div class="item-name">${f.favourite ? '<span class="star-mark" aria-label="Starred">★</span> ' : ''}${esc(f.name)}</div>
         <div class="macros-line"><b>${fmt(per100.kcal, 'kcal')}</b> kcal · P ${fmt(per100.protein)} · C ${fmt(per100.carbs)} · F ${fmt(per100.fat)} <span class="muted">per 100${f.unit || 'g'}</span>
@@ -223,19 +253,12 @@ export function mountSettings(view) {
     </section>`);
   const micros = el(`
     <section class="card">
-      <div class="row"><div class="eyebrow">Micronutrients</div><span class="spacer"></span><button class="btn sm" type="button" data-reset style="min-height:36px">Reset defaults</button></div>
-      <p class="note">Daily target and upper limit for each nutrient. Leave an upper limit blank for none. Sodium is a limit only: it turns amber near it and red once you reach it.</p>
-      <div class="mtable">
-        <div class="mrow mhead"><span>Nutrient</span><span>Target</span><span>Upper limit</span></div>
-        ${MICRO_GROUPS.map((g) => `<div class="sub-h">${g.label}</div>` + g.items.map((m) => `
-        <div class="mrow">
-          <span class="mname">${m.label} <i class="unit">${m.unit}</i>${m.upperNote ? `<small>UL ${esc(m.upperNote)}</small>` : ''}</span>
-          ${m.kind === 'limit'
-            ? '<span class="mnone">—</span>'
-            : `<input class="input num" type="number" inputmode="decimal" min="0" step="any" data-micro="${m.key}" aria-label="${m.label} target (${m.unit})">`}
-          <input class="input num" type="number" inputmode="decimal" min="0" step="any" data-upper="${m.key}" placeholder="none" aria-label="${m.label} upper limit (${m.unit})">
-        </div>`).join('')).join('')}
-      </div>
+      <div class="eyebrow">Micronutrients</div>
+      <a class="trk-link" href="#/tracked">
+        <span><b>Tracked nutrients</b><br><small class="muted" data-trk></small></span>
+        <span class="trk-chev" aria-hidden="true">${icons.back}</span>
+      </a>
+      <p class="note" style="margin-bottom:0">Choose which vitamins, minerals, fibre and fats to track, and set their daily targets and upper limits.</p>
     </section>`);
   const look = el(`
     <section class="card">
@@ -276,8 +299,7 @@ export function mountSettings(view) {
       const k = inp.dataset.s;
       if (document.activeElement !== inp) inp.value = k === 'water' ? s.water / 1000 : s[k];
     }
-    for (const inp of $$(micros, '[data-micro]')) if (document.activeElement !== inp) inp.value = s.micros[inp.dataset.micro];
-    for (const inp of $$(micros, '[data-upper]')) if (document.activeElement !== inp) inp.value = s.upper[inp.dataset.upper] ?? '';
+    $(micros, '[data-trk]').textContent = `${(s.tracked || []).length} of ${MICROS.length} tracked`;
     $$(look, '[data-theme]').forEach((b) => b.setAttribute('aria-selected', b.dataset.theme === (s.theme || 'system')));
     $(healthBox, '[data-henabled]').checked = !!s.health?.enabled;
     if (document.activeElement !== $(healthBox, '[data-hname]')) $(healthBox, '[data-hname]').value = s.health?.shortcut || DEFAULT_SHORTCUT;
@@ -335,32 +357,6 @@ export function mountSettings(view) {
     await save();
     toast('Calorie goal updated');
   };
-  for (const inp of $$(micros, '[data-micro]')) {
-    inp.onchange = async () => {
-      const v = Number(inp.value);
-      if (inp.value === '' || !(v > 0)) { inp.value = s.micros[inp.dataset.micro]; return; }
-      s.micros[inp.dataset.micro] = v;
-      await save();
-    };
-  }
-  for (const inp of $$(micros, '[data-upper]')) {
-    inp.onchange = async () => {
-      const key = inp.dataset.upper;
-      const v = Number(inp.value);
-      if (inp.value === '') s.upper[key] = null;
-      else if (v > 0) s.upper[key] = v;
-      else { inp.value = s.upper[key] ?? ''; return; }
-      await save();
-    };
-  }
-  $(micros, '[data-reset]').onclick = async () => {
-    const d = defaultSettings();
-    s.micros = d.micros;
-    s.upper = d.upper;
-    await save();
-    toast('Targets and limits reset to defaults');
-  };
-
   $$(look, '[data-theme]').forEach((b) => (b.onclick = async () => {
     s.theme = b.dataset.theme;
     window.dispatchEvent(new CustomEvent('theme-change', { detail: s.theme }));

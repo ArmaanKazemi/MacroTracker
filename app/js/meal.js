@@ -1,7 +1,7 @@
 // Meal page: everything logged in one meal, with its nutrition against the
 // meal's share of the daily goals. Opened from a meal card on Today.
 import { el, esc, $, icons, toast, dateLabel, round1, swipeToDelete, animateNumber } from './ui.js';
-import { MEALS, MEAL_SHARE, MICRO_GROUPS, totals, scale, fmt } from './nutrients.js';
+import { MEALS, MEAL_SHARE, totals, scale, fmt, trackedGroups } from './nutrients.js';
 import * as store from './store.js';
 import { mealIcons } from './art.js';
 import { openAddFood, openFoodDetail, sameAsYesterday, changed } from './sheets.js';
@@ -101,28 +101,31 @@ export function mountMeal(view, state) {
       const over = target && list.length && t[k].value > target;
       return `<div class="kv ${sub ? 'kv-sub' : ''}"><span>${label}</span><b class="num${over ? ' c-red' : ''}">${val(k, unit)}${target ? ` <span class="muted" style="font-weight:500">/ ${target.toLocaleString('en-GB')}${unit === 'kcal' ? ' kcal' : ' ' + unit}</span>` : ''}</b></div>`;
     };
-    const anyMissing = list.length && Object.values(t).some((v) => v.missing && v.missing < list.length);
+    const groups = trackedGroups(settings);
+    const tracked = new Set(groups.flatMap((g) => g.items.map((m) => m.key)));
+    const shown = ['kcal', 'protein', 'carbs', 'sugars', 'fat', 'satfat', ...tracked];
+    const anyMissing = list.length && shown.some((k) => t[k].missing && t[k].missing < list.length);
     $(info, '[data-info]').innerHTML = `
       ${row('Calories', 'kcal', 'kcal', hi)}
       ${row('Protein', 'protein', 'g', share(settings.protein))}
       <div class="info-group">
         ${row('Carbs', 'carbs', 'g', share(settings.carbs))}
         ${row('of which sugars', 'sugars', 'g', share(settings.sugars ?? 90), true)}
-        ${row('Fibre', 'fibre', 'g', null, true)}
+        ${tracked.has('fibre') ? row('Fibre', 'fibre', 'g', null, true) : ''}
       </div>
       <div class="info-group">
         ${row('Fat', 'fat', 'g', share(settings.fat))}
         ${row('of which saturates', 'satfat', 'g', share(settings.satfat ?? 20), true)}
       </div>
-      <div class="info-group">
+      ${tracked.has('sodium') || tracked.has('potassium') ? `<div class="info-group">
         <div class="kv"><span><b>Other</b></span><span></span></div>
-        ${row('Sodium', 'sodium', 'mg', null, true)}
-        ${row('Potassium', 'potassium', 'mg', null, true)}
-      </div>
-      <details class="info-more">
-        <summary>All vitamins &amp; minerals</summary>
-        ${MICRO_GROUPS.map((g) => `<div class="sub-h">${g.label}</div>${g.items.map((m) => row(m.label, m.key, m.unit, null, true)).join('')}`).join('')}
-      </details>
+        ${tracked.has('sodium') ? row('Sodium', 'sodium', 'mg', null, true) : ''}
+        ${tracked.has('potassium') ? row('Potassium', 'potassium', 'mg', null, true) : ''}
+      </div>` : ''}
+      ${groups.length ? `<details class="info-more">
+        <summary>All tracked vitamins &amp; minerals</summary>
+        ${groups.map((g) => `<div class="sub-h">${g.label}</div>${g.items.map((m) => row(m.label, m.key, m.unit, null, true)).join('')}`).join('')}
+      </details>` : ''}
       <p class="note">Targets are this meal's share (${Math.round(hiF * 100)}%) of your daily goals.${anyMissing ? ' * Some foods have no data for this nutrient, so the real total may be higher.' : ''}</p>`;
   }
   return { refresh };

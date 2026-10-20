@@ -1,7 +1,11 @@
 // Bottom-sheet flows: add food, food detail / log / edit entry, link to CoFID,
 // custom food form, saved meals (recipes), barcode scanning.
 import { el, esc, $, $$, icons, openSheet, toast, confirmSheet, round1, swipeToDelete, addDays } from './ui.js';
-import { MEALS, MICROS, MICRO_GROUPS, SUBS, scale, fmt, normNutrients, macroKcal, MICRO_KEYS, totals } from './nutrients.js';
+import { MEALS, MICROS, MICRO_GROUPS, SUBS, scale, fmt, normNutrients, macroKcal, totals } from './nutrients.js';
+
+// Micronutrient groups limited to the nutrients being tracked (Settings → Tracked nutrients).
+const shownGroups = () => { const on = store.trackedKeys(); return MICRO_GROUPS.map((g) => ({ ...g, items: g.items.filter((m) => on.has(m.key)) })).filter((g) => g.items.length); };
+const shownKeys = () => [...store.trackedKeys()];
 import * as fooddb from './fooddb.js';
 import * as store from './store.js';
 import { openQuickLog } from './quicklog.js';
@@ -504,11 +508,11 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     $(body, '[data-preview]').innerHTML = [['kcal', 'Kcal'], ['protein', 'Protein'], ['carbs', 'Carbs'], ['fat', 'Fat']]
       .map(([k, l]) => `<div><div class="stat-v">${n[k] === null ? '—' : fmt(n[k], k === 'kcal' ? 'kcal' : '')}${k !== 'kcal' && n[k] !== null ? '<small class="muted" style="font-size:12px">g</small>' : ''}</div><div class="stat-l">${l}</div>${SUBS.filter((s) => s.parent === k).map((s) =>
         `<div class="stat-sub" data-sub="${s.key}">${s.key === 'satfat' ? 'sat.' : 'sugars'} ${n[s.key] === null ? 'no data' : `${estimated.includes(s.key) ? '~' : ''}${fmt(n[s.key])}g`}</div>`).join('')}</div>`).join('');
-    const missing = MICRO_KEYS.filter((k) => per100[k] === null).length;
+    const missing = shownKeys().filter((k) => per100[k] === null).length;
     $(body, '[data-micro-count]').innerHTML = missing
       ? `<span class="pill na">${missing} no data</span>`
       : estimated.length ? `<span class="pill est">${estimated.length} estimated</span>` : '';
-    $(body, '[data-micros]').innerHTML = MICRO_GROUPS.map((g) => `<div class="sub-h">${g.label}</div>` + g.items.map((m) => {
+    $(body, '[data-micros]').innerHTML = shownGroups().map((g) => `<div class="sub-h">${g.label}</div>` + g.items.map((m) => {
       const v = n[m.key];
       const badge = v === null ? '<span class="pill na">No data</span>' : estimated.includes(m.key) ? '<span class="pill est">Est.</span>' : '';
       return `<div class="kv"><span>${m.label}</span><span class="row" style="gap:8px">${badge}<b class="num">${v === null ? '' : fmt(v) + ' ' + m.unit}</b></span></div>`;
@@ -522,7 +526,7 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     if (food.source === 'generic') return;
     const linked = food.link ? fooddb.lookup(food.link) : null;
     const { per100 } = store.resolve(food);
-    const anyMissingOwn = MICRO_KEYS.some((k) => (food.per100 || normNutrients())[k] === null);
+    const anyMissingOwn = shownKeys().some((k) => (food.per100 || normNutrients())[k] === null);
     if (!anyMissingOwn && !linked) return;
     if (linked) {
       box.appendChild(el(`<p class="note">Missing values estimated from <b style="color:var(--text)">${esc(linked.name)}</b>.</p>`));
@@ -704,8 +708,8 @@ export function openLinkPicker(initialQuery, onPick) {
     const res = fooddb.search(input.value, 40);
     if (!res.length) list.innerHTML = '<p class="empty">No matches. Try a simpler word (e.g. "peanut", "yogurt").</p>';
     for (const g of res) {
-      const count = fooddb.microCount(g.per100);
-      const r = el(`<button class="result" type="button"><div class="item-main"><div class="item-name">${esc(g.name)}</div><div class="macros-line">${count} of ${MICRO_KEYS.length} micronutrients · ${fmt(g.per100.kcal)} kcal/100g</div></div></button>`);
+      const count = fooddb.microCount(g.per100, shownKeys());
+      const r = el(`<button class="result" type="button"><div class="item-main"><div class="item-name">${esc(g.name)}</div><div class="macros-line">${count} of ${shownKeys().length} tracked micronutrients · ${fmt(g.per100.kcal)} kcal/100g</div></div></button>`);
       r.onclick = () => { onPick(g); s.close(); };
       list.appendChild(r);
     }
@@ -745,9 +749,9 @@ export function openFoodForm(food, { onSaved, logging = false } = {}) {
       <div class="grid2">${numField('kcal', 'Calories', 'kcal')}${numField('protein', 'Protein', 'g')}${numField('carbs', 'Carbs', 'g')}${numField('fat', 'Fat', 'g')}</div>
       <div class="grid2 of-which">${SUBS.map((s) => numField(s.key, s.of, s.unit)).join('')}</div>
       <div class="list-h">Micronutrients <span style="text-transform:none;letter-spacing:0;font-weight:600">· leave blank if unknown</span></div>
-      ${MICRO_GROUPS.map((g) => `
+      ${shownGroups().map((g) => `
         <div class="sub-h">${g.label}</div>
-        ${g.key === 'minerals' ? '<p class="note" style="margin-top:0">Sodium is in milligrams. If the label only lists salt, sodium (mg) = salt (g) × 400.</p>' : ''}
+        ${g.items.some((m) => m.key === 'sodium') ? '<p class="note" style="margin-top:0">Sodium is in milligrams. If the label only lists salt, sodium (mg) = salt (g) × 400.</p>' : ''}
         <div class="grid2">${g.items.map((m) => numField(m.key, m.label, m.unit)).join('')}</div>`).join('')}
       <div class="list-h">Serving sizes <span style="text-transform:none;letter-spacing:0;font-weight:600">· optional</span></div>
       <p class="note" style="margin-top:0">Log by portion instead of weighing. Give the serving a name and say how much one weighs, e.g. <b>1 scoop</b> = <b>25 g</b>.</p>
@@ -801,7 +805,8 @@ export function openFoodForm(food, { onSaved, logging = false } = {}) {
     if (!name) { $(body, '[data-f="name"]').focus(); return toast('Give the food a name'); }
     const basis = Number($(body, '[data-basis]').value) || 100;
     const k = 100 / basis;
-    const per100 = {};
+    // Start from the stored values so nutrients that aren't tracked (and not in the form) are kept.
+    const per100 = { ...(f.per100 || {}) };
     for (const inp of $$(body, '[data-n]')) {
       const key = inp.dataset.n;
       const raw = inp.value.trim();

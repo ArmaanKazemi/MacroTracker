@@ -46,6 +46,7 @@ async function mockOff(ctx) {
 }
 
 let passed = 0;
+const location = () => page.url();
 async function step(name, fn) {
   process.stdout.write(`• ${name} … `);
   await fn();
@@ -430,13 +431,19 @@ await step('goals: macro grams show calories they add up to; changes apply to ho
   assert.equal(await page.locator('[data-s="kcal"]').inputValue(), '2275');
   await page.locator('[data-s="water"]').fill('3');
   await page.locator('[data-s="water"]').dispatchEvent('change');
-  await page.locator('[data-micro="vitD"]').fill('15');
-  await page.locator('[data-micro="vitD"]').dispatchEvent('change');
-  assert.equal(await page.locator('[data-micro="fibre"]').inputValue(), '38');
-  assert.equal(await page.locator('[data-upper="sodium"]').inputValue(), '2300');
-  assert.equal(await page.locator('[data-micro="sodium"]').count(), 0, 'sodium has no target, only a limit');
-  await page.locator('[data-upper="calcium"]').fill('100');
-  await page.locator('[data-upper="calcium"]').dispatchEvent('change');
+  await page.waitForTimeout(300);
+  // Targets and limits live under Settings → Tracked nutrients
+  assert.match(await page.locator('[data-trk]').textContent(), /17 of 32 tracked/);
+  await page.locator('.trk-link').click();
+  await page.waitForTimeout(500);
+  assert.match(location(), /#\/tracked$/);
+  await page.locator('[data-k="vitD"] [data-target]').fill('15');
+  await page.locator('[data-k="vitD"] [data-target]').dispatchEvent('change');
+  assert.equal(await page.locator('[data-k="fibre"] [data-target]').inputValue(), '38');
+  assert.equal(await page.locator('[data-k="sodium"] [data-upper]').inputValue(), '2300');
+  assert.equal(await page.locator('[data-k="sodium"] [data-target]').count(), 0, 'sodium has no target, only a limit');
+  await page.locator('[data-k="calcium"] [data-upper]').fill('100');
+  await page.locator('[data-k="calcium"] [data-upper]').dispatchEvent('change');
   await page.waitForTimeout(300);
   await page.goto(BASE + '#/today');
   await settle();
@@ -693,9 +700,13 @@ await step('upgrade from v1: old targets replaced, new nutrients filled into old
   });
   await p.reload();
   await p.waitForTimeout(1200);
-  assert.equal(await p.locator('[data-micro="fibre"]').inputValue(), '38');
-  assert.equal(await p.locator('[data-micro="vitC"]').inputValue(), '90');
   assert.equal(await p.locator('[data-s="kcal"]').inputValue(), '2000', 'calorie goal kept');
+  assert.match(await p.locator('[data-trk]').textContent(), /17 of 32 tracked/, 'existing users keep the original 17');
+  await p.goto(BASE + '#/tracked');
+  await p.waitForTimeout(500);
+  assert.equal(await p.locator('[data-k="fibre"] [data-target]').inputValue(), '38');
+  assert.equal(await p.locator('[data-k="vitC"] [data-target]').inputValue(), '90');
+  assert.equal(await p.locator('[data-k="vitE"] [data-on]').isChecked(), false, 'new nutrients start off');
   await p.goto(BASE + '#/nutrients');
   await p.waitForTimeout(1300);
   // Morrisons 100% PB now has 5 mg sodium/100 g from the label.
@@ -1130,6 +1141,171 @@ await step('central + button opens add food; appearance switch applies themes', 
   await page.locator('[data-theme="system"]').click();
   await page.waitForTimeout(200);
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), undefined);
+});
+
+await step('tracked nutrients: presets, toggles, per-group select/clear, targets with reset, hidden everywhere, history kept', async () => {
+  const today = await page.evaluate(async () => (await import('./js/ui.js')).todayKey());
+  const yesterday = await page.evaluate(async () => { const ui = await import('./js/ui.js'); return ui.addDays(ui.todayKey(), -1); });
+  // Yesterday's food has vitamin E and folate; it was logged before vitamin E was tracked.
+  await page.evaluate(async ([y]) => {
+    const store = await import('./js/store.js'); const n = await import('./js/nutrients.js');
+    await store.saveEntry({ id: 'e-trk1', date: y, meal: 'lunch', name: 'Almonds', unit: 'g', amount: 100, per100: n.normNutrients({ kcal: 600, protein: 20, carbs: 10, fat: 50, vitE: 25, folate: 50 }), ts: 1 });
+  }, [yesterday]);
+  const settings = () => page.evaluate(async () => { const store = await import('./js/store.js'); store.resetCache(); return store.getSettings(); });
+  const counts = async () => {
+    await page.waitForTimeout(1300);
+    const n = async (sel) => Number(await page.locator(sel).textContent());
+    return (await n('[data-low]')) + (await n('[data-mid]')) + (await n('[data-ok]'));
+  };
+
+  await page.goto(BASE + '#/tracked');
+  await page.waitForTimeout(500);
+  assert.equal(await page.locator('[data-preset="core"]').getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('.trk-row').count(), 32);
+  assert.equal(await page.locator('.trk-row.on').count(), 17);
+  assert.equal(await page.locator('[data-k="vitE"] [data-on]').isChecked(), false);
+  assert.match(await page.locator('[data-k="vitA"] [data-ulnote]').textContent(), /Upper limit 3,000 µg[\s\S]*Applies to preformed vitamin A \(retinol\) only\. Beta-carotene from plants doesn't count\./);
+  assert.match(await page.locator('[data-k="magnesium"] [data-ulnote]').textContent(), /Applies to supplements only\./);
+  await page.goto(BASE + '#/nutrients');
+  assert.equal(await page.locator('.bar-row').count(), 17);
+  assert.equal(await page.locator('[data-k="vitE"]').count(), 0);
+  assert.equal(await counts(), 17);
+
+  // Extended preset: vitamin E, choline, B6, B1, B2, B3, phosphorus switched on from today
+  await page.goto(BASE + '#/tracked');
+  await page.waitForTimeout(400);
+  await page.locator('[data-preset="extended"]').click();
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator('.trk-row.on').count(), 24);
+  assert.equal(await page.locator('[data-preset="extended"]').getAttribute('aria-selected'), 'true');
+  let s = await settings();
+  assert.equal(s.trackedSince.vitE, today);
+  assert.equal(s.trackedSince.vitC, undefined, 'Core nutrients keep their full history');
+  // Edit a target, then reset it
+  await page.locator('[data-k="vitE"] [data-target]').fill('20');
+  await page.locator('[data-k="vitE"] [data-target]').dispatchEvent('change');
+  await page.waitForTimeout(200);
+  assert.ok(await page.locator('[data-k="vitE"] [data-reset]').isVisible());
+  assert.match(await page.locator('[data-k="vitE"] [data-def]').textContent(), /Default: 15 mg, upper limit 1,000 mg/);
+  assert.equal((await settings()).micros.vitE, 20);
+  await page.locator('[data-k="vitE"] [data-reset]').click();
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('[data-k="vitE"] [data-target]').inputValue(), '15');
+  assert.ok(await page.locator('[data-k="vitE"] [data-reset]').isHidden());
+
+  // Nutrients today shows the 24; yesterday's vitamin E is shown but not judged
+  await page.goto(BASE + '#/nutrients');
+  assert.equal(await page.locator('.bar-row').count(), 24);
+  assert.equal(await counts(), 24);
+  await page.locator('[data-prev]').click();
+  await page.waitForTimeout(1300);
+  assert.equal(await page.locator('[data-k="vitE"] [data-pill]').textContent(), 'Not tracked yet');
+  assert.equal(await page.locator('[data-k="vitE"] [data-v]').textContent(), '25');
+  assert.equal(await counts(), 17, 'past day: newly enabled nutrients are not counted');
+  // 7-day average leaves out days before vitamin E was switched on
+  await page.locator('[data-m="week"]').click();
+  await page.waitForTimeout(1300);
+  assert.equal(await page.locator('[data-k="vitE"] [data-v]').textContent(), '0', "yesterday's 25 mg isn't averaged in");
+  await page.locator('[data-m="day"]').click();
+  await page.waitForTimeout(400);
+  await page.locator('[data-next]').click();
+  await page.waitForTimeout(400);
+  assert.ok(await page.locator('[data-next]').isDisabled(), 'back on today');
+
+  // Switching a nutrient off hides it everywhere; its data stays
+  await page.goto(BASE + '#/tracked');
+  await page.waitForTimeout(400);
+  await page.locator('[data-k="folate"] .switch').click();
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator('[data-preset="extended"]').getAttribute('aria-selected'), 'false');
+  assert.match(await page.locator('[data-preset-note]').textContent(), /Custom/);
+  await page.goto(BASE + `#/meal?m=lunch&d=${yesterday}`);
+  await page.waitForTimeout(500);
+  assert.doesNotMatch(await page.locator('[data-info]').textContent(), /Folate/);
+  assert.match(await page.locator('[data-info]').textContent(), /Vitamin E/);
+  await page.goto(BASE + '#/nutrients');
+  assert.equal(await page.locator('[data-k="folate"]').count(), 0);
+  await page.goto(BASE + '#/tracked');
+  await page.waitForTimeout(400);
+  await page.locator('[data-k="folate"] .switch').click();
+  await page.waitForTimeout(300);
+  assert.equal((await settings()).trackedSince.folate, undefined);
+  await page.goto(BASE + `#/meal?m=lunch&d=${yesterday}`);
+  await page.waitForTimeout(500);
+  assert.match(await page.locator('[data-info]').textContent(), /Folate \(B9\)\s*50 µg/);
+
+  // Per-group Clear / Select all
+  await page.goto(BASE + '#/tracked');
+  await page.waitForTimeout(400);
+  await page.locator('[data-none="minerals"]').click();
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('.trk-row.on').count(), 24 - 9);
+  await page.locator('[data-all="minerals"]').click();
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('.trk-row.on').count(), 24 - 9 + 15);
+  await page.locator('[data-preset="all"]').click();
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('.trk-row.on').count(), 32);
+  assert.match(await page.locator('[data-count]').textContent(), /32 of 32 tracked/);
+
+  // Upper limits that only apply to part of the intake
+  await page.evaluate(async ([t]) => {
+    const store = await import('./js/store.js'); const n = await import('./js/nutrients.js');
+    // Vitamin A from food without a retinol split: note only, never flagged
+    await store.saveEntry({ id: 'e-trk2', date: t, meal: 'dinner', name: 'Liver', unit: 'g', amount: 100, per100: n.normNutrients({ kcal: 150, vitA: 5000, magnesium: 300 }), ts: 2 });
+    // 500 mg magnesium from a supplement: over the 350 mg supplement limit
+    await store.saveEntry({ id: 'e-trk3', date: t, meal: 'supplements', name: 'Magnesium', unit: 'g', amount: 100, per100: store.supplementNutrients({ magnesium: 500 }), ts: 3 });
+  }, [today]);
+  await page.goto(BASE + `#/meal?m=dinner&d=${today}`); // the meal pages above moved the shared date to yesterday
+  await page.waitForTimeout(300);
+  await page.goto(BASE + '#/nutrients');
+  await page.waitForTimeout(1300);
+  const vA = page.locator('[data-k="vitA"]');
+  assert.notEqual(await vA.locator('[data-pill]').textContent(), 'Over upper limit');
+  assert.match(await vA.locator('[data-ul]').textContent(), /Upper limit 3,000 µg\.\s*Applies to preformed vitamin A \(retinol\) only/);
+  const mg = page.locator('[data-k="magnesium"]');
+  assert.equal(await mg.locator('[data-pill]').textContent(), 'Over upper limit');
+  assert.match(await mg.locator('[data-ul]').textContent(), /Above the upper limit of 350 mg from supplements\.\s*Applies to supplements only\./);
+  // With retinol given separately, vitamin A is checked against the limit
+  await page.evaluate(async ([t]) => {
+    const store = await import('./js/store.js'); const n = await import('./js/nutrients.js');
+    await store.saveEntry({ id: 'e-trk2', date: t, meal: 'dinner', name: 'Liver', unit: 'g', amount: 100, per100: n.normNutrients({ kcal: 150, vitA: 5000, retinol: 4800 }), ts: 2 });
+    window.dispatchEvent(new CustomEvent('data-changed'));
+  }, [today]);
+  await page.waitForTimeout(1300);
+  assert.equal(await vA.locator('[data-pill]').textContent(), 'Over upper limit');
+
+  // Quick log takes any nutrient, value then name; anything missing counts as 0
+  await page.goto(BASE + '#/today');
+  await settle();
+  await page.locator('[data-meal="snacks"] [data-add]').click();
+  await page.waitForTimeout(400);
+  await topSheet().locator('[data-quicklog]').click();
+  await page.waitForTimeout(400);
+  await topSheet().locator('.ql-text').fill('multivit 15MG Vitamin E 550mg choline 1.3mg vitamin b6');
+  await topSheet().locator('.ql-total').waitFor({ timeout: 4000 });
+  assert.match(await topSheet().locator('.ql-row').nth(0).textContent(), /Vitamin E 15mg[\s\S]*Choline 550mg[\s\S]*Vitamin B6 1.3mg/);
+  await topSheet().locator('[data-log]').click();
+  await settle();
+  const mv = await page.evaluate(async () => {
+    const store = await import('./js/store.js'); const ui = await import('./js/ui.js');
+    return (await store.entriesFor(ui.todayKey())).find((e) => e.name === 'Multivit');
+  });
+  assert.equal(mv.per100.vitE, 15);
+  assert.equal(mv.per100.choline, 550);
+  assert.equal(mv.per100.vitB6, 1.3);
+  assert.equal(mv.per100.iron, 0);
+  assert.equal(mv.per100.kcal, 0);
+
+  // Clean up: back to Core, remove the test entries
+  await page.evaluate(async () => {
+    const store = await import('./js/store.js'); const ui = await import('./js/ui.js'); const n = await import('./js/nutrients.js');
+    for (const id of ['e-trk1', 'e-trk2', 'e-trk3']) await store.deleteEntry(id);
+    const mvs = (await store.entriesFor(ui.todayKey())).filter((e) => e.name === 'Multivit');
+    for (const e of mvs) await store.deleteEntry(e.id);
+    const s = await store.getSettings();
+    await store.saveSettings({ ...s, tracked: [...n.CORE_MICROS] });
+  });
 });
 
 await step('no JavaScript errors', async () => {

@@ -10,6 +10,7 @@ import { changed } from './sheets.js';
 
 const LABEL = Object.fromEntries([...MICROS, ...SUBS, ...MACROS].map((m) => [m.key, [m.label, m.unit]]));
 LABEL.kcal = ['kcal', 'kcal'];
+LABEL.retinol = ['Retinol', 'µg'];
 
 /** "Vitamin D 25µg · EPA + DHA 500mg" */
 export function nutrientSummary(n = {}) {

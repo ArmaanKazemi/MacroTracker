@@ -1,6 +1,6 @@
 // App-level data operations on top of IndexedDB.
 import * as db from './db.js';
-import { defaultSettings, normNutrients, applyLink, MICROS, MICROS_VERSION, ALL_KEYS } from './nutrients.js';
+import { defaultSettings, normNutrients, applyLink, MICROS, MICROS_VERSION, ALL_KEYS, CORE_MICROS } from './nutrients.js';
 import { lookup } from './fooddb.js';
 
 // ---------- settings ----------
@@ -20,6 +20,10 @@ export async function getSettings() {
   };
   if (fresh && saved.micros) await db.put('kv', settingsCache, 'settings');
   return settingsCache;
+}
+/** Tracked micronutrient keys, from the loaded settings (Core until they've loaded). */
+export function trackedKeys() {
+  return new Set(settingsCache?.tracked || CORE_MICROS);
 }
 export async function saveSettings(s) {
   settingsCache = s;

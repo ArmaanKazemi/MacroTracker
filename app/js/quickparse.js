@@ -25,7 +25,23 @@ const WORDS = {
   vitC: ['vitamin c', 'vit c'],
   vitD: ['vitamin d', 'vit d'],
   vitK: ['vitamin k', 'vit k'],
-  vitB12: ['vitamin b12', 'vit b12', 'b12'],
+  vitB12: ['vitamin b12', 'vit b12', 'b12', 'cobalamin'],
+  vitE: ['vitamin e', 'vit e'],
+  vitB1: ['vitamin b1', 'vit b1', 'b1', 'thiamin', 'thiamine'],
+  vitB2: ['vitamin b2', 'vit b2', 'b2', 'riboflavin'],
+  vitB3: ['vitamin b3', 'vit b3', 'b3', 'niacin'],
+  vitB5: ['vitamin b5', 'vit b5', 'b5', 'pantothenic acid', 'pantothenate'],
+  vitB6: ['vitamin b6', 'vit b6', 'b6', 'pyridoxine'],
+  vitB7: ['vitamin b7', 'vit b7', 'b7', 'biotin'],
+  choline: ['choline'],
+  phosphorus: ['phosphorus'],
+  copper: ['copper'],
+  manganese: ['manganese'],
+  chromium: ['chromium'],
+  molybdenum: ['molybdenum'],
+  chloride: ['chloride'],
+  fluoride: ['fluoride'],
+  retinol: ['retinol', 'preformed vitamin a'],
   iodine: ['iodine'],
   selenium: ['selenium'],
   ala: ['omega-3 ala', 'omega 3', 'omega-3', 'ala'],
@@ -33,6 +49,7 @@ const WORDS = {
 };
 const UNIT = { kcal: 'kcal', protein: 'g', carbs: 'g', sugars: 'g', satfat: 'g', fat: 'g', salt: 'g' };
 for (const m of MICROS) UNIT[m.key] = m.unit;
+UNIT.retinol = 'µg';
 const KEY_OF = new Map();
 for (const [k, ws] of Object.entries(WORDS)) for (const w of ws) KEY_OF.set(w, k);
 
@@ -53,11 +70,9 @@ function convert(value, from, to) {
 
 // Nutrients the app doesn't track: recognised so their numbers don't get attached
 // to a neighbouring nutrient, then dropped (and listed as "not tracked").
-const UNTRACKED = ['vitamin e', 'vit e', 'vitamin b6', 'vit b6', 'b6', 'vitamin b1', 'thiamin', 'thiamine', 'vitamin b2',
-  'riboflavin', 'vitamin b3', 'niacin', 'pantothenic acid', 'vitamin b5', 'biotin', 'vitamin b7', 'phosphorus', 'copper',
-  'manganese', 'chloride', 'chromium', 'molybdenum', 'fluoride', 'cholesterol', 'trans fats', 'trans fat', 'monounsaturated fat',
+const UNTRACKED = ['cholesterol', 'trans fats', 'trans fat', 'monounsaturated fat',
   'monounsaturated', 'monounsaturates', 'polyunsaturated fat', 'polyunsaturated', 'polyunsaturates', 'omega-6', 'omega 6',
-  'caffeine', 'alcohol', 'starch', 'polyols', 'choline', 'water'];
+  'caffeine', 'alcohol', 'starch', 'polyols', 'water'];
 const ALL_WORDS = [...KEY_OF.keys(), ...UNTRACKED, 'energy'].sort((a, b) => b.length - a.length)
   .map((w) => w.replace(/[+.]/g, '\\$&').replace(/[ -]/g, '[\\s-]*'));
 
@@ -67,6 +82,9 @@ const RANGE = {
   sodium: [0, 10000], salt: [0, 25], potassium: [1, 10000], magnesium: [1, 2000], calcium: [1, 5000], iron: [0.01, 100],
   zinc: [0.01, 100], vitC: [0.01, 3000], vitA: [1, 10000], vitD: [0.01, 250], vitK: [0.1, 2000], vitB12: [0.01, 1000],
   folate: [1, 3000], iodine: [1, 3000], selenium: [1, 1000], ala: [0.01, 50], epadha: [1, 10000],
+  vitE: [0.01, 1500], vitB1: [0.01, 200], vitB2: [0.01, 200], vitB3: [0.01, 1000], vitB5: [0.01, 1000], vitB6: [0.01, 300],
+  vitB7: [0.1, 10000], choline: [1, 5000], phosphorus: [1, 5000], copper: [0.01, 20], manganese: [0.01, 30], chromium: [0.1, 1000],
+  molybdenum: [0.1, 3000], chloride: [1, 10000], fluoride: [0.01, 20], retinol: [1, 10000],
 };
 const MASS = new Set(['g', 'mg', 'µg']);
 

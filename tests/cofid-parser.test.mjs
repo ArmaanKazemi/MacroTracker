@@ -63,9 +63,12 @@ const rows = toCompact(foods);
 const byCode = Object.fromEntries(rows.map((r) => [r[0], r]));
 assert.equal(rows.length, 3, 'food without energy (and salmon, only in the FA sheet) is dropped');
 // [code, name, group, kcal, P, C, F, fibre, K, Mg, folate, vitC, vitA, vitK, Fe, Zn, Ca, vitD, Na, B12, I, Se, ALA, EPA+DHA, sugars, satfat]
-assert.deepEqual(byCode['14-319'], ['14-319', 'Raspberries, raw', 'Fruit', 25, 1.4, 4.6, 0.3, 6.5, 170, 19, 33, 32, 1, 7.8, 0.7, 0.4, 25, 0, 3, 0, null, 0, 0.13, 0, 4.6, 0.1]);
+assert.deepEqual(byCode['14-319'].slice(0, 26), ['14-319', 'Raspberries, raw', 'Fruit', 25, 1.4, 4.6, 0.3, 6.5, 170, 19, 33, 32, 1, 7.8, 0.7, 0.4, 25, 0, 3, 0, null, 0, 0.13, 0, 4.6, 0.1]);
+// Extra nutrients: [vitE, B1, B2, B3, B5, B6, B7, phosphorus, copper, manganese, chloride, retinol]
+assert.deepEqual(byCode['14-319'].slice(26), [0.5, 0.03, null, null, null, null, null, 31, 0.1, 0.4, 10, 0]);
+assert.deepEqual(byCode['13-500'].slice(26), [5, 0.2, null, null, null, null, null, 330, 0.7, 1.7, 500, 0]);
 const pb = byCode['13-500'];
-assert.deepEqual(pb.slice(18), [350, 0, 3, 4, 0, null, 7, 10], 'PB: sodium, B12 Tr, iodine, selenium, ALA Tr (per food, not per FA), EPA+DHA N');
+assert.deepEqual(pb.slice(18, 26), [350, 0, 3, 4, 0, null, 7, 10], 'PB: sodium, B12 Tr, iodine, selenium, ALA Tr (per food, not per FA), EPA+DHA N');
 const bb = byCode['14-101'];
 assert.equal(bb[18], 6, 'minerals read from the sheet with a blank Food Code header');
 // salmon row only exists in the FA sheet (no energy) so it's dropped, but check EPA+DHA maths via a food with energy:
@@ -74,7 +77,7 @@ assert.equal(bb[18], 6, 'minerals read from the sheet with a blank Food Code hea
   assert.equal(f.epa, 0.8);
   assert.equal(f.dha, 1.2, 'DHA read from the unlabelled C22:6 column');
 }
-assert.deepEqual(bb.slice(24), [9.1, 0], 'blueberry sugars; saturates Tr -> 0 (per-FA column ignored)');
+assert.deepEqual(bb.slice(24, 26), [9.1, 0], 'blueberry sugars; saturates Tr -> 0 (per-FA column ignored)');
 assert.equal(bb[7], null, 'blueberry fibre N/blank -> no data');
 assert.equal(bb[8], null, 'potassium N -> no data');
 assert.equal(bb[14], 0, 'iron Tr -> 0');

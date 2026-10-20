@@ -47,7 +47,24 @@ const COLS = {
   iodine: /^iodine\b/i,
   selenium: /^selenium\b/i,
   vitB12: /^vitamin\s*b12\b/i,
+  // Extra vitamins and minerals (trackable in Settings → Tracked nutrients)
+  vitE: /^vitamin\s*e\b/i,
+  vitB1: /^thiamin/i,
+  vitB2: /^riboflavin\b/i,
+  niacinEq: /^niacin\s*equivalent/i,
+  niacin: /^niacin\s*(\(|$)/i,
+  vitB5: /^pantothen/i,
+  vitB6: /^vitamin\s*b6\b/i,
+  vitB7: /^biotin\b/i,
+  phosphorus: /^phosphorus\b/i,
+  copper: /^copper\b/i,
+  manganese: /^manganese\b/i,
+  chloride: /^chloride\b/i,
+  retinol: /^retinol\s*(\(|$)/i,
 };
+// Written to cofid.json after the starter fields (the file names its fields, so older
+// app versions simply ignore the extras).
+export const COFID_FIELDS = [...FIELDS, 'vitE', 'vitB1', 'vitB2', 'vitB3', 'vitB5', 'vitB6', 'vitB7', 'phosphorus', 'copper', 'manganese', 'chloride', 'retinol'];
 
 // Fatty acids (g). CoFID has them both per 100 g food and per 100 g total fatty
 // acids; only the per-food columns are usable.
@@ -143,8 +160,9 @@ export function toCompact(foods) {
     const derived = {
       fibre: f.fibreAOAC ?? f.fibreNSP ?? null,
       epadha: (f.epa ?? null) === null && (f.dha ?? null) === null ? null : ((f.epa || 0) + (f.dha || 0)) * 1000,
+      vitB3: f.niacinEq ?? f.niacin ?? null,
     };
-    const vals = FIELDS.map((k) => round(k in derived ? derived[k] : f[k]));
+    const vals = COFID_FIELDS.map((k) => round(k in derived ? derived[k] : f[k]));
     const g = GROUPS[(f.group || '').charAt(0).toUpperCase()] || 'Other';
     out.push([f.code, f.name, g, ...vals]);
   }
@@ -233,11 +251,11 @@ async function main() {
     console.log('\nRaw chicken / meat / fish entries:');
     for (const r of rows.filter((r) => /\braw\b/i.test(r[1]) && /chicken|turkey|beef|salmon|cod|pork/i.test(r[1]))) console.log(`  ${r[0]}  ${r[1]}  (${r[3]} kcal)`);
   }
-  const json = { source: 'CoFID (McCance & Widdowson), UK Government', fields: FIELDS, foods: rows, aliases };
+  const json = { source: 'CoFID (McCance & Widdowson), UK Government', fields: COFID_FIELDS, foods: rows, aliases };
   await writeFile(join(outDir, 'cofid.json'), JSON.stringify(json));
   console.log(`Wrote cofid.json: ${rows.length} foods. Aliases:`, aliases);
   console.log('Foods with data per nutrient:');
-  FIELDS.forEach((k, i) => console.log(`  ${k.padEnd(10)} ${rows.filter((r) => r[3 + i] !== null).length}`));
+  COFID_FIELDS.forEach((k, i) => console.log(`  ${k.padEnd(10)} ${rows.filter((r) => r[3 + i] !== null).length}`));
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
