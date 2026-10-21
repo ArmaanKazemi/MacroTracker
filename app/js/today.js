@@ -1,6 +1,6 @@
 // Home screen: calorie gauge, macro cards, water, meals.
-import { el, esc, $, $$, icons, animateNumber, setFill, limitStatus, dateSwitcher, toast, round1, swipeToDelete } from './ui.js';
-import { MEALS, MACROS, SUBS, MEAL_SHARE, totals, scale, fmt } from './nutrients.js';
+import { el, esc, $, $$, icons, animateNumber, limitStatus, dateSwitcher, toast, round1, swipeToDelete } from './ui.js';
+import { MEALS, MACROS, SUBS, MEAL_SHARE, totals, scale, fmt, microStatus, limitPart, trackedMicros, trackedSince } from './nutrients.js';
 import * as store from './store.js';
 import * as fooddb from './fooddb.js';
 import { openAddFood, openFoodDetail, changed } from './sheets.js';
@@ -25,7 +25,13 @@ const TICKS = Array.from({ length: 26 }, (_, i) => {
 
 // Suggested share of the calorie goal per meal.
 
-const sectionHead = (label) => el(`<div class="section-h"><span>${label}</span><i class="meander" aria-hidden="true"></i></div>`);
+
+/** Open Trends on one metric. */
+function openTrend(key) {
+  try { localStorage.setItem('pithos-trends', JSON.stringify({ ...JSON.parse(localStorage.getItem('pithos-trends') || '{}'), metric: key })); } catch { /* private mode */ }
+  location.hash = '#/trends';
+}
+const guessMeal = () => { const h = new Date().getHours(); return h < 11 ? 'breakfast' : h < 15 ? 'lunch' : h >= 17 && h < 21 ? 'dinner' : 'snacks'; };
 
 // Which meal cards are collapsed (remembered on this device).
 const COLLAPSE_KEY = 'pithos-collapsed';
@@ -70,17 +76,34 @@ export function mountToday(view, state) {
     </section>`);
   view.appendChild(hero);
 
-  const macroCard = el(`<section class="macro-grid" aria-label="Macros">${MACROS.map((m) => `
-    <div class="macro" data-macro="${m.key}">
-      <div class="macro-name">${m.label}</div>
-      <div class="macro-val num"><b data-v>0</b><span>/<span data-g>0</span>g</span></div>
-      <div class="track thin"><div class="fill"></div></div>
-      ${SUBS.filter((s) => s.parent === m.key).map((s) => `<div class="macro-sub" data-sub="${s.key}"><div class="ms-l">${s.of}</div><div class="ms-v num"><b data-v>0</b>/<span data-g>0</span>g</div></div>`).join('')}
-    </div>`).join('')}</section>`);
+  // Macros as rings (tap one to see its trend), then two status cards: limits and nutrients.
+  const RING = 'M50 8 a42 42 0 1 1 0 84 a42 42 0 1 1 0 -84';
+  const macroCard = el(`<section class="rings" aria-label="Macros">${MACROS.map((m) => `
+    <button type="button" class="ring" data-macro="${m.key}" aria-label="${m.label} trend">
+      <span class="ring-dial"><svg viewBox="0 0 100 100" aria-hidden="true"><path class="ring-track" d="${RING}"/><path class="ring-bar" d="${RING}" pathLength="100" stroke-dasharray="100 100" stroke-dashoffset="100"/></svg>
+        <span class="ring-c"><b class="num" data-v>0</b><small class="num">/<span data-g>0</span>g</small></span></span>
+      <span class="ring-l">${m.label}${icons.next}</span>
+    </button>`).join('')}</section>`);
   view.appendChild(macroCard);
+  const monitors = el(`
+    <section class="monitors">
+      <a class="mon" href="#/trends" data-mon="limits" aria-label="Sugars and saturates">
+        <span class="mon-h">Limits${icons.next}</span>
+        <span class="mon-b"><span class="mon-ic" data-lim-ic></span><b data-lim-st></b></span>
+        <span class="mon-list">${SUBS.map((x) => `<span class="mon-sub" data-sub="${x.key}" aria-label="${x.of}"><span>${x.label}</span><span class="num"><span data-v>0</span>/<span data-g>0</span>g</span></span>`).join('')}</span>
+      </a>
+      <a class="mon" href="#/nutrients" data-mon="nutrients" aria-label="Nutrients on target">
+        <span class="mon-h">Nutrients${icons.next}</span>
+        <span class="mon-b"><span class="mon-ic num" data-nut-n></span><b data-nut-st></b></span>
+        <span class="mon-list"><span class="mon-sub"><span data-nut-sub></span></span><span class="mon-sub"><span>Tap for this week</span></span></span>
+      </a>
+    </section>`);
+  view.appendChild(monitors);
+  $$(macroCard, '[data-macro]').forEach((b) => (b.onclick = () => openTrend(b.dataset.macro)));
+  $(monitors, '[data-mon="limits"]').onclick = (e) => { e.preventDefault(); openTrend('sugars'); };
 
   // Water and supplements share one card: swipe (or tap the tabs) between the two pages.
-  const dailyHead = sectionHead('Water & supplements');
+  const dailyHead = el('<div class="day-h"><h2>Water &amp; supplements</h2><i class="meander" aria-hidden="true"></i></div>');
   const daily = el(`
     <section class="card daily" aria-label="Water and supplements">
       <div class="seg daily-tabs" role="tablist">
@@ -137,7 +160,9 @@ export function mountToday(view, state) {
       <button class="btn sm link" type="button" data-hundo hidden>Didn't arrive? Mark as not sent</button>
     </section>`);
 
-  view.appendChild(sectionHead('Meals'));
+  const dayHead = el(`<div class="day-h"><h2>My day</h2><i class="meander" aria-hidden="true"></i><button class="day-add" type="button" data-day-add aria-label="Add food">${icons.plus}</button></div>`);
+  $(dayHead, '[data-day-add]').onclick = () => openAddFood({ date: state.date, meal: guessMeal() });
+  view.appendChild(dayHead);
   const mealsBox = el('<div></div>');
   view.appendChild(mealsBox);
   // Below the meals: water & supplements, then the Apple Health card.
@@ -253,24 +278,48 @@ export function mountToday(view, state) {
     animateNumber($(hero, '[data-goal]'), goal);
     animateNumber($(hero, '[data-pct]'), goal ? (eaten / goal) * 100 : 0, (v) => `${Math.round(v)}%`);
 
-    // Macros
+    // Macro rings
     for (const m of MACROS) {
       const row = $(macroCard, `[data-macro="${m.key}"]`);
       const v = t[m.key].value;
       const g = settings[m.key];
       animateNumber($(row, '[data-v]'), v);
       $(row, '[data-g]').textContent = g;
-      setFill($(row, '.fill'), g ? v / g : 0, limitStatus(v, g));
+      const bar = $(row, '.ring-bar');
+      bar.setAttribute('class', `ring-bar c-${limitStatus(v, g)}`);
+      bar.style.strokeDashoffset = 100 * (1 - Math.min(1, g ? v / g : 0));
+      bar.style.opacity = v > 0 ? 1 : 0;
     }
-    for (const s of SUBS) {
-      const row = $(macroCard, `[data-sub="${s.key}"]`);
-      const v = t[s.key].value;
-      const g = settings[s.key] ?? s.limit;
+    // Limits card: sugars and saturates
+    let overCount = 0;
+    for (const x of SUBS) {
+      const row = $(monitors, `[data-sub="${x.key}"]`);
+      const v = t[x.key].value;
+      const g = settings[x.key] ?? x.limit;
       $(row, '[data-v]').textContent = fmt(v);
       $(row, '[data-g]').textContent = g;
-      row.className = `macro-sub${g && v > g ? ' over' : ''}`; // a limit: fine until it's passed
-      row.title = t[s.key].missing ? `${t[s.key].missing} logged ${t[s.key].missing === 1 ? 'food has' : 'foods have'} no ${s.label.toLowerCase()} data` : '';
+      const over = g && v > g; // a limit: fine until it's passed
+      if (over) overCount++;
+      row.className = `mon-sub${over ? ' over' : ''}`;
+      row.title = t[x.key].missing ? `${t[x.key].missing} logged ${t[x.key].missing === 1 ? 'food has' : 'foods have'} no ${x.label.toLowerCase()} data` : '';
     }
+    $(monitors, '[data-lim-st]').textContent = overCount ? 'Over limit' : 'In range';
+    $(monitors, '[data-lim-st]').className = overCount ? 'c-red' : 'c-green';
+    $(monitors, '[data-lim-ic]').className = `mon-ic ${overCount ? 'bad' : 'ok'}`;
+    $(monitors, '[data-lim-ic]').innerHTML = overCount ? '!' : icons.check;
+    // Nutrients card: tracked nutrients on target today
+    const tracked = trackedMicros(settings).filter((m) => { const since = trackedSince(settings, m.key); return !since || state.date >= since; });
+    const okCount = tracked.filter((m) => {
+      const target = m.kind === 'limit' ? null : settings.micros[m.key] || m.target;
+      const upper = settings.upper?.[m.key] ?? m.upper;
+      return microStatus(m, t[m.key].value, target, upper, limitPart(m, entries)).status === 'green';
+    }).length;
+    $(monitors, '[data-nut-n]').textContent = okCount;
+    const share = tracked.length ? okCount / tracked.length : 0;
+    $(monitors, '[data-nut-n]').className = `mon-ic num ${share >= 0.8 ? 'ok' : share >= 0.4 ? 'mid' : 'bad'}`;
+    $(monitors, '[data-nut-st]').textContent = !entries.length ? 'No food yet' : share >= 0.8 ? 'On track' : share >= 0.4 ? 'Halfway' : 'Low';
+    $(monitors, '[data-nut-st]').className = !entries.length ? 'muted' : share >= 0.8 ? 'c-green' : share >= 0.4 ? 'c-amber' : 'c-red';
+    $(monitors, '[data-nut-sub]').textContent = `${okCount}/${tracked.length} on target`;
 
     // Water
     const ml = waterList.reduce((s, w) => s + w.ml, 0);

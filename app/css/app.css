@@ -739,3 +739,36 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .tr-cov .track { display: block; }
 .tr-cov .fill { display: block; transform-origin: left; }
 .tr-cov-pct { text-align: right; font-weight: 700; font-size: 14px; }
+
+/* ---------- Today: macro rings, status cards, My day ---------- */
+.rings { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: calc(14px - var(--hero-overlap)); }
+.ring { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; color: var(--text); }
+.ring-dial { position: relative; width: min(100%, 106px); aspect-ratio: 1; }
+.ring-dial svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ring-track { fill: none; stroke: var(--track); stroke-width: 7; }
+.ring-bar { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 1s var(--ease), stroke 0.4s; }
+.ring-bar.c-green { stroke: var(--green); } .ring-bar.c-amber { stroke: var(--amber); } .ring-bar.c-red { stroke: var(--red); }
+.ring-c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+.ring-c b { font-family: var(--serif); font-size: 32px; font-weight: 600; letter-spacing: -0.01em; }
+.ring-c small { font-family: var(--serif); font-size: 15px; color: var(--muted); margin-top: 2px; }
+.ring-l { display: inline-flex; align-items: center; gap: 2px; font-family: var(--caps); font-size: 11.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.ring-l svg, .mon-h svg { width: 14px; height: 14px; color: var(--dim); }
+.ring:active .ring-dial { transform: scale(0.96); transition: transform 0.12s; }
+.monitors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0 4px; }
+.mon { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 20px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--text); text-decoration: none; min-width: 0; }
+.mon-h { display: flex; align-items: center; justify-content: space-between; font-family: var(--caps); font-size: 11.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.mon-b { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.mon-b b { font-size: 12.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.mon-ic { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; font-weight: 800; font-size: 15px; }
+.mon-ic svg { width: 18px; height: 18px; }
+.mon-ic.ok { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }
+.mon-ic.mid { background: color-mix(in srgb, var(--amber) 18%, transparent); color: var(--amber); }
+.mon-ic.bad { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red); }
+.mon-list { display: flex; flex-direction: column; gap: 3px; }
+.mon-sub { display: flex; justify-content: space-between; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.mon-sub.over, .mon-sub.over .num { color: var(--red); }
+.day-h { display: flex; align-items: center; gap: 12px; margin: 26px 2px 12px; }
+.day-h h2 { font-family: var(--serif); font-size: 30px; font-weight: 600; margin: 0; white-space: nowrap; letter-spacing: -0.01em; }
+.day-add { flex: none; width: 44px; height: 44px; border-radius: 14px; border: 0; background: var(--text); color: var(--bg); display: grid; place-items: center; box-shadow: var(--shadow); }
+.day-add svg { width: 22px; height: 22px; }
+.day-add:active { transform: scale(0.94); }
