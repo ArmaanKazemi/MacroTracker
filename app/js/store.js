@@ -64,7 +64,7 @@ export async function seedIfNeeded() {
   }
 }
 
-const DATA_VERSION = 4;
+const DATA_VERSION = 5;
 
 /**
  * Upgrades stored data. Needs the food database loaded.
@@ -72,6 +72,8 @@ const DATA_VERSION = 4;
  * v3: fill "no data" gaps in logged entries from the (fixed) food database - the
  *     first CoFID build had no minerals. Values that already exist are never changed.
  * v4: sugars and saturated fat added; filled into logged entries the same way.
+ * v5: foods saved by starring a one-off logged food were stored without nutrition;
+ *     restore it from the most recent entry of that food.
  */
 export async function migrateIfNeeded() {
   const from = (await db.get('kv', 'dataVersion')) || 1;
@@ -82,6 +84,18 @@ export async function migrateIfNeeded() {
       if (!f || !f.per100 || !p.per100) continue;
       f.per100 = { ...p.per100, ...Object.fromEntries(Object.entries(f.per100).filter(([, v]) => v !== null && v !== undefined)) };
       await db.put('foods', f);
+    }
+  }
+  if (from < 5) {
+    const entries = (await db.getAll('entries')).filter((e) => e.per100 && e.per100.kcal !== null && e.per100.kcal !== undefined).sort((a, b) => b.ts - a.ts);
+    for (const f of await db.getAll('foods')) {
+      if (f.source === 'generic' || (f.per100 && f.per100.kcal !== null && f.per100.kcal !== undefined)) continue;
+      const e = entries.find((x) => x.foodId === f.id) || entries.find((x) => !x.foodId && x.name === f.name && (x.brand || '') === (f.brand || ''));
+      if (!e) continue;
+      f.per100 = normNutrients(e.per100);
+      if (f.source === 'entry' || !f.source) f.source = 'custom';
+      await db.put('foods', f);
+      if (!e.foodId) { e.foodId = f.id; await db.put('entries', e); }
     }
   }
   for (const e of await db.getAll('entries')) {

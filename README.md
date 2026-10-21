@@ -11,6 +11,16 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
 - **Water:** the jar fills as you drink. Once you beat your goal, a few drops roll over the rim and down the sides, and a pool forms at the base. The drops replay each time you drink more; the pool just stays.
 - **Same as yesterday?** When you add food to a meal, yesterday's version of that meal is offered at the top. One tap copies it all (Undo available). It also appears on an empty meal's page.
 - **Nutrients:** the vitamins, minerals, fibre and fats you track, each with a daily target and an optional upper limit. They're shown as progress bars with *Low / % / Met* flags, plus a 7-day average with a per-day strip so nutrients that are consistently low stand out.
+- **Trends** (its own tab): a summary of how you're eating over time.
+  - Chart calories, protein, carbs, fat, sugars, saturates, water or any tracked nutrient (picker at the top) over **1W, 1M, 3M, 6M, 1Y or All**.
+  - Daily bars, a smoothed trend line and your goal as a dashed line. From 6 months up, bars are weekly averages.
+  - The header shows the average over logged days and the difference from the previous period of the same length. Press and drag on the chart to read any day.
+  - **Insights & data:** 3/7/14/30-day changes (each against the period before) with sparklines.
+  - **Average daily score** (7 or 30 days): how close each day came to your calorie goal, protein, the sugar and saturates limits and every tracked nutrient. Also shows days logged, day streak and how many nutrients are on target.
+  - **Strongest / Needs attention:** your best and worst covered nutrients.
+  - **Nutrient coverage:** every tracked nutrient's average per logged day against its target. Tap one to chart it.
+  - Days with only supplements don't count as logged. Nutrients switched on recently only count from that day.
+- **Navigation:** Today, Trends, +, Nutrients and Foods are in the tab bar. **Settings** is the slider button at the top right of Today and Trends.
 - **Tracked nutrients** (Settings → Tracked nutrients): switch any of 32 nutrients on or off. Grouped as Vitamins (A, C, D, E, K, B1, B2, B3, B5, B6, biotin, folate, B12, choline), Minerals (sodium, potassium, calcium, magnesium, iron, zinc, iodine, selenium, phosphorus, copper, manganese, chromium, molybdenum, chloride, fluoride) and Fibre & fats (fibre, ALA, EPA + DHA).
   - Presets: **Core** (the original 17, the default), **Extended** (Core plus vitamin E, choline, B6, B1, B2, B3, phosphorus) and **Everything**. Each group also has **Select all** and **Clear**, and any switch can be changed afterwards.
   - Each nutrient's daily target and upper limit can be edited, with **Reset to default**. Defaults are US adult male values.
@@ -148,7 +158,7 @@ node tests/serve.mjs 8080        # then open http://127.0.0.1:8080
 cd tools && npm install          # xlsx + playwright
 node ../tests/cofid-parser.test.mjs
 node ../tests/quickparse.test.mjs   # Quick log text parser
-node ../tests/e2e.mjs            # 37 end-to-end checks on an iPhone-sized viewport
+node ../tests/e2e.mjs            # 39 end-to-end checks on an iPhone-sized viewport
 ```
 
 The e2e suite covers:

@@ -1308,6 +1308,137 @@ await step('tracked nutrients: presets, toggles, per-group select/clear, targets
   });
 });
 
+await step('starring a logged one-off food saves it with its nutrition (and repairs ones saved empty)', async () => {
+  // A one-off food logged without saving it (only the entry has its nutrition)
+  await page.evaluate(async () => {
+    const store = await import('./js/store.js'); const n = await import('./js/nutrients.js'); const ui = await import('./js/ui.js');
+    await store.saveEntry({ id: 'e-maki', date: ui.todayKey(), meal: 'snacks', foodId: null, name: 'Maki box', brand: '', unit: 'g', amount: 100, per100: n.normNutrients({ kcal: 263, protein: 8, carbs: 50, fat: 3, sugars: 5, satfat: 0.5, vitA: 10 }), estimated: [], ts: Date.now() });
+  });
+  await page.goto(BASE + '#/meal?m=snacks');
+  await page.waitForTimeout(500);
+  await page.locator('.meal-item', { hasText: 'Maki box' }).click();
+  await page.waitForTimeout(450);
+  await topSheet().locator('[data-fav]').click();
+  await page.waitForTimeout(400);
+  assert.match(await topSheet().locator('[data-preview]').textContent(), /263/, 'still shows its values after starring');
+  await closeTop();
+  await page.goto(BASE + '#/foods');
+  await page.waitForTimeout(600);
+  await page.locator('.result', { hasText: 'Maki box' }).click();
+  await page.waitForTimeout(450);
+  assert.match(await topSheet().locator('[data-preview]').textContent(), /263[\s\S]*8[\s\S]*50[\s\S]*3/);
+  await topSheet().locator('input.big-input').fill('200');
+  await page.waitForTimeout(200);
+  assert.match(await topSheet().locator('[data-preview]').textContent(), /526/);
+  await closeTop();
+  const linked = await page.evaluate(async () => (await (await import('./js/db.js')).get('entries', 'e-maki')).foodId);
+  assert.ok(linked, 'entry linked to the saved food');
+
+  // A food saved empty by the old bug is repaired from its entry on update
+  const c = await browser.newContext({ ...iphone });
+  const p = await c.newPage();
+  await p.goto(BASE + '#/today');
+  await p.waitForTimeout(1200);
+  await p.evaluate(async () => {
+    const db = await import('./js/db.js'); const n = await import('./js/nutrients.js'); const ui = await import('./js/ui.js');
+    await db.put('foods', { id: 'f-broken', name: 'Sushi', brand: '', unit: 'g', servings: [], source: 'entry', favourite: true, createdAt: 1 });
+    await db.put('entries', { id: 'e-sushi', date: ui.todayKey(), meal: 'lunch', foodId: null, name: 'Sushi', brand: '', unit: 'g', amount: 100, per100: n.normNutrients({ kcal: 150, protein: 6, carbs: 28, fat: 1 }), estimated: [], ts: 5 });
+    await db.put('kv', 4, 'dataVersion');
+  });
+  await p.reload();
+  await p.waitForTimeout(1500);
+  const fixed = await p.evaluate(async () => (await (await import('./js/db.js')).get('foods', 'f-broken')));
+  assert.equal(fixed.per100.kcal, 150);
+  assert.equal(fixed.per100.carbs, 28);
+  assert.equal(fixed.source, 'custom');
+  await c.close();
+  await page.evaluate(async () => { const store = await import('./js/store.js'); await store.deleteEntry('e-maki'); });
+});
+
+await step('trends: calories chart with ranges, trend, goal and scrubbing; changes, score, coverage; settings via the gear', async () => {
+  const c = await browser.newContext({ ...iphone });
+  const p = await c.newPage();
+  const errs = [];
+  p.on('pageerror', (e) => errs.push(e.message));
+  await p.goto(BASE + '#/today');
+  await p.waitForTimeout(1500);
+  // Five logged days this week: 2000, 2100, 2200, 2300, 2400 kcal (today is the last); 2 days with nothing.
+  await p.evaluate(async () => {
+    const store = await import('./js/store.js'); const n = await import('./js/nutrients.js'); const ui = await import('./js/ui.js'); const db = await import('./js/db.js');
+    for (const e of await db.getAll('entries')) await store.deleteEntry(e.id);
+    const kcal = [2000, 2100, 2200, 2300, 2400];
+    for (let i = 0; i < 5; i++) {
+      await store.saveEntry({ id: 'tr' + i, date: ui.addDays(ui.todayKey(), -(4 - i)), meal: 'lunch', name: 'Food', unit: 'g', amount: 100, per100: n.normNutrients({ kcal: kcal[i], protein: 100 + i * 10, carbs: 200, fat: 70, vitD: 15, calcium: 300 }), estimated: [], ts: i });
+    }
+    // A day with only a supplement doesn't count as logged.
+    await store.saveEntry({ id: 'tr-s', date: ui.addDays(ui.todayKey(), -5), meal: 'supplements', name: 'Vit D', unit: 'g', amount: 100, per100: store.supplementNutrients({ vitD: 25 }), ts: 9 });
+  });
+  // Gear on Today opens Settings; back returns
+  await p.locator('[data-settings]').click();
+  await p.waitForTimeout(500);
+  assert.match(p.url(), /#\/settings$/);
+  await p.locator('.meal-top [data-back]').click();
+  await p.waitForTimeout(500);
+  assert.match(p.url(), /#\/today$/);
+
+  await p.locator('.tabbar [data-tab="trends"]').click();
+  await p.waitForTimeout(400);
+  await p.locator('[data-r="1W"]').click();
+  await p.waitForTimeout(1200);
+  assert.equal(await p.locator('[data-metric]').inputValue(), 'kcal');
+  assert.equal(await p.locator('[data-avg]').textContent(), '2,200');
+  assert.match(await p.locator('[data-span]').textContent(), /5 of 7 days logged/);
+  assert.equal(await p.locator('.tr-svg rect.b').count(), 5);
+  assert.equal(await p.locator('.tr-svg .tl').count(), 1, 'trend line drawn');
+  assert.equal(await p.locator('.tr-svg .goal').count(), 1, 'goal line drawn');
+  assert.equal(await p.locator('.tr-svg .xl').count(), 7, 'a label for every day of the week');
+  // Press on the chart to read a day
+  await p.locator('.tr-svg').scrollIntoViewIfNeeded();
+  const box = await p.locator('.tr-svg').boundingBox();
+  await p.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2);
+  await p.mouse.down();
+  await p.waitForTimeout(100);
+  assert.notEqual(await p.locator('[data-l1]').textContent(), 'Average');
+  assert.match(await p.locator('.tr-svg').getAttribute('class'), /scrub/);
+  await p.mouse.up();
+  await p.waitForTimeout(100);
+  assert.equal(await p.locator('[data-l1]').textContent(), 'Average');
+  // Changes: 3-day average (2200–2400 = 2300) vs the 3 days before (2000, 2100 = 2050)
+  assert.equal(await p.locator('.tr-change').count(), 4);
+  assert.match(await p.locator('.tr-change').nth(0).textContent(), /3-day[\s\S]*\+250 kcal[\s\S]*Increase/);
+  // Score card
+  assert.equal(await p.locator('[data-logged]').textContent(), '5/7');
+  assert.equal(await p.locator('[data-streak]').textContent(), '5');
+  assert.equal(await p.locator('.tr-bar').count(), 7);
+  await p.locator('[data-sd="30"]').click();
+  await p.waitForTimeout(300);
+  assert.equal(await p.locator('.tr-bar').count(), 30);
+  // Coverage lists every tracked nutrient; vitamin D is 100%, tap to chart it
+  assert.equal(await p.locator('.tr-cov').count(), 17);
+  assert.match(await p.locator('.tr-cov[data-chart-key="vitD"]').textContent(), /Vitamin D[\s\S]*15 µg\/day[\s\S]*100%/);
+  assert.match(await p.locator('[data-strong]').textContent(), /Vitamin D/);
+  assert.match(await p.locator('[data-weak]').textContent(), /Fibre0%/);
+  await p.locator('.tr-cov[data-chart-key="calcium"]').click();
+  await p.waitForTimeout(1000);
+  assert.equal(await p.locator('[data-metric]').inputValue(), 'calcium');
+  assert.equal(await p.locator('[data-avg]').textContent(), '300');
+  assert.match(await p.locator('[data-u]').textContent(), /mg/);
+  // Metric picker: protein; long ranges switch to weekly averages
+  await p.locator('[data-metric]').selectOption('protein');
+  await p.waitForTimeout(1000);
+  assert.equal(await p.locator('[data-avg]').textContent(), '120');
+  await p.locator('[data-r="1Y"]').click();
+  await p.waitForTimeout(600);
+  assert.match(await p.locator('[data-legend]').textContent(), /Weekly average/);
+  // Choices are remembered
+  await p.reload();
+  await p.waitForTimeout(1200);
+  assert.equal(await p.locator('[data-metric]').inputValue(), 'protein');
+  assert.equal(await p.locator('[data-r="1Y"]').getAttribute('aria-selected'), 'true');
+  assert.deepEqual(errs, []);
+  await c.close();
+});
+
 await step('no JavaScript errors', async () => {
   assert.deepEqual(errors, []);
 });
