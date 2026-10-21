@@ -232,7 +232,7 @@ export function mountToday(view, state) {
 
   async function refresh() {
     refreshHealth();
-    $(hero, '[data-datebar]').replaceChildren(dateSwitcher(state.date, (d) => { state.date = d; refresh(); }));
+    $(hero, '[data-datebar]').replaceChildren(dateSwitcher(state.date, (d) => { state.date = d; refresh(); }), el(`<a class="iconbtn gear" href="#/settings" aria-label="Settings" data-settings>${icons.settings}</a>`));
     const [settings, entries, waterList] = await Promise.all([store.getSettings(), store.entriesFor(state.date), store.waterFor(state.date)]);
     await fooddb.load();
     const t = totals(entries);

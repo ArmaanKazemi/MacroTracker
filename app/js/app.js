@@ -6,13 +6,14 @@ import { mountToday } from './today.js';
 import { mountNutrients, mountFoods, mountSettings, guessMeal } from './views.js';
 import { mountMeal } from './meal.js';
 import { mountTracked } from './tracked.js';
+import { mountTrends } from './trends.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.13.1';
+window.APP_VERSION = '2.14.0';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), microMode: 'day', foodsTab: 'mine' };
-const routes = { today: mountToday, nutrients: mountNutrients, foods: mountFoods, settings: mountSettings, meal: mountMeal, tracked: mountTracked };
+const routes = { today: mountToday, nutrients: mountNutrients, foods: mountFoods, settings: mountSettings, meal: mountMeal, tracked: mountTracked, trends: mountTrends };
 let current = null;
 let currentName = '';
 let enterTimer = 0;
@@ -42,7 +43,7 @@ function route() {
     if (returning) { view.classList.remove('view-enter'); restoreY = scrollMemory.today || 0; }
     window.scrollTo(0, 0);
   }
-  const tab = key === 'meal' ? 'today' : key === 'tracked' ? 'settings' : key;
+  const tab = key === 'meal' ? 'today' : key;
   $$(document, '.tabbar a').forEach((a) => (a.dataset.tab === tab ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   moveTabIndicator();
   syncThemeColor();

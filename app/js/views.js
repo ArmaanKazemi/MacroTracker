@@ -232,7 +232,10 @@ export function balanceMacros({ kcal, protein, carbs, fat }) {
 // ======================================================================
 export function mountSettings(view) {
   view.innerHTML = '';
-  view.append(el('<div class="topbar"><h1 class="title">Settings</h1></div>'));
+  const head = el(`<div class="meal-top"><a class="iconbtn" href="#/today" data-back aria-label="Back">${icons.back}</a><h1 class="title">Settings</h1></div>`);
+  // Settings opens from a gear button: step back to wherever that was.
+  $(head, '[data-back]').onclick = (e) => { if (window.__prevRoute && window.__prevRoute !== 'tracked') { e.preventDefault(); history.back(); } };
+  view.append(head);
   const goals = el(`
     <section class="card">
       <div class="eyebrow">Daily goals</div>
