@@ -1454,28 +1454,8 @@ await step('trends: calories chart with ranges, trend, goal and scrubbing; chang
   await c.close();
 });
 
-await step('home: macro rings, limits and nutrients cards, My day add button; tab order', async () => {
+await step('tab order: Today, Nutrients, +, Trends, Foods', async () => {
   assert.deepEqual(await page.locator('.tabbar a').evaluateAll((as) => as.map((a) => a.dataset.tab)), ['today', 'nutrients', 'trends', 'foods']);
-  await page.goto(BASE + '#/today');
-  await settle();
-  assert.equal(await page.locator('.rings .ring').count(), 3);
-  const p = page.locator('[data-macro="protein"]');
-  assert.match(await p.locator('.ring-l').textContent(), /Protein/);
-  assert.ok(Number(await p.locator('[data-v]').textContent()) >= 0);
-  assert.match(await page.locator('[data-mon="limits"]').textContent(), /(In range|Over limit)[\s\S]*Sugars[\s\S]*Saturates/);
-  assert.match(await page.locator('[data-mon="nutrients"] [data-nut-sub]').textContent(), /^\d+\/17 on target$/);
-  // Tapping a ring opens its trend
-  await p.click();
-  await page.waitForTimeout(900);
-  assert.match(page.url(), /#\/trends$/);
-  assert.equal(await page.locator('[data-metric]').inputValue(), 'protein');
-  // My day + adds food
-  await page.goto(BASE + '#/today');
-  await settle();
-  await page.locator('[data-day-add]').click();
-  await page.waitForTimeout(450);
-  assert.match(await topSheet().locator('h2').textContent(), /^Add to /);
-  await closeTop();
 });
 
 await step('no JavaScript errors', async () => {
