@@ -16,14 +16,32 @@ export function guessMeal() {
   return 'snacks';
 }
 
+/** "This week · 20 – 26 Oct" with previous / next week buttons. */
+function weekSwitcher(monday, onChange) {
+  const sunday = addDays(monday, 6);
+  const thisMonday = addDays(todayKey(), -((parseKey(todayKey()).getDay() + 6) % 7));
+  const d = (k, month) => parseKey(k).toLocaleDateString('en-GB', month ? { day: 'numeric', month: 'short' } : { day: 'numeric' });
+  const sameMonth = parseKey(monday).getMonth() === parseKey(sunday).getMonth();
+  const name = monday === thisMonday ? 'This week' : monday === addDays(thisMonday, -7) ? 'Last week' : `Week of ${d(monday, true)}`;
+  const w = el(`
+    <div class="datesw" data-week="${monday}">
+      <button type="button" data-prev aria-label="Previous week">${icons.back}</button>
+      <div class="label"><span>${esc(name)}</span><small>${d(monday, !sameMonth)} – ${d(sunday, true)}</small></div>
+      <button type="button" data-next aria-label="Next week" ${monday >= thisMonday ? 'disabled' : ''}>${icons.next}</button>
+    </div>`);
+  $(w, '[data-prev]').onclick = () => onChange(addDays(monday, -7));
+  $(w, '[data-next]').onclick = () => onChange(addDays(monday, 7));
+  return w;
+}
+
 // ======================================================================
 // Nutrients
 // ======================================================================
 export function mountNutrients(view, state) {
   view.innerHTML = '';
-  let mode = state.microMode || 'day';
+  let mode = state.microMode || 'week';
   const top = el('<div class="topbar with-date"><h1 class="title">Nutrients</h1></div>');
-  const seg = el(`<div class="seg" role="tablist"><button role="tab" data-m="day">Day</button><button role="tab" data-m="week">7-day average</button></div>`);
+  const seg = el(`<div class="seg" role="tablist"><button role="tab" data-m="week">Weekly average</button><button role="tab" data-m="day">Day</button></div>`);
   const summary = el(`<div class="micro-sum">
       <div class="card"><div class="stat-v num c-red" data-low>0</div><div class="stat-l">Low / over</div></div>
       <div class="card"><div class="stat-v num c-amber" data-mid>0</div><div class="stat-l">Getting there</div></div>
@@ -54,7 +72,11 @@ export function mountNutrients(view, state) {
   }
 
   async function refresh() {
-    top.replaceChildren(el('<h1 class="title">Nutrients</h1>'), dateSwitcher(state.date, (d) => { state.date = d; refresh(); }));
+    // Weeks run Monday to Sunday; the switcher steps a week (or a day) at a time.
+    const monday = addDays(state.date, -((parseKey(state.date).getDay() + 6) % 7));
+    top.replaceChildren(el('<h1 class="title">Nutrients</h1>'), mode === 'week'
+      ? weekSwitcher(monday, (d) => { state.date = addDays(d, 6) >= todayKey() ? todayKey() : d; refresh(); })
+      : dateSwitcher(state.date, (d) => { state.date = d; refresh(); }));
     $$(seg, '[data-m]').forEach((b) => b.setAttribute('aria-selected', b.dataset.m === mode));
     const settings = await store.getSettings();
     const groups = trackedGroups(settings);
@@ -71,8 +93,8 @@ export function mountNutrients(view, state) {
       values = Object.fromEntries(tracked.map((m) => [m.key, { ...t[m.key], limit: limitPart(m, list), n: list.length ? 1 : 0 }]));
       foot.textContent = list.length ? '' : 'Nothing logged on this day yet.';
     } else {
-      const from = addDays(state.date, -6);
-      const all = await store.entriesBetween(from, state.date);
+      const from = monday;
+      const all = await store.entriesBetween(from, addDays(from, 6));
       perDay = [];
       for (let i = 0; i < 7; i++) {
         const d = addDays(from, i);
@@ -95,11 +117,11 @@ export function mountNutrients(view, state) {
         };
       }
       const loggedDays = perDay.filter(Boolean).length;
-      const f = parseKey(from).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-      const t = parseKey(state.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      const nice = (k) => { const d = parseKey(k); return `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${d.getDate()} ${d.toLocaleDateString('en-GB', { month: 'short' })}`; };
+      const f = nice(from), t = nice(addDays(from, 6));
       foot.textContent = loggedDays
-        ? `Average of ${loggedDays} logged ${loggedDays === 1 ? 'day' : 'days'}, ${f} – ${t}. Days with nothing logged, and days before a nutrient was switched on, are skipped. The strip under each bar shows each day.`
-        : `Nothing logged between ${f} and ${t}.`;
+        ? `Average of ${loggedDays} logged ${loggedDays === 1 ? 'day' : 'days'}, ${f} – ${t}. Days with nothing logged, and days before a nutrient was switched on, are skipped. The strip under each bar shows Monday to Sunday.`
+        : `Nothing logged in the week ${f} – ${t}.`;
     }
     let low = 0, mid = 0, ok = 0;
     for (const m of tracked) {

@@ -455,6 +455,18 @@ await step('goals: macro grams show calories they add up to; changes apply to ho
 await step('nutrients date switcher stays put between Today and Yesterday', async () => {
   await page.goto(BASE + '#/nutrients');
   await page.waitForTimeout(500);
+  // Weekly average is the default view, stepping a week at a time
+  assert.equal(await page.locator('[data-m="week"]').getAttribute('aria-selected'), 'true');
+  assert.match(await page.locator('.topbar .datesw').textContent(), /This week/);
+  assert.ok(await page.locator('.topbar [data-next]').isDisabled());
+  await page.locator('.topbar [data-prev]').click();
+  await page.waitForTimeout(400);
+  assert.match(await page.locator('.topbar .datesw').textContent(), /Last week/);
+  await page.locator('.topbar [data-next]').click();
+  await page.waitForTimeout(400);
+  assert.match(await page.locator('.topbar .datesw').textContent(), /This week/);
+  await page.locator('[data-m="day"]').click();
+  await page.waitForTimeout(400);
   const box = async () => { const b = await page.locator('.topbar .datesw').boundingBox(); return [Math.round(b.y), Math.round(b.x), Math.round(b.width)].join(','); };
   const today = await box();
   await page.locator('.topbar [data-prev]').click();
@@ -492,7 +504,7 @@ await step('micronutrients: daily bars flag low nutrients and missing data; week
   for (const k of ['vitB12', 'iodine', 'selenium', 'ala', 'epadha']) assert.equal(await page.locator(`[data-k="${k}"]`).count(), 1);
   await page.locator('[data-m="week"]').click();
   await settle();
-  assert.match(await page.locator('[data-foot]').textContent(), /Average of 2 logged days/);
+  assert.match(await page.locator('[data-foot]').textContent(), /Average of \d logged days?, Mon [\s\S]* – Sun /);
   assert.equal(await page.locator('[data-k="fibre"] [data-days] i').count(), 7);
   assert.ok(!(await page.locator('[data-k="fibre"] [data-days]').isHidden()));
 });
@@ -1038,6 +1050,7 @@ await step('quick log: type several foods and your own values, log them all at o
 
 await step('water & supplements share a swipe card; supplements: add, tick off (counts towards nutrients), untick, edit', async () => {
   await page.goto(BASE + '#/nutrients');
+  await page.locator('[data-m="day"]').click(); // a single day's total
   await page.waitForTimeout(1300); // let the numbers finish counting up
   const vitD = async () => Number((await page.locator('[data-k="vitD"] [data-v]').textContent()).replace(/,/g, ''));
   const before = await vitD();
@@ -1195,6 +1208,8 @@ await step('tracked nutrients: presets, toggles, per-group select/clear, targets
 
   // Nutrients today shows the 24; yesterday's vitamin E is shown but not judged
   await page.goto(BASE + '#/nutrients');
+  await page.locator('[data-m="day"]').click();
+  await page.waitForTimeout(300);
   assert.equal(await page.locator('.bar-row').count(), 24);
   assert.equal(await counts(), 24);
   await page.locator('[data-prev]').click();
@@ -1437,6 +1452,30 @@ await step('trends: calories chart with ranges, trend, goal and scrubbing; chang
   assert.equal(await p.locator('[data-r="1Y"]').getAttribute('aria-selected'), 'true');
   assert.deepEqual(errs, []);
   await c.close();
+});
+
+await step('home: macro rings, limits and nutrients cards, My day add button; tab order', async () => {
+  assert.deepEqual(await page.locator('.tabbar a').evaluateAll((as) => as.map((a) => a.dataset.tab)), ['today', 'nutrients', 'trends', 'foods']);
+  await page.goto(BASE + '#/today');
+  await settle();
+  assert.equal(await page.locator('.rings .ring').count(), 3);
+  const p = page.locator('[data-macro="protein"]');
+  assert.match(await p.locator('.ring-l').textContent(), /Protein/);
+  assert.ok(Number(await p.locator('[data-v]').textContent()) >= 0);
+  assert.match(await page.locator('[data-mon="limits"]').textContent(), /(In range|Over limit)[\s\S]*Sugars[\s\S]*Saturates/);
+  assert.match(await page.locator('[data-mon="nutrients"] [data-nut-sub]').textContent(), /^\d+\/17 on target$/);
+  // Tapping a ring opens its trend
+  await p.click();
+  await page.waitForTimeout(900);
+  assert.match(page.url(), /#\/trends$/);
+  assert.equal(await page.locator('[data-metric]').inputValue(), 'protein');
+  // My day + adds food
+  await page.goto(BASE + '#/today');
+  await settle();
+  await page.locator('[data-day-add]').click();
+  await page.waitForTimeout(450);
+  assert.match(await topSheet().locator('h2').textContent(), /^Add to /);
+  await closeTop();
 });
 
 await step('no JavaScript errors', async () => {
