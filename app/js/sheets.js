@@ -388,6 +388,12 @@ const servRow = (sv, unit) => `<div class="serv-row">
 // ======================================================================
 export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}) {
   food = { ...food };
+  // A logged food that was never saved (one-off custom food, Quick log): its nutrition
+  // only lives on the entry, so carry it over in case the food gets starred / saved.
+  if (entry && !food.id && food.source !== 'generic' && !food.per100) {
+    food.per100 = entry.per100;
+    if (food.source === 'entry') food.source = 'custom';
+  }
   const unit = food.unit || 'g';
   let servings = food.servings || [];
   // Current selection
@@ -469,6 +475,8 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     saved.favourite = food.favourite;
     await store.saveFood(saved);
     food = { ...saved };
+    // Link the entry to its new food so later edits and saves stay together.
+    if (entry && !entry.foodId) { entry.foodId = saved.id; await store.saveEntry(entry); }
     renderFav();
     renderActions();
     toast(food.favourite ? 'Starred: pinned to the top of My foods' : 'Unstarred');

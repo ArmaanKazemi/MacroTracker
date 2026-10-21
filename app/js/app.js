@@ -8,7 +8,7 @@ import { mountMeal } from './meal.js';
 import { mountTracked } from './tracked.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.13.0';
+window.APP_VERSION = '2.13.1';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), microMode: 'day', foodsTab: 'mine' };
