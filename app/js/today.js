@@ -140,6 +140,11 @@ export function mountToday(view, state) {
   view.appendChild(sectionHead('Meals'));
   const mealsBox = el('<div></div>');
   view.appendChild(mealsBox);
+  // Supplements (and anything else outside the four meals) still count towards the
+  // day's totals; this line shows what they add so the meals plus it equal "Eaten".
+  const extraLine = el(`<button class="extra-line" type="button" hidden><span class="extra-l" data-extra-l>Supplements</span><span class="num" data-extra-v></span>${icons.next}</button>`);
+  view.appendChild(extraLine);
+  extraLine.onclick = () => { daily.scrollIntoView({ behavior: 'smooth', block: 'center' }); showPage(1); };
   // Below the meals: water & supplements, then the Apple Health card.
   view.append(dailyHead, daily, healthCard);
   for (const m of MEALS) {
@@ -232,7 +237,7 @@ export function mountToday(view, state) {
 
   async function refresh() {
     refreshHealth();
-    $(hero, '[data-datebar]').replaceChildren(dateSwitcher(state.date, (d) => { state.date = d; refresh(); }), el(`<a class="iconbtn gear" href="#/settings" aria-label="Settings" data-settings>${icons.settings}</a>`));
+    $(hero, '[data-datebar]').replaceChildren(dateSwitcher(state.date, (d) => { state.date = d; refresh(); }, { future: true, tapToday: true }), el(`<a class="iconbtn gear" href="#/settings" aria-label="Settings" data-settings>${icons.settings}</a>`));
     const [settings, entries, waterList] = await Promise.all([store.getSettings(), store.entriesFor(state.date), store.waterFor(state.date)]);
     await fooddb.load();
     const t = totals(entries);
@@ -290,6 +295,16 @@ export function mountToday(view, state) {
     // Supplements
     const sum = await supps.refresh(entries);
     $(daily, '[data-supp-badge]').textContent = sum.total ? `${sum.done}/${sum.total}` : '';
+
+    // What supplements (or entries outside the four meals) add to the totals
+    const outside = entries.filter((e) => !MEALS.some((m) => m.key === e.meal));
+    const ot = totals(outside);
+    const adds = ot.kcal.value >= 0.5 || ['protein', 'carbs', 'fat'].some((k) => ot[k].value >= 0.05);
+    extraLine.hidden = !adds;
+    if (adds) {
+      $(extraLine, '[data-extra-l]').textContent = outside.every((e) => e.meal === 'supplements') ? 'Supplements' : 'Other entries';
+      $(extraLine, '[data-extra-v]').innerHTML = `<b>${fmt(ot.kcal.value, 'kcal')} kcal</b> · P ${fmt(ot.protein.value)} · C ${fmt(ot.carbs.value)} · F ${fmt(ot.fat.value)}`;
+    }
 
     // Meals
     for (const m of MEALS) {

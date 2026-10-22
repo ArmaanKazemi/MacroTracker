@@ -41,7 +41,7 @@ export function mountNutrients(view, state) {
   view.innerHTML = '';
   let mode = state.microMode || 'week';
   const top = el('<div class="topbar with-date"><h1 class="title">Nutrients</h1></div>');
-  const seg = el(`<div class="seg" role="tablist"><button role="tab" data-m="week">Weekly average</button><button role="tab" data-m="day">Day</button></div>`);
+  const seg = el(`<div class="seg" role="tablist"><button role="tab" data-m="day">Day</button><button role="tab" data-m="week">Weekly average</button></div>`);
   const summary = el(`<div class="micro-sum">
       <div class="card"><div class="stat-v num c-red" data-low>0</div><div class="stat-l">Low / over</div></div>
       <div class="card"><div class="stat-v num c-amber" data-mid>0</div><div class="stat-l">Getting there</div></div>

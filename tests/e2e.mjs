@@ -416,7 +416,7 @@ await step('date switcher: previous day is independent and editable', async () =
   await page.locator('[data-next]').click();
   await settle();
   assert.ok((await eaten()) > 2000);
-  assert.ok(await page.locator('[data-next]').isDisabled());
+  assert.equal(await page.locator('.datesw .label span').textContent(), 'Today');
 });
 
 await step('goals: macro grams show calories they add up to; changes apply to home', async () => {
@@ -1456,6 +1456,56 @@ await step('trends: calories chart with ranges, trend, goal and scrubbing; chang
 
 await step('tab order: Today, Nutrients, +, Trends, Foods', async () => {
   assert.deepEqual(await page.locator('.tabbar a').evaluateAll((as) => as.map((a) => a.dataset.tab)), ['today', 'nutrients', 'trends', 'foods']);
+});
+
+await step('Today can step into future days to log ahead; tapping the date returns to today; Nutrients tabs: Day then Weekly average', async () => {
+  await page.goto(BASE + '#/today');
+  await settle();
+  const bar = page.locator('[data-datebar]');
+  assert.match(await bar.textContent(), /Today/);
+  assert.ok(!(await bar.locator('[data-next]').isDisabled()), 'can go forward from today');
+  await bar.locator('[data-next]').click();
+  await page.waitForTimeout(500);
+  assert.match(await bar.textContent(), /Tomorrow/);
+  // Log water for tomorrow
+  await page.locator('.water [data-add="250"]').click();
+  await page.waitForTimeout(500);
+  const tomorrow = await page.evaluate(async () => { const ui = await import('./js/ui.js'); const store = await import('./js/store.js'); const k = ui.addDays(ui.todayKey(), 1); return (await store.waterFor(k)).reduce((s, w) => s + w.ml, 0); });
+  assert.equal(tomorrow, 250);
+  await bar.locator('[data-next]').click();
+  await page.waitForTimeout(400);
+  assert.doesNotMatch(await bar.textContent(), /Today|Tomorrow/);
+  // Tap the date: straight back to today
+  await bar.locator('[data-label]').click();
+  await page.waitForTimeout(500);
+  assert.match(await bar.textContent(), /Today/);
+  assert.equal(await bar.locator('input[type=date]').count(), 1, 'on today the date opens the picker');
+  // Clean up tomorrow's water
+  await page.evaluate(async () => { const ui = await import('./js/ui.js'); const store = await import('./js/store.js'); for (const w of await store.waterFor(ui.addDays(ui.todayKey(), 1))) await store.deleteWater(w.id); });
+  await page.goto(BASE + '#/nutrients');
+  await page.waitForTimeout(400);
+  assert.deepEqual(await page.locator('.seg [data-m]').evaluateAll((b) => b.map((x) => x.textContent)), ['Day', 'Weekly average']);
+});
+
+await step('supplements with calories show as their own line so meals + supplements = eaten', async () => {
+  await page.goto(BASE + '#/today');
+  await settle();
+  assert.ok(await page.locator('.extra-line').isHidden(), 'no line while supplements add nothing');
+  await page.evaluate(async () => {
+    const store = await import('./js/store.js'); const ui = await import('./js/ui.js');
+    await store.saveEntry({ id: 'e-fishoil', date: ui.todayKey(), meal: 'supplements', suppId: 's-x', name: 'Fish oil', unit: 'g', amount: 100, per100: store.supplementNutrients({ kcal: 14, protein: 0.8, fat: 1 }), ts: Date.now() });
+    window.dispatchEvent(new CustomEvent('data-changed'));
+  });
+  await settle();
+  const line = page.locator('.extra-line');
+  assert.ok(await line.isVisible());
+  assert.match(await line.textContent(), /Supplements[\s\S]*14 kcal[\s\S]*P 0\.8[\s\S]*F 1/);
+  // meals + supplements = eaten
+  const mealsKcal = await page.locator('[data-meal] .meal-sub b').evaluateAll((bs) => bs.reduce((s, b) => s + Number(b.textContent.replace(/[^\d.]/g, '')), 0));
+  assert.ok(Math.abs(mealsKcal + 14 - (await eaten())) <= 2, `${mealsKcal} + 14 vs ${await eaten()}`);
+  await page.evaluate(async () => { const store = await import('./js/store.js'); await store.deleteEntry('e-fishoil'); window.dispatchEvent(new CustomEvent('data-changed')); });
+  await settle();
+  assert.ok(await line.isHidden());
 });
 
 await step('no JavaScript errors', async () => {

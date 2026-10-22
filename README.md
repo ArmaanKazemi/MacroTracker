@@ -4,13 +4,13 @@
 
 A dark, athletic-looking nutrition tracker that runs entirely in your browser. You can install it to your iPhone home screen and it works offline. There's no backend, no account and no AI. All your data stays on your phone in IndexedDB.
 
-- **Today:** a calorie ring (eaten / goal / remaining), protein, carb and fat bars (with *of which sugars* under carbs and *of which saturates* under fat), four meal sections, water & supplements and a date switcher.
+- **Today:** a calorie ring (eaten / goal / remaining), protein, carb and fat bars (with *of which sugars* under carbs and *of which saturates* under fat), four meal sections, water & supplements and a date switcher. The switcher goes into future days too, so you can log ahead (e.g. tomorrow); tap the date to jump back to today.
 - **Meals:** tap a meal's name on Today to open its page: every food in it, total calories against the recommended range, and nutrition (protein, carbs with sugars and fibre, fat with saturates, sodium, potassium, and all vitamins and minerals) against that meal's share of your daily goals. Remove foods there with ✕ or a swipe (with Undo). The chevron on a meal card collapses its list; that's remembered.
 - **Quick log:** in the add-food sheet, tap **Quick log** and type everything you had, one food per line or separated by commas, e.g. `200g chicken breast, 2 eggs, 1 scoop impact whey` or `chicken wrap 450kcal 35p 40c 12f sodium 800mg`. Your saved foods are matched first, then CoFID. Amounts can be grams/ml, counts ("2 eggs", "half a banana") or your serving names ("1 scoop"). You can give your own values: kcal, protein/p, carbs/c, fat/f, sugar, sat fat, fibre, sodium (mg), salt (g, converted to sodium) and any vitamin or mineral. Values are for the amount you write: `greek yoghurt 150g 99kcal 15p` logs 150 g. Check the list, change a match or an amount, then **Log all** (Undo available). No AI, works offline, free.
-- **Water & supplements:** one card on Today; swipe sideways (or tap the tabs) between the water jar and your supplements. Supplements are compact two-column pills. Add each supplement with its dose and, optionally, what one dose contains (e.g. `vitamin d 25µg, epa+dha 500mg`). Tap a pill to tick it off for the day; anything it contains counts towards your nutrient totals (and Apple Health), without adding calories or "no data" warnings. Tap **Edit**, then a pill, to change or delete it.
+- **Water & supplements:** one card on Today; swipe sideways (or tap the tabs) between the water jar and your supplements. Supplements are compact two-column pills. Add each supplement with its dose and, optionally, what one dose contains (e.g. `vitamin d 25µg, epa+dha 500mg`). Tap a pill to tick it off for the day; anything it contains counts towards your nutrient totals (and Apple Health), without adding calories or "no data" warnings. If a supplement does have calories or macros, a **Supplements** line under the meals shows what it adds, so the meals plus that line always equal *Eaten*. Tap **Edit**, then a pill, to change or delete it.
 - **Water:** the jar fills as you drink. Once you beat your goal, a few drops roll over the rim and down the sides, and a pool forms at the base. The drops replay each time you drink more; the pool just stays.
 - **Same as yesterday?** When you add food to a meal, yesterday's version of that meal is offered at the top. One tap copies it all (Undo available). It also appears on an empty meal's page.
-- **Nutrients:** the vitamins, minerals, fibre and fats you track, each with a daily target and an optional upper limit. The default view is the **weekly average** (Monday to Sunday, over the days you logged), with a week switcher and a Mon–Sun strip under each bar. **Day** shows a single day. Each has *Low / % / Met* flags.
+- **Nutrients:** the vitamins, minerals, fibre and fats you track, each with a daily target and an optional upper limit. The default view is the **weekly average** (Monday to Sunday, over the days you logged), with a week switcher and a Mon–Sun strip under each bar. **Day** (the first tab) shows a single day. Each has *Low / % / Met* flags.
 - **Trends** (its own tab): a summary of how you're eating over time.
   - Chart calories, protein, carbs, fat, sugars, saturates, water or any tracked nutrient (picker at the top) over **1W, 1M, 3M, 6M, 1Y or All**.
   - Daily bars, a smoothed trend line and your goal as a dashed line. From 6 months up, bars are weekly averages.
@@ -158,7 +158,7 @@ node tests/serve.mjs 8080        # then open http://127.0.0.1:8080
 cd tools && npm install          # xlsx + playwright
 node ../tests/cofid-parser.test.mjs
 node ../tests/quickparse.test.mjs   # Quick log text parser
-node ../tests/e2e.mjs            # 40 end-to-end checks on an iPhone-sized viewport
+node ../tests/e2e.mjs            # 42 end-to-end checks on an iPhone-sized viewport
 ```
 
 The e2e suite covers:
