@@ -1487,6 +1487,27 @@ await step('Today can step into future days to log ahead; tapping the date retur
   assert.deepEqual(await page.locator('.seg [data-m]').evaluateAll((b) => b.map((x) => x.textContent)), ['Day', 'Weekly average']);
 });
 
+await step('supplements with calories show as their own line so meals + supplements = eaten', async () => {
+  await page.goto(BASE + '#/today');
+  await settle();
+  assert.ok(await page.locator('.extra-line').isHidden(), 'no line while supplements add nothing');
+  await page.evaluate(async () => {
+    const store = await import('./js/store.js'); const ui = await import('./js/ui.js');
+    await store.saveEntry({ id: 'e-fishoil', date: ui.todayKey(), meal: 'supplements', suppId: 's-x', name: 'Fish oil', unit: 'g', amount: 100, per100: store.supplementNutrients({ kcal: 14, protein: 0.8, fat: 1 }), ts: Date.now() });
+    window.dispatchEvent(new CustomEvent('data-changed'));
+  });
+  await settle();
+  const line = page.locator('.extra-line');
+  assert.ok(await line.isVisible());
+  assert.match(await line.textContent(), /Supplements[\s\S]*14 kcal[\s\S]*P 0\.8[\s\S]*F 1/);
+  // meals + supplements = eaten
+  const mealsKcal = await page.locator('[data-meal] .meal-sub b').evaluateAll((bs) => bs.reduce((s, b) => s + Number(b.textContent.replace(/[^\d.]/g, '')), 0));
+  assert.ok(Math.abs(mealsKcal + 14 - (await eaten())) <= 2, `${mealsKcal} + 14 vs ${await eaten()}`);
+  await page.evaluate(async () => { const store = await import('./js/store.js'); await store.deleteEntry('e-fishoil'); window.dispatchEvent(new CustomEvent('data-changed')); });
+  await settle();
+  assert.ok(await line.isHidden());
+});
+
 await step('no JavaScript errors', async () => {
   assert.deepEqual(errors, []);
 });
