@@ -213,20 +213,27 @@ export function dateLabel(k) {
   return parseKey(k).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-/** Date switcher control. onChange(newKey). */
-export function dateSwitcher(key, onChange) {
+/**
+ * Date switcher control. onChange(newKey).
+ * future: allow days after today (e.g. log tomorrow's food).
+ * tapToday: on any other day, tapping the date jumps back to today; on today it opens the date picker.
+ */
+export function dateSwitcher(key, onChange, { future = false, tapToday = false } = {}) {
+  const today = todayKey();
+  const jump = tapToday && key !== today;
   const w = el(`
     <div class="datesw">
       <button type="button" data-prev aria-label="Previous day">${icons.back}</button>
-      <button type="button" class="label" data-label><span>${esc(dateLabel(key))}</span>${/^(Today|Yesterday|Tomorrow)$/.test(dateLabel(key)) ? `<small>${parseKey(key).getDate()} ${MONTHS[parseKey(key).getMonth()]}</small>` : ''}
-        <input type="date" aria-label="Pick a date" value="${key}" max="${todayKey()}"></button>
-      <button type="button" data-next aria-label="Next day" ${key >= todayKey() ? 'disabled' : ''}>${icons.next}</button>
+      <button type="button" class="label" data-label ${jump ? 'aria-label="Back to today"' : ''}><span>${esc(dateLabel(key))}</span>${/^(Today|Yesterday|Tomorrow)$/.test(dateLabel(key)) ? `<small>${parseKey(key).getDate()} ${MONTHS[parseKey(key).getMonth()]}</small>` : ''}
+        <input type="date" aria-label="Pick a date" value="${key}" ${future ? '' : `max="${today}"`} ${jump ? 'hidden' : ''}></button>
+      <button type="button" data-next aria-label="Next day" ${!future && key >= today ? 'disabled' : ''}>${icons.next}</button>
     </div>`);
   $(w, '[data-prev]').onclick = () => onChange(addDays(key, -1));
   $(w, '[data-next]').onclick = () => onChange(addDays(key, 1));
   const input = $(w, 'input');
-  input.onchange = () => input.value && onChange(input.value > todayKey() ? todayKey() : input.value);
+  input.onchange = () => input.value && onChange(!future && input.value > today ? today : input.value);
   $(w, '[data-label]').onclick = (e) => {
+    if (jump) return onChange(today);
     if (e.target === input) return;
     try { input.showPicker(); } catch { input.focus(); }
   };

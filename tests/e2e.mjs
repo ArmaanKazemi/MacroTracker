@@ -416,7 +416,7 @@ await step('date switcher: previous day is independent and editable', async () =
   await page.locator('[data-next]').click();
   await settle();
   assert.ok((await eaten()) > 2000);
-  assert.ok(await page.locator('[data-next]').isDisabled());
+  assert.equal(await page.locator('.datesw .label span').textContent(), 'Today');
 });
 
 await step('goals: macro grams show calories they add up to; changes apply to home', async () => {
@@ -1456,6 +1456,35 @@ await step('trends: calories chart with ranges, trend, goal and scrubbing; chang
 
 await step('tab order: Today, Nutrients, +, Trends, Foods', async () => {
   assert.deepEqual(await page.locator('.tabbar a').evaluateAll((as) => as.map((a) => a.dataset.tab)), ['today', 'nutrients', 'trends', 'foods']);
+});
+
+await step('Today can step into future days to log ahead; tapping the date returns to today; Nutrients tabs: Day then Weekly average', async () => {
+  await page.goto(BASE + '#/today');
+  await settle();
+  const bar = page.locator('[data-datebar]');
+  assert.match(await bar.textContent(), /Today/);
+  assert.ok(!(await bar.locator('[data-next]').isDisabled()), 'can go forward from today');
+  await bar.locator('[data-next]').click();
+  await page.waitForTimeout(500);
+  assert.match(await bar.textContent(), /Tomorrow/);
+  // Log water for tomorrow
+  await page.locator('.water [data-add="250"]').click();
+  await page.waitForTimeout(500);
+  const tomorrow = await page.evaluate(async () => { const ui = await import('./js/ui.js'); const store = await import('./js/store.js'); const k = ui.addDays(ui.todayKey(), 1); return (await store.waterFor(k)).reduce((s, w) => s + w.ml, 0); });
+  assert.equal(tomorrow, 250);
+  await bar.locator('[data-next]').click();
+  await page.waitForTimeout(400);
+  assert.doesNotMatch(await bar.textContent(), /Today|Tomorrow/);
+  // Tap the date: straight back to today
+  await bar.locator('[data-label]').click();
+  await page.waitForTimeout(500);
+  assert.match(await bar.textContent(), /Today/);
+  assert.equal(await bar.locator('input[type=date]').count(), 1, 'on today the date opens the picker');
+  // Clean up tomorrow's water
+  await page.evaluate(async () => { const ui = await import('./js/ui.js'); const store = await import('./js/store.js'); for (const w of await store.waterFor(ui.addDays(ui.todayKey(), 1))) await store.deleteWater(w.id); });
+  await page.goto(BASE + '#/nutrients');
+  await page.waitForTimeout(400);
+  assert.deepEqual(await page.locator('.seg [data-m]').evaluateAll((b) => b.map((x) => x.textContent)), ['Day', 'Weekly average']);
 });
 
 await step('no JavaScript errors', async () => {
