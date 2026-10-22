@@ -9,10 +9,10 @@ import { mountTracked } from './tracked.js';
 import { mountTrends } from './trends.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.15.3';
+window.APP_VERSION = '2.15.4';
 
 const view = document.getElementById('view');
-const state = { date: todayKey(), microMode: 'week', foodsTab: 'mine' };
+const state = { date: todayKey(), foodsTab: 'mine' };
 const routes = { today: mountToday, nutrients: mountNutrients, foods: mountFoods, settings: mountSettings, meal: mountMeal, tracked: mountTracked, trends: mountTrends };
 let current = null;
 let currentName = '';

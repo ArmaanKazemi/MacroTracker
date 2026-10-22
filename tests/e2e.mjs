@@ -455,8 +455,10 @@ await step('goals: macro grams show calories they add up to; changes apply to ho
 await step('nutrients date switcher stays put between Today and Yesterday', async () => {
   await page.goto(BASE + '#/nutrients');
   await page.waitForTimeout(500);
-  // Weekly average is the default view, stepping a week at a time
-  assert.equal(await page.locator('[data-m="week"]').getAttribute('aria-selected'), 'true');
+  // Day is the default view every time; Weekly average steps a week at a time
+  assert.equal(await page.locator('[data-m="day"]').getAttribute('aria-selected'), 'true');
+  await page.locator('[data-m="week"]').click();
+  await page.waitForTimeout(400);
   assert.match(await page.locator('.topbar .datesw').textContent(), /This week/);
   assert.ok(await page.locator('.topbar [data-next]').isDisabled());
   await page.locator('.topbar [data-prev]').click();
@@ -465,8 +467,12 @@ await step('nutrients date switcher stays put between Today and Yesterday', asyn
   await page.locator('.topbar [data-next]').click();
   await page.waitForTimeout(400);
   assert.match(await page.locator('.topbar .datesw').textContent(), /This week/);
-  await page.locator('[data-m="day"]').click();
-  await page.waitForTimeout(400);
+  // Leaving and coming back opens on Day again
+  await page.goto(BASE + '#/today');
+  await page.waitForTimeout(300);
+  await page.goto(BASE + '#/nutrients');
+  await page.waitForTimeout(500);
+  assert.equal(await page.locator('[data-m="day"]').getAttribute('aria-selected'), 'true');
   const box = async () => { const b = await page.locator('.topbar .datesw').boundingBox(); return [Math.round(b.y), Math.round(b.x), Math.round(b.width)].join(','); };
   const today = await box();
   await page.locator('.topbar [data-prev]').click();
