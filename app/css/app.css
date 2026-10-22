@@ -740,3 +740,28 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .tr-cov .fill { display: block; transform-origin: left; }
 .tr-cov-pct { text-align: right; font-weight: 700; font-size: 14px; }
 
+
+/* ---------- Today, styled like Trends (same layout) ---------- */
+.macro-grid { gap: 8px; }
+.macro { border-radius: 22px; padding: 12px 10px 11px 12px; }
+.macro-name { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.macro-val { font-size: 14px; margin: 1px 0 8px; }
+.macro-val b { font-size: 27px; letter-spacing: -0.01em; }
+.macro .track.thin { height: 6px; }
+.macro-sub { margin-top: 8px; }
+.ms-l { font-size: 10px; font-weight: 550; letter-spacing: -0.01em; }
+.ms-v { font-size: 12.5px; }
+.ms-v b { font-size: 16px; }
+.section-h { margin: 26px 2px 12px; gap: 14px; }
+.section-h span { font-family: var(--serif); font-size: 26px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text); }
+.section-h .meander { opacity: 0.35; }
+.meal, .daily { border-radius: 24px; }
+.meal { padding: 16px 16px 12px; }
+.meal-icon { width: 50px; height: 50px; border: 0; background: color-mix(in srgb, var(--accent) 10%, var(--card-2)); }
+.meal-icon svg { width: 30px; height: 30px; }
+.meal-sub { font-size: 13.5px; }
+.iconbtn.add { border: 0; background: color-mix(in srgb, var(--accent) 16%, var(--card-2)); color: var(--accent); }
+.iconbtn.add svg { width: 20px; height: 20px; }
+.water .chip { border: 0; background: var(--card-2); min-height: 40px; }
+.water .chip.primary { background: var(--text); color: var(--bg); }
+.datebar .datesw { background: color-mix(in srgb, var(--card) 70%, transparent); border: 1px solid var(--line); border-radius: 999px; }
