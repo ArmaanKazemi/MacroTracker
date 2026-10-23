@@ -39,7 +39,7 @@ function weekSwitcher(monday, onChange) {
 // ======================================================================
 export function mountNutrients(view, state) {
   view.innerHTML = '';
-  let mode = state.microMode || 'week';
+  let mode = 'day'; // always opens on Day; Weekly average is one tap away
   const top = el('<div class="topbar with-date"><h1 class="title">Nutrients</h1></div>');
   const seg = el(`<div class="seg" role="tablist"><button role="tab" data-m="day">Day</button><button role="tab" data-m="week">Weekly average</button></div>`);
   const summary = el(`<div class="micro-sum">
@@ -50,7 +50,7 @@ export function mountNutrients(view, state) {
   const card = el('<div></div>');
   const foot = el('<p class="note" data-foot style="padding:0 4px"></p>');
   view.append(top, seg, summary, card, foot);
-  $$(seg, '[data-m]').forEach((b) => (b.onclick = () => { mode = state.microMode = b.dataset.m; refresh(); }));
+  $$(seg, '[data-m]').forEach((b) => (b.onclick = () => { mode = b.dataset.m; refresh(); }));
 
   // Rows for the tracked nutrients only; rebuilt when the tracked set changes.
   let built = '';
