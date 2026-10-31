@@ -531,6 +531,27 @@ await step('export JSON backup', async () => {
   assert.ok(json.data.kv.some(([k, v]) => k === 'settings' && v.protein === 180));
 });
 
+await step('export food diary CSV: every food by day and meal, with day totals and water', async () => {
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('[data-diary]').click()]);
+  assert.match(dl.suggestedFilename(), /^pithos-food-diary-\d{4}-\d{2}-\d{2}\.csv$/);
+  const dir = await mkdtemp(join(tmpdir(), 'fuel-'));
+  const path = join(dir, dl.suggestedFilename());
+  await dl.saveAs(path);
+  const text = (await readFile(path, 'utf8')).replace(/^﻿/, '');
+  const lines = text.trim().split('\r\n');
+  assert.match(lines[0], /^Date,Meal,Food,Brand,Amount,Calories \(kcal\),Protein \(g\),Carbs \(g\),of which sugars \(g\),Fat \(g\),of which saturates \(g\),.*Vitamin D \(µg\).*,Water \(ml\)$/);
+  const json = JSON.parse(await readFile(backupPath, 'utf8'));
+  const days = new Set([...json.data.entries.map((e) => e.date), ...json.data.water.map((w) => w.date)]);
+  assert.equal(lines.filter((l) => l.split(',')[1] === 'Day total').length, days.size, 'one total per day');
+  assert.equal(lines.length - 1 - days.size, json.data.entries.length, 'one row per logged food');
+  assert.ok(lines.some((l) => /,Breakfast,/.test(l)) && lines.some((l) => /,Dinner,/.test(l)));
+  // today's total row carries the water
+  const today = await page.evaluate(async () => (await import('./js/ui.js')).todayKey());
+  const total = lines.find((l) => l.startsWith(`${today},Day total`));
+  assert.ok(total);
+  assert.ok(Number(total.split(',').at(-1)) > 0, 'water on the day total');
+});
+
 await step('import JSON backup into a fresh install restores everything', async () => {
   const ctx2 = await browser.newContext({ ...iphone });
   const p2 = await ctx2.newPage();
