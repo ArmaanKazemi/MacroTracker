@@ -4,6 +4,7 @@ import { MICROS, MACROS, SUBS, totals, fmt, macroKcal, microStatus, limitPart, t
 import * as store from './store.js';
 import * as fooddb from './fooddb.js';
 import * as db from './db.js';
+import { diaryCsv } from './diary.js';
 import { HEALTH_FIELDS, CORE_KEYS, DEFAULT_SHORTCUT } from './health.js';
 import { openSheet } from './ui.js';
 import { openFoodDetail, openFoodForm, openRecipeEditor, openRecipeLog, recipeTotals, changed, removeFood, removeRecipe } from './sheets.js';
@@ -303,6 +304,8 @@ export function mountSettings(view) {
       <div class="eyebrow">Your data</div>
       <p class="note">Everything is stored on this device only. Export a backup regularly — especially before clearing Safari data or changing phones.</p>
       <div class="btns"><button class="btn" type="button" data-export>Export JSON</button><button class="btn" type="button" data-import>Import JSON</button></div>
+      <button class="btn block" type="button" data-diary style="margin-top:10px">Export food diary (CSV)</button>
+      <p class="note">The food diary is a spreadsheet of every food you've logged, day by day and meal by meal, with calories, macros, tracked nutrients and a total for each day. It opens in Numbers, Excel or Google Sheets. It's for reading, not for restoring: use the JSON backup for that.</p>
       <input type="file" accept="application/json,.json" data-file hidden>
       <p class="note" data-counts></p>
     </section>`);
@@ -398,14 +401,12 @@ export function mountSettings(view) {
   };
   $(healthBox, '[data-hguide]').onclick = () => openHealthGuide(s.health?.shortcut || DEFAULT_SHORTCUT);
 
-  $(data, '[data-export]').onclick = async () => {
-    const json = await db.exportAll();
-    const blob = new Blob([JSON.stringify(json, null, 1)], { type: 'application/json' });
-    const name = `pithos-backup-${todayKey()}.json`;
-    const file = new File([blob], name, { type: 'application/json' });
-    // iOS home-screen apps can't always trigger downloads; the share sheet lets you "Save to Files".
-    if (navigator.canShare?.({ files: [file] }) && /iPhone|iPad|iPod/.test(navigator.userAgent)) {
-      try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  // iOS home-screen apps can't always trigger downloads; the share sheet lets you "Save to Files".
+  async function saveFile(text, name, type) {
+    const blob = new Blob([text], { type });
+    const f = new File([blob], name, { type });
+    if (navigator.canShare?.({ files: [f] }) && /iPhone|iPad|iPod/.test(navigator.userAgent)) {
+      try { await navigator.share({ files: [f], title: name }); return true; } catch (e) { if (e.name === 'AbortError') return false; }
     }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -413,7 +414,18 @@ export function mountSettings(view) {
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-    toast('Backup exported');
+    return true;
+  }
+  $(data, '[data-export]').onclick = async () => {
+    const json = await db.exportAll();
+    if (await saveFile(JSON.stringify(json, null, 1), `pithos-backup-${todayKey()}.json`, 'application/json')) toast('Backup exported');
+  };
+  $(data, '[data-diary]').onclick = async () => {
+    const [entries, water] = await Promise.all([db.getAll('entries'), db.getAll('water')]);
+    if (!entries.length) return toast('Nothing logged yet');
+    // A byte-order mark so Excel reads µg and × correctly.
+    const csv = '\ufeff' + diaryCsv(entries, water, await store.getSettings());
+    if (await saveFile(csv, `pithos-food-diary-${todayKey()}.csv`, 'text/csv')) toast('Food diary exported');
   };
   const file = $(data, '[data-file]');
   $(data, '[data-import]').onclick = () => file.click();

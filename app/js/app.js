@@ -9,7 +9,7 @@ import { mountTracked } from './tracked.js';
 import { mountTrends } from './trends.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.15.4';
+window.APP_VERSION = '2.16.0';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), foodsTab: 'mine' };
