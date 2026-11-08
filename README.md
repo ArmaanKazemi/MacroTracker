@@ -39,7 +39,7 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
 - **Logging:** by g, ml or custom serving sizes ("1 scoop = 25 g"). Add a serving from any food's sheet with **Add serving size**, and change or delete one with **Edit servings**. Changes save as you type, and deleting has Undo.
 - **My foods and saved meals.** My foods holds everything you've created, scanned or saved; tap the star on a food to pin it to the top. Foods log in one tap. Saved meals also log in one tap, or you can adjust the amounts before logging.
 - **Sugars and saturated fat:** tracked like a UK label, as "of which" values under carbs and fat. Each has a daily maximum (UK reference intakes: 90 g sugars, 20 g saturates, editable in Settings). The number turns red once you go over. Values come from CoFID and Open Food Facts, or you type them in for custom foods.
-- **Settings:** calorie and macro goals (with live "macros add up to X kcal"), water goal, tracked nutrients with their targets and upper limits, and **Export / Import JSON** backups.
+- **Settings:** calorie and macro goals (with live "macros add up to X kcal"), water goal, tracked nutrients with their targets and upper limits, **Export / Import JSON** backups, and **Export food diary (CSV)**: a spreadsheet with one row per logged food (date, meal, food, brand, amount, calories, protein, carbs, sugars, fat, saturates and every tracked nutrient), in meal order, with a *Day total* row (including water) after each day. It opens in Numbers, Excel or Google Sheets.
 - **Custom foods:** micronutrients are grouped into **Vitamins**, **Minerals** and **Fibre & fats** (the same grouping is used on the Nutrients screen, food details and Settings). Sodium sits under Minerals and is entered in **mg**. If a label only lists salt, sodium (mg) = salt (g) × 400.
 - **One-off foods:** when you create a food while adding to a meal, turn off **Save to My foods** to log it just this once without keeping it in your lists. The switch remembers your last choice.
 - **Removing logged food:** swipe left on a food in any meal on Today to remove it (Undo appears). You can also do it on the meal's page.
@@ -158,7 +158,8 @@ node tests/serve.mjs 8080        # then open http://127.0.0.1:8080
 cd tools && npm install          # xlsx + playwright
 node ../tests/cofid-parser.test.mjs
 node ../tests/quickparse.test.mjs   # Quick log text parser
-node ../tests/e2e.mjs            # 42 end-to-end checks on an iPhone-sized viewport
+node ../tests/diary.test.mjs        # food diary CSV
+node ../tests/e2e.mjs            # 43 end-to-end checks on an iPhone-sized viewport
 ```
 
 The e2e suite covers:
