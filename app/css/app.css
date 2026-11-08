@@ -151,6 +151,8 @@ button { cursor: pointer; }
 }
 .datebar { display: flex; justify-content: center; align-items: center; gap: 10px; }
 .datebar .datesw { flex: 1; min-width: 0; justify-content: space-between; }
+/* An invisible twin of the Settings button on the left keeps the date centred on screen. */
+.datebar::before { content: ""; flex: none; width: 44px; }
 .iconbtn.gear { text-decoration: none; color: var(--muted); }
 .iconbtn.gear svg { width: 22px; height: 22px; }
 .gauge { display: grid; grid-template-columns: 1fr minmax(0, 236px) 1fr; align-items: center; margin-top: -2px; }
