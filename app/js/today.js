@@ -238,7 +238,7 @@ export function mountToday(view, state) {
   async function refresh() {
     refreshHealth();
     $(hero, '[data-datebar]').replaceChildren(dateSwitcher(state.date, (d) => { state.date = d; refresh(); }, { future: true, tapToday: true }), el(`<a class="iconbtn gear" href="#/settings" aria-label="Settings" data-settings>${icons.settings}</a>`));
-    const [settings, entries, waterList] = await Promise.all([store.getSettings(), store.entriesFor(state.date), store.waterFor(state.date)]);
+    const [settings, entries, waterList] = await Promise.all([store.settingsFor(state.date), store.entriesFor(state.date), store.waterFor(state.date)]); // that day's goals
     await fooddb.load();
     const t = totals(entries);
 

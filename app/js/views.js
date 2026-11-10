@@ -56,7 +56,7 @@ export function mountNutrients(view, state) {
   // Rows for the tracked nutrients only; rebuilt when the tracked set changes.
   let built = '';
   function build(groups) {
-    const sig = groups.map((g) => g.keys.join()).join('|');
+    const sig = groups.map((g) => g.items.map((m) => m.key).join()).join('|');
     if (sig === built) return;
     built = sig;
     card.innerHTML = groups.length ? groups.map((g) => `
@@ -79,7 +79,10 @@ export function mountNutrients(view, state) {
       ? weekSwitcher(monday, (d) => { state.date = addDays(d, 6) >= todayKey() ? todayKey() : d; refresh(); })
       : dateSwitcher(state.date, (d) => { state.date = d; refresh(); }));
     $$(seg, '[data-m]').forEach((b) => b.setAttribute('aria-selected', b.dataset.m === mode));
-    const settings = await store.getSettings();
+    // Goals as they were on the day shown (for a week: its last day so far); each strip cell uses its own day's.
+    const goalsOn = await store.goalsByDate();
+    const weekEnd = addDays(monday, 6) > todayKey() ? todayKey() : addDays(monday, 6);
+    const settings = goalsOn(mode === 'day' ? state.date : weekEnd);
     const groups = trackedGroups(settings);
     const tracked = groups.flatMap((g) => g.items);
     build(groups);
@@ -163,7 +166,10 @@ export function mountNutrients(view, state) {
         $$(strip, 'i').forEach((cell, i) => {
           const x = perDay[i];
           const on = x && counts(m, days[i]);
-          cell.className = on ? `bg-${microStatus(m, x.t[m.key].value, target, upper, limitPart(m, x.list)).status}` : '';
+          const g = goalsOn(days[i]);
+          const dt = m.kind === 'limit' ? null : g.micros[m.key] || m.target;
+          const du = g.upper?.[m.key] ?? m.upper;
+          cell.className = on ? `bg-${microStatus(m, x.t[m.key].value, dt, du, limitPart(m, x.list)).status}` : '';
           cell.title = x ? `${fmt(x.t[m.key].value)} ${m.unit}${on ? '' : ' (before tracking)'}` : 'Nothing logged';
         });
       }
@@ -262,6 +268,7 @@ export function mountSettings(view) {
   const goals = el(`
     <section class="card">
       <div class="eyebrow">Daily goals</div>
+      <p class="note" style="margin-bottom:4px">Changes apply from today onwards. Earlier days keep the goals they had, so a day you were on target stays on target.</p>
       <label class="field"><span>Calories <i class="unit">(kcal)</i></span><input class="input num" type="number" inputmode="numeric" min="0" step="1" data-s="kcal"></label>
       <div class="grid3">
         ${MACROS.map((m) => `<label class="field"><span>${m.label} <i class="unit">(g)</i></span><input class="input num" type="number" inputmode="numeric" min="0" step="1" data-s="${m.key}"></label>`).join('')}

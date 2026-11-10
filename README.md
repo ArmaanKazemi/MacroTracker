@@ -21,6 +21,7 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
   - **Nutrient coverage:** every tracked nutrient's average per logged day against its target. Tap one to chart it.
   - Days with only supplements don't count as logged. Nutrients switched on recently only count from that day.
 - **Navigation:** Today, Nutrients, +, Trends and Foods are in the tab bar. **Settings** is the slider button at the top right of Today and Trends.
+- **Goals are remembered per day.** Changing calorie or macro goals, sugar/saturates limits, water, nutrient targets or upper limits, or which nutrients you track, applies from that day onwards. Earlier days keep the goals and tracked nutrients they had, on Today, meal pages, Nutrients (day and week strips) and Trends (each day's score, and a goal line that steps where it changed). Stored in the backup as `goalHistory`. Goals changed before this version can't be recovered, so days before the update use the goals you had when you updated.
 - **Tracked nutrients** (Settings → Tracked nutrients): switch any of 32 nutrients on or off. Grouped as Vitamins (A, C, D, E, K, B1, B2, B3, B5, B6, biotin, folate, B12, choline), Minerals (sodium, potassium, calcium, magnesium, iron, zinc, iodine, selenium, phosphorus, copper, manganese, chromium, molybdenum, chloride, fluoride) and Fibre & fats (fibre, ALA, EPA + DHA).
   - Presets: **Core** (the original 17, the default), **Extended** (Core plus vitamin E, choline, B6, B1, B2, B3, phosphorus) and **Everything**. Each group also has **Select all** and **Clear**, and any switch can be changed afterwards.
   - Each nutrient's daily target and upper limit can be edited, with **Reset to default**. Defaults are US adult male values.
@@ -159,7 +160,7 @@ cd tools && npm install          # xlsx + playwright
 node ../tests/cofid-parser.test.mjs
 node ../tests/quickparse.test.mjs   # Quick log text parser
 node ../tests/diary.test.mjs        # food diary CSV
-node ../tests/e2e.mjs            # 43 end-to-end checks on an iPhone-sized viewport
+node ../tests/e2e.mjs            # 44 end-to-end checks on an iPhone-sized viewport
 ```
 
 The e2e suite covers:

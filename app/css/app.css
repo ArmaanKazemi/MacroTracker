@@ -677,7 +677,7 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .tr-svg .b.over { fill: color-mix(in srgb, var(--red) 45%, var(--card)); }
 .tr-svg .tl { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .tr-svg .d { fill: var(--card); stroke: var(--accent); stroke-width: 2; }
-.tr-svg .goal { stroke: var(--gold); stroke-width: 1.5; stroke-dasharray: 6 5; }
+.tr-svg .goal { fill: none; stroke: var(--gold); stroke-width: 1.5; stroke-dasharray: 6 5; }
 .tr-svg .cur { stroke: var(--text); stroke-width: 1; opacity: 0; }
 .tr-svg .curd { fill: var(--accent); stroke: var(--card); stroke-width: 2; opacity: 0; }
 .tr-svg.scrub .cur { opacity: 0.35; }
