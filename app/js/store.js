@@ -244,7 +244,7 @@ export function supplementNutrients(given = {}) {
 export async function takeSupplement(s, date) {
   const e = {
     id: 'e-' + db.uid(), date, meal: 'supplements', foodId: null, suppId: s.id,
-    name: s.name, brand: '', unit: 'g', amount: 100, servingLabel: s.dose || 'dose', qty: 1,
+    name: s.name, brand: '', unit: 'g', amount: 100, servingLabel: s.dose || 'dose', qty: 1, time: nowTime(),
     per100: supplementNutrients(s.nutrients), estimated: [], recipe: null, ts: Date.now(),
   };
   await db.put('entries', e);
@@ -255,7 +255,17 @@ export async function takeSupplement(s, date) {
 export const entriesFor = (date) => db.byDate('entries', date);
 export const entriesBetween = (from, to) => db.byDateRange('entries', from, to);
 
-export function makeEntry(food, { date, meal, amount, servingLabel = null, qty = null, recipe = null }) {
+/** The current time as "HH:MM" (24-hour), the default time for anything logged. */
+export function nowTime(d = new Date()) {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+/** Order within a meal: by the time eaten, then by when it was logged (older entries have no time). */
+export function byTime(a, b) {
+  if (a.time && b.time && a.time !== b.time) return a.time < b.time ? -1 : 1;
+  return (a.ts || 0) - (b.ts || 0);
+}
+
+export function makeEntry(food, { date, meal, amount, servingLabel = null, qty = null, recipe = null, time = nowTime() }) {
   const { per100, estimated } = resolve(food);
   return {
     id: 'e-' + db.uid(),
@@ -271,6 +281,7 @@ export function makeEntry(food, { date, meal, amount, servingLabel = null, qty =
     per100,
     estimated,
     recipe,
+    time,
     ts: Date.now(),
   };
 }
@@ -342,7 +353,7 @@ export async function itemFood(item) {
   return item.snapshot ? { ...item.snapshot } : null;
 }
 
-export async function logRecipe(recipe, { date, meal, amounts }) {
+export async function logRecipe(recipe, { date, meal, amounts, time = nowTime() }) {
   const created = [];
   for (let i = 0; i < recipe.items.length; i++) {
     const item = recipe.items[i];
@@ -350,7 +361,7 @@ export async function logRecipe(recipe, { date, meal, amounts }) {
     if (!food) continue;
     const amount = amounts?.[i] ?? item.amount;
     if (!(amount > 0)) continue;
-    const e = makeEntry(food, { date, meal, amount, recipe: recipe.name });
+    const e = makeEntry(food, { date, meal, amount, recipe: recipe.name, time });
     await db.put('entries', e);
     created.push(e);
   }

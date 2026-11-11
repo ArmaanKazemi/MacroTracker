@@ -37,6 +37,7 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
   - UK CoFID (McCance & Widdowson) generic foods, bundled so search works offline.
   - UK branded products from Open Food Facts, plus camera barcode scanning.
   - Missing micronutrients show as **no data**, never as zero. You can link a food to a similar CoFID food to estimate them.
+- **Meal times:** every food you log gets a time, set to the current time by default and changeable with the **Time** field next to Meal (food sheet, Quick log and saved meals). Tap a logged food to change its time. Times show next to each food on Today and meal pages, foods in a meal are listed in the order you ate them, and the food diary export has a Time column. Foods logged before this update have no time.
 - **Logging:** by g, ml or custom serving sizes ("1 scoop = 25 g"). Add a serving from any food's sheet with **Add serving size**, and change or delete one with **Edit servings**. Changes save as you type, and deleting has Undo.
 - **My foods and saved meals.** My foods holds everything you've created, scanned or saved; tap the star on a food to pin it to the top. Foods log in one tap. Saved meals also log in one tap, or you can adjust the amounts before logging.
 - **Sugars and saturated fat:** tracked like a UK label, as "of which" values under carbs and fat. Each has a daily maximum (UK reference intakes: 90 g sugars, 20 g saturates, editable in Settings). The number turns red once you go over. Values come from CoFID and Open Food Facts, or you type them in for custom foods.
@@ -160,7 +161,7 @@ cd tools && npm install          # xlsx + playwright
 node ../tests/cofid-parser.test.mjs
 node ../tests/quickparse.test.mjs   # Quick log text parser
 node ../tests/diary.test.mjs        # food diary CSV
-node ../tests/e2e.mjs            # 44 end-to-end checks on an iPhone-sized viewport
+node ../tests/e2e.mjs            # 45 end-to-end checks on an iPhone-sized viewport
 ```
 
 The e2e suite covers:

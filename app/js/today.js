@@ -309,7 +309,7 @@ export function mountToday(view, state) {
     // Meals
     for (const m of MEALS) {
       const card = $(mealsBox, `[data-meal="${m.key}"]`);
-      const list = entries.filter((e) => e.meal === m.key).sort((a, b) => a.ts - b.ts);
+      const list = entries.filter((e) => e.meal === m.key).sort(store.byTime);
       const mt = totals(list);
       const [lo, hi] = MEAL_SHARE[m.key].map((f) => Math.round((settings.kcal * f) / 5) * 5);
       $(card, '[data-sub]').innerHTML = list.length
@@ -324,7 +324,7 @@ export function mountToday(view, state) {
           <button class="item" type="button">
             <div class="item-main">
               <div class="item-name">${esc(e.name)}</div>
-              <div class="item-meta num">${esc(amountText)}${e.recipe ? ` · ${esc(e.recipe)}` : ''} · P ${fmt(n.protein)} C ${fmt(n.carbs)} F ${fmt(n.fat)}</div>
+              <div class="item-meta num">${e.time ? `<span class="item-time">${esc(e.time)}</span> · ` : ''}${esc(amountText)}${e.recipe ? ` · ${esc(e.recipe)}` : ''} · P ${fmt(n.protein)} C ${fmt(n.carbs)} F ${fmt(n.fat)}</div>
             </div>
             <div class="item-kcal num">${n.kcal === null ? '—' : fmt(n.kcal, 'kcal')} <small>kcal</small></div>
           </button>`);
