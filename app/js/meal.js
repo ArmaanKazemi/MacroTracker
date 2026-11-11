@@ -39,7 +39,7 @@ export function mountMeal(view, state) {
   async function refresh() {
     $(top, '[data-date]').textContent = dateLabel(state.date);
     const [settings, all] = await Promise.all([store.settingsFor(state.date), store.entriesFor(state.date)]); // that day's goals
-    const list = all.filter((e) => e.meal === meal.key).sort((a, b) => a.ts - b.ts);
+    const list = all.filter((e) => e.meal === meal.key).sort(store.byTime);
     const t = totals(list);
     const [loF, hiF] = MEAL_SHARE[meal.key];
     const lo = Math.round((settings.kcal * loF) / 5) * 5;
@@ -62,7 +62,7 @@ export function mountMeal(view, state) {
         <div class="item meal-item" role="button" tabindex="0">
           <div class="item-main">
             <div class="item-name">${esc(e.name)}</div>
-            <div class="item-meta num">${e.brand ? `${esc(e.brand)} · ` : ''}${esc(amountText)} · P ${fmt(n.protein)} C ${fmt(n.carbs)} F ${fmt(n.fat)}</div>
+            <div class="item-meta num">${e.time ? `<span class="item-time">${esc(e.time)}</span> · ` : ''}${e.brand ? `${esc(e.brand)} · ` : ''}${esc(amountText)} · P ${fmt(n.protein)} C ${fmt(n.carbs)} F ${fmt(n.fat)}</div>
           </div>
           <div class="item-kcal num">${n.kcal === null ? '—' : fmt(n.kcal, 'kcal')} <small>kcal</small></div>
           <button class="iconbtn" type="button" data-del aria-label="Remove ${esc(e.name)}">${icons.close}</button>

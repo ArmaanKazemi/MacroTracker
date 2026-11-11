@@ -749,3 +749,9 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .extra-line .num { flex: 1; text-align: right; }
 .extra-line b { color: var(--text); font-weight: 650; }
 .extra-line svg { width: 16px; height: 16px; flex: none; }
+
+/* Meal + time side by side when logging */
+.meal-time { display: grid; grid-template-columns: 1fr 148px; gap: 10px; }
+.meal-time .input[type="time"], .ql-time { min-height: 48px; text-align: center; }
+.ql-time { flex: none; width: 128px; }
+.item-time { color: var(--text); font-weight: 600; }
