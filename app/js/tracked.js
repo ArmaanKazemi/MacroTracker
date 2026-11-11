@@ -40,7 +40,7 @@ export function mountTracked(view) {
       <div class="eyebrow">Presets</div>
       <div class="seg trk-presets" role="group" aria-label="Presets" style="margin:12px 0 4px">${TRACK_PRESETS.map((p) => `<button type="button" data-preset="${p.key}">${p.label}</button>`).join('')}</div>
       <p class="note" data-preset-note style="margin-top:6px"></p>
-      <p class="note">Switched-off nutrients are hidden everywhere, but their data is kept: switch one back on and its history returns. A nutrient you switch on for the first time counts from today, so past days aren't marked low.</p>
+      <p class="note">Changes apply from today onwards: earlier days keep the nutrients and targets they had, so they aren't re-judged. Switching a nutrient off hides it from today, but its data is kept: switch it back on and it returns.</p>
     </section>`);
   const presetNote = {
     core: 'Core: the 17 essentials (vitamins A, C, D, K, B12, folate; sodium, potassium, calcium, magnesium, iron, zinc, iodine, selenium; fibre, ALA, EPA + DHA).',

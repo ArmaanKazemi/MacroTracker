@@ -38,7 +38,7 @@ export function mountMeal(view, state) {
 
   async function refresh() {
     $(top, '[data-date]').textContent = dateLabel(state.date);
-    const [settings, all] = await Promise.all([store.getSettings(), store.entriesFor(state.date)]);
+    const [settings, all] = await Promise.all([store.settingsFor(state.date), store.entriesFor(state.date)]); // that day's goals
     const list = all.filter((e) => e.meal === meal.key).sort((a, b) => a.ts - b.ts);
     const t = totals(list);
     const [loF, hiF] = MEAL_SHARE[meal.key];

@@ -1233,7 +1233,7 @@ await step('tracked nutrients: presets, toggles, per-group select/clear, targets
   assert.equal(await page.locator('[data-k="vitE"] [data-target]').inputValue(), '15');
   assert.ok(await page.locator('[data-k="vitE"] [data-reset]').isHidden());
 
-  // Nutrients today shows the 24; yesterday's vitamin E is shown but not judged
+  // Nutrients today shows the 24; yesterday keeps yesterday's 17 (vitamin E wasn't tracked then)
   await page.goto(BASE + '#/nutrients');
   await page.locator('[data-m="day"]').click();
   await page.waitForTimeout(300);
@@ -1241,9 +1241,9 @@ await step('tracked nutrients: presets, toggles, per-group select/clear, targets
   assert.equal(await counts(), 24);
   await page.locator('[data-prev]').click();
   await page.waitForTimeout(1300);
-  assert.equal(await page.locator('[data-k="vitE"] [data-pill]').textContent(), 'Not tracked yet');
-  assert.equal(await page.locator('[data-k="vitE"] [data-v]').textContent(), '25');
-  assert.equal(await counts(), 17, 'past day: newly enabled nutrients are not counted');
+  assert.equal(await page.locator('[data-k="vitE"]').count(), 0, 'not tracked yesterday');
+  assert.equal(await page.locator('.bar-row').count(), 17);
+  assert.equal(await counts(), 17, 'past day: judged on what was tracked that day');
   // 7-day average leaves out days before vitamin E was switched on
   await page.locator('[data-m="week"]').click();
   await page.waitForTimeout(1300);
@@ -1261,11 +1261,18 @@ await step('tracked nutrients: presets, toggles, per-group select/clear, targets
   await page.waitForTimeout(300);
   assert.equal(await page.locator('[data-preset="extended"]').getAttribute('aria-selected'), 'false');
   assert.match(await page.locator('[data-preset-note]').textContent(), /Custom/);
+  // Yesterday's meal keeps yesterday's tracked list (folate on, vitamin E not yet)
   await page.goto(BASE + `#/meal?m=lunch&d=${yesterday}`);
+  await page.waitForTimeout(500);
+  assert.match(await page.locator('[data-info]').textContent(), /Folate/);
+  assert.doesNotMatch(await page.locator('[data-info]').textContent(), /Vitamin E/);
+  // Today it's hidden everywhere
+  await page.goto(BASE + `#/meal?m=lunch&d=${today}`);
   await page.waitForTimeout(500);
   assert.doesNotMatch(await page.locator('[data-info]').textContent(), /Folate/);
   assert.match(await page.locator('[data-info]').textContent(), /Vitamin E/);
   await page.goto(BASE + '#/nutrients');
+  await page.waitForTimeout(400);
   assert.equal(await page.locator('[data-k="folate"]').count(), 0);
   await page.goto(BASE + '#/tracked');
   await page.waitForTimeout(400);
@@ -1533,6 +1540,65 @@ await step('supplements with calories show as their own line so meals + suppleme
   await page.evaluate(async () => { const store = await import('./js/store.js'); await store.deleteEntry('e-fishoil'); window.dispatchEvent(new CustomEvent('data-changed')); });
   await settle();
   assert.ok(await line.isHidden());
+});
+
+await step('goals are remembered per day: changing goals or tracked nutrients today leaves earlier days as they were', async () => {
+  const c = await browser.newContext({ ...iphone });
+  const p = await c.newPage();
+  const errs = [];
+  p.on('pageerror', (e) => errs.push(e.message));
+  await p.goto(BASE + '#/today');
+  await p.waitForTimeout(1500);
+  // Yesterday: 2,000 kcal against the 2,200 goal (on target), with some vitamin C
+  await p.evaluate(async () => {
+    const store = await import('./js/store.js'); const n = await import('./js/nutrients.js'); const ui = await import('./js/ui.js');
+    await store.saveEntry({ id: 'e-gy', date: ui.addDays(ui.todayKey(), -1), meal: 'lunch', name: 'Lunch', unit: 'g', amount: 100, per100: n.normNutrients({ kcal: 2000, protein: 150, carbs: 200, fat: 70, vitC: 60 }), ts: 1 });
+  });
+  // Today: lower the calorie goal to 1,800 and the protein goal to 120, and stop tracking vitamin C
+  await p.goto(BASE + '#/settings');
+  await p.waitForTimeout(600);
+  await p.locator('[data-s="kcal"]').fill('1800');
+  await p.locator('[data-s="kcal"]').dispatchEvent('change');
+  await p.locator('[data-s="protein"]').fill('120');
+  await p.locator('[data-s="protein"]').dispatchEvent('change');
+  await p.waitForTimeout(300);
+  await p.goto(BASE + '#/tracked');
+  await p.waitForTimeout(500);
+  await p.locator('[data-k="vitC"] .switch').click();
+  await p.waitForTimeout(300);
+  const num = async (sel) => Number((await p.locator(sel).textContent()).replace(/[^\d.-]/g, ''));
+  await p.goto(BASE + '#/today');
+  await p.waitForTimeout(1300);
+  assert.equal(await num('[data-goal]'), 1800, 'today uses the new goal');
+  assert.equal(await p.locator('[data-macro="protein"] [data-g]').textContent(), '120');
+  await p.locator('[data-datebar] [data-prev]').click();
+  await p.waitForTimeout(1300);
+  assert.equal(await num('[data-goal]'), 2200, "yesterday keeps yesterday's goal");
+  assert.equal(await p.locator('[data-remaining-label]').textContent(), 'Remaining', 'still on target, not over');
+  assert.equal(await num('[data-remaining]'), 200);
+  assert.equal(await p.locator('[data-macro="protein"] [data-g]').textContent(), '160');
+  // Nutrients: yesterday still tracks vitamin C, today doesn't
+  await p.goto(BASE + '#/nutrients'); // still on yesterday, as Today was
+  await p.waitForTimeout(1300);
+  assert.match(await p.locator('.topbar .datesw').textContent(), /Yesterday/);
+  assert.equal(await p.locator('[data-k="vitC"]').count(), 1, 'tracked yesterday');
+  await p.locator('.topbar [data-next]').click();
+  await p.waitForTimeout(800);
+  assert.equal(await p.locator('[data-k="vitC"]').count(), 0, 'not tracked today');
+  // Trends: the goal line steps from 2,200 to 1,800
+  await p.goto(BASE + '#/trends');
+  await p.waitForTimeout(400);
+  await p.locator('[data-r="1W"]').click();
+  await p.waitForTimeout(800);
+  const d = await p.locator('.tr-svg .goal').getAttribute('d');
+  assert.equal(new Set([...d.matchAll(/L[\d.]+ ([\d.]+)/g)].map((m) => m[1])).size, 2, 'two goal levels');
+  // Stored history: a baseline plus today's change
+  const h = await p.evaluate(async () => (await import('./js/db.js')).get('kv', 'goalHistory'));
+  assert.equal(h.length, 2);
+  assert.equal(h[0].goals.kcal, 2200);
+  assert.equal(h[1].goals.kcal, 1800);
+  assert.deepEqual(errs, []);
+  await c.close();
 });
 
 await step('no JavaScript errors', async () => {

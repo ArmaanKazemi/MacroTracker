@@ -29,6 +29,12 @@ function metrics(settings) {
   ];
   return list;
 }
+/** A metric's goal (or limit) under a given day's settings. */
+function goalOf(m, s) {
+  if (m.def) return m.def.kind === 'limit' ? s.upper?.[m.key] ?? m.def.upper : s.micros?.[m.key] || m.def.target;
+  if (m.key === 'sugars' || m.key === 'satfat') return s[m.key] ?? SUBS.find((x) => x.key === m.key).limit;
+  return s[m.key];
+}
 const fmtV = (m, v) => (v === null || v === undefined ? '—' : m.unit === 'kcal' || m.unit === 'ml' || Math.abs(v) >= 100 ? Math.round(v).toLocaleString('en-GB') : fmt(v));
 const unitText = (m) => (m.unit === 'ml' ? 'ml' : m.unit);
 
@@ -140,6 +146,7 @@ export function mountTrends(view) {
 
   async function refresh() {
     const settings = await store.getSettings();
+    const goalsOn = await store.goalsByDate(); // each day is judged against the goals it had
     const ms = metrics(settings);
     const m = ms.find((x) => x.key === metricKey) || ms[0];
     metricKey = m.key;
@@ -201,13 +208,13 @@ export function mountTrends(view) {
     // Weekly points for long ranges, daily otherwise.
     const weekly = days > 92;
     const tr = trend(series.map((p) => p.v));
-    let pts = series.map((p, i) => ({ k: p.k, v: p.v, t: tr[i] }));
+    let pts = series.map((p, i) => ({ k: p.k, v: p.v, t: tr[i], g: goalOf(m, goalsOn(p.k)) }));
     if (weekly) {
       const buckets = [];
       for (let i = 0; i < pts.length; i += 7) {
         const chunk = pts.slice(i, i + 7);
         const vals = chunk.filter((p) => p.v !== null);
-        buckets.push({ k: chunk[0].k, end: chunk[chunk.length - 1].k, v: vals.length ? vals.reduce((s, p) => s + p.v, 0) / vals.length : null, t: chunk[chunk.length - 1].t });
+        buckets.push({ k: chunk[0].k, end: chunk[chunk.length - 1].k, v: vals.length ? vals.reduce((s, p) => s + p.v, 0) / vals.length : null, t: chunk[chunk.length - 1].t, g: chunk[chunk.length - 1].g });
       }
       pts = buckets;
     }
@@ -235,8 +242,8 @@ export function mountTrends(view) {
 
     // Daily score
     const sKeys = Array.from({ length: scoreDays }, (_, i) => addDays(today, -(scoreDays - 1) + i));
-    const scores = sKeys.map((k) => { const d = day(k); return d ? dayScore(d.t, d.list, settings, k) : null; });
-    const prevScores = Array.from({ length: scoreDays }, (_, i) => addDays(today, -(2 * scoreDays - 1) + i)).map((k) => { const d = day(k); return d ? dayScore(d.t, d.list, settings, k) : null; }).filter((x) => x !== null);
+    const scores = sKeys.map((k) => { const d = day(k); return d ? dayScore(d.t, d.list, goalsOn(k), k) : null; });
+    const prevScores = Array.from({ length: scoreDays }, (_, i) => addDays(today, -(2 * scoreDays - 1) + i)).map((k) => { const d = day(k); return d ? dayScore(d.t, d.list, goalsOn(k), k) : null; }).filter((x) => x !== null);
     const sc = scores.filter((x) => x !== null);
     const sAvg = sc.length ? Math.round(sc.reduce((x, y) => x + y, 0) / sc.length) : 0;
     animateNumber($(score, '[data-score]'), sAvg);
@@ -324,7 +331,8 @@ function drawChart(box, pts, m, { weekly, onScrub }) {
   const H = 200, padR = 44, padT = 10, padB = 24;
   const cw = W - padR, ch = H - padT - padB;
   const vals = pts.flatMap((p) => [p.v, p.t]).filter((v) => v !== null && v !== undefined);
-  const top = Math.max(...vals, m.goal || 0, 1) * 1.08;
+  const goals = pts.map((p) => p.g ?? m.goal).filter((g) => g);
+  const top = Math.max(...vals, ...goals, 1) * 1.08;
   const step = niceStep(top);
   const max = Math.ceil(top / step) * step;
   const y = (v) => padT + ch - (v / max) * ch;
@@ -336,12 +344,20 @@ function drawChart(box, pts, m, { weekly, onScrub }) {
     grid.push(`<line class="g" x1="0" x2="${cw}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="yl" x="${W - 4}" y="${(y(v) + 4).toFixed(1)}">${v >= 10000 ? `${Math.round(v / 1000)}k` : fmtV(m, v)}</text>`);
   }
   const bw = Math.max(2, Math.min(22, slot * 0.62));
-  const over = (v) => m.goal && v !== null && ((m.kind === 'limit' || m.kind === 'goal') && v > m.goal * (m.kind === 'goal' ? 1.1 : 1));
-  const bars = pts.map((p, i) => (p.v === null ? '' : `<rect class="b${over(p.v) ? ' over' : ''}" x="${(x(i) - bw / 2).toFixed(1)}" y="${y(p.v).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1.5, ch + padT - y(p.v)).toFixed(1)}" rx="${Math.min(4, bw / 2).toFixed(1)}"/>`)).join('');
+  const over = (v, g) => g && v !== null && ((m.kind === 'limit' || m.kind === 'goal') && v > g * (m.kind === 'goal' ? 1.1 : 1));
+  const bars = pts.map((p, i) => (p.v === null ? '' : `<rect class="b${over(p.v, p.g ?? m.goal) ? ' over' : ''}" x="${(x(i) - bw / 2).toFixed(1)}" y="${y(p.v).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1.5, ch + padT - y(p.v)).toFixed(1)}" rx="${Math.min(4, bw / 2).toFixed(1)}"/>`)).join('');
   const tp = pts.map((p, i) => (p.t === null || p.t === undefined ? null : [x(i), y(p.t)])).filter(Boolean);
   const showDots = n <= 31;
   const dots = showDots ? pts.map((p, i) => (p.t === null || p.t === undefined || p.v === null ? '' : `<circle class="d" cx="${x(i).toFixed(1)}" cy="${y(p.t).toFixed(1)}" r="3.2"/>`)).join('') : '';
-  const goal = m.goal ? `<line class="goal" x1="0" x2="${cw}" y1="${y(m.goal).toFixed(1)}" y2="${y(m.goal).toFixed(1)}"/>` : '';
+  // The goal as it was on each day: a flat line that steps where it was changed.
+  let gp = '';
+  pts.forEach((p, i) => {
+    const g = p.g ?? m.goal;
+    if (!g) return;
+    const x0 = i === 0 ? 0 : slot * i, x1 = i === n - 1 ? cw : slot * (i + 1);
+    gp += `${gp && (pts[i - 1]?.g ?? m.goal) ? 'L' : 'M'}${x0.toFixed(1)} ${y(g).toFixed(1)} L${x1.toFixed(1)} ${y(g).toFixed(1)} `;
+  });
+  const goal = gp ? `<path class="goal" d="${gp.trim()}"/>` : '';
   // About five evenly spaced date labels (every day for a week).
   const every = n <= 7 ? 1 : Math.ceil(n / 5);
   const xl = pts.map((p, i) => ((n - 1 - i) % every === 0 ? `<text class="xl" x="${x(i).toFixed(1)}" y="${H - 6}">${n <= 7 ? WD[parseKey(p.k).getDay()] : short(p.k)}</text>` : '')).join('');

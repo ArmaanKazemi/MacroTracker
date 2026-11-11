@@ -19,6 +19,7 @@ export async function getSettings() {
     microsVersion: MICROS_VERSION,
   };
   if (fresh && saved.micros) await db.put('kv', settingsCache, 'settings');
+  await goalHistory(); // capture the goals as they are, before anything changes them
   return settingsCache;
 }
 /** Tracked micronutrient keys, from the loaded settings (Core until they've loaded). */
@@ -28,9 +29,71 @@ export function trackedKeys() {
 export async function saveSettings(s) {
   settingsCache = s;
   await db.put('kv', s, 'settings');
+  await recordGoals(s);
 }
 export function resetCache() {
   settingsCache = null;
+  historyCache = null;
+}
+
+// ---------- goals per day ----------
+// Goals are remembered by day: a change applies from the day it's made onwards,
+// and earlier days keep the goals they had (so "on target yesterday" stays true).
+// Stored in kv 'goalHistory' as [{ from: 'YYYY-MM-DD', goals }], oldest first.
+const GOAL_KEYS = ['kcal', 'protein', 'carbs', 'fat', 'sugars', 'satfat', 'water', 'micros', 'upper', 'tracked', 'trackedSince'];
+const pickGoals = (s) => JSON.parse(JSON.stringify(Object.fromEntries(GOAL_KEYS.map((k) => [k, s[k] ?? null]))));
+const localKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const BEGINNING = '0000-01-01';
+let historyCache = null;
+
+async function goalHistory() {
+  if (historyCache) return historyCache;
+  let h = await db.get('kv', 'goalHistory');
+  if (!Array.isArray(h) || !h.length) {
+    // First run with goal history: today's goals apply to every earlier day.
+    h = [{ from: BEGINNING, goals: pickGoals(await getSettings()) }];
+    await db.put('kv', h, 'goalHistory');
+  }
+  historyCache = h.slice().sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
+  return historyCache;
+}
+
+/** Settings with the goals that applied on `date` (pure; `history` oldest first). */
+export function goalsAt(history, settings, date) {
+  let g = null;
+  for (const h of history) if (h.from <= date) g = h.goals; else break;
+  if (!g) g = history[0]?.goals;
+  if (!g) return settings;
+  const out = { ...settings };
+  for (const k of GOAL_KEYS) if (g[k] !== null && g[k] !== undefined) out[k] = g[k];
+  // Nutrients added since that snapshot fall back to today's values.
+  out.micros = { ...settings.micros, ...(g.micros || {}) };
+  out.upper = { ...settings.upper, ...(g.upper || {}) };
+  return out;
+}
+
+/** The settings (goals, targets, tracked nutrients) that applied on a given day. */
+export async function settingsFor(date) {
+  const [s, h] = await Promise.all([getSettings(), goalHistory()]);
+  return date >= localKey() ? s : goalsAt(h, s, date);
+}
+
+/** A synchronous date -> settings lookup, for code that walks many days (Trends). */
+export async function goalsByDate() {
+  const [s, h] = await Promise.all([getSettings(), goalHistory()]);
+  const today = localKey();
+  return (date) => (date >= today ? s : goalsAt(h, s, date));
+}
+
+async function recordGoals(s) {
+  const h = (await goalHistory()).slice();
+  const today = localKey();
+  const now = pickGoals(s);
+  if (JSON.stringify(pickGoals(goalsAt(h, s, today))) === JSON.stringify(now) && h.some((x) => x.from <= today)) return;
+  const next = h.filter((x) => x.from < today);
+  next.push({ from: today, goals: now });
+  historyCache = next;
+  await db.put('kv', next, 'goalHistory');
 }
 
 // ---------- seed ----------
