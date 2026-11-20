@@ -755,3 +755,86 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .meal-time .input[type="time"], .ql-time { min-height: 48px; text-align: center; }
 .ql-time { flex: none; width: 128px; }
 .item-time { color: var(--text); font-weight: 600; }
+
+/* ---------- Gut log ---------- */
+.gut-when { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gut-when .field { margin-top: 0; }
+.bristol-grid { display: grid; gap: 6px; margin-top: 6px; }
+.bristol { display: grid; grid-template-columns: 24px 54px 1fr; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 6px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); text-align: left; transition: border-color 0.15s, background 0.15s, transform 0.12s; }
+.bristol:active { transform: scale(0.98); }
+.bristol-n { font-family: var(--serif); font-size: 22px; font-weight: 600; text-align: center; }
+.bristol-ic svg { width: 54px; height: 32px; display: block; }
+.bristol.hard .bristol-ic { color: var(--amber); } .bristol.normal .bristol-ic { color: var(--green); } .bristol.loose .bristol-ic { color: var(--red); }
+.bristol-t b { display: block; font-size: 14.5px; font-weight: 650; }
+.bristol-t small { display: block; font-size: 12.5px; color: var(--muted); }
+.bristol[aria-checked="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.gut-seg button { font-size: 12.5px; padding: 0 4px; }
+.gut-seg button[aria-checked="true"] { background: var(--text); color: var(--bg); }
+.gut-chips .chip { min-height: 38px; font-size: 13.5px; }
+.gut-chips .chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.gut-chips .chip[data-yn="blood"][aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
+.gut-sliders { display: grid; gap: 4px; margin-top: 10px; }
+.gut-sliders input[type="range"] { width: 100%; accent-color: var(--accent); min-height: 32px; }
+.gut-sliders .field span b { font-family: var(--serif); font-size: 18px; color: var(--text); }
+.gut-notes { min-height: 64px; padding-top: 10px; resize: vertical; }
+.gut-banner { margin: 10px 0 4px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--red) 16%, var(--card)); border: 1px solid color-mix(in srgb, var(--red) 55%, transparent); color: var(--red); font-weight: 700; font-size: 14.5px; }
+.gut-banner.big { margin: 0 0 12px; font-size: 16px; }
+.gut-banner small { display: block; margin-top: 2px; font-weight: 500; font-size: 13px; color: var(--text); }
+.gut-today .row { gap: 12px; }
+.gut-today .gut-banner { margin-top: 0; }
+.gut-link { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; color: inherit; text-decoration: none; }
+
+.gut-today-ic { width: 50px; height: 50px; flex: none; border-radius: 50%; display: grid; place-items: center; color: var(--muted); background: color-mix(in srgb, var(--accent) 8%, var(--card-2)); }
+.gut-today-ic svg { width: 34px; height: 22px; }
+.gut-today-ic.hard { color: var(--amber); } .gut-today-ic.normal { color: var(--green); } .gut-today-ic.loose { color: var(--red); }
+.gut-week .iconbtn { width: 38px; height: 38px; }
+.gut-week .iconbtn svg { width: 16px; height: 16px; }
+.gut-week .iconbtn:disabled { opacity: 0.3; }
+.gut-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; margin: 14px 0 10px; }
+.gut-stats b { display: block; font-family: var(--serif); font-size: 28px; font-weight: 600; line-height: 1.1; }
+.gut-stats span { font-size: 11.5px; color: var(--muted); }
+.gut-dist { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; height: 110px; align-items: end; margin-top: 6px; }
+.gut-dcol { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+.gut-dcol .num { font-size: 12px; color: var(--muted); min-height: 14px; }
+.gut-dcol i { width: 100%; border-radius: 8px 8px 4px 4px; background: var(--track); transform-origin: bottom; animation: tr-grow 0.6s var(--ease) both; }
+.gut-dcol i.hard { background: var(--amber); } .gut-dcol i.normal { background: var(--green); } .gut-dcol i.loose { background: var(--red); }
+.gut-dcol small { font-family: var(--serif); font-size: 15px; font-weight: 600; }
+.gut-split { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.gut-pill { padding: 8px 10px; border-radius: 14px; background: var(--card-2); text-align: center; }
+.gut-pill b { display: block; font-family: var(--serif); font-size: 22px; font-weight: 600; }
+.gut-pill span { font-size: 12px; color: var(--muted); }
+.gut-pill.hard b { color: var(--amber); } .gut-pill.normal b { color: var(--green); } .gut-pill.loose b { color: var(--red); }
+.gut-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.gut-table th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.gut-table td { padding: 9px 4px; border-bottom: 1px solid var(--line); }
+.gut-table td small { color: var(--muted); }
+.gut-table tr:last-child td { border-bottom: 0; }
+.gut-row { display: flex; gap: 12px; padding: 12px 2px; border-top: 1px solid var(--line); cursor: pointer; background: var(--card); }
+.swipe:first-child .gut-row { border-top: 0; }
+.gut-type { flex: none; width: 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.gut-type b { font-family: var(--serif); font-size: 22px; line-height: 1; }
+.gut-type svg { width: 40px; height: 22px; }
+.gut-type.hard { color: var(--amber); } .gut-type.normal { color: var(--green); } .gut-type.loose { color: var(--red); }
+.gut-type b { color: var(--text); }
+.gut-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.gut-line { font-size: 14.5px; }
+.gut-g { display: inline-block; font-size: 11px; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; margin-left: 4px; vertical-align: 1px; }
+.gut-g.hard { color: var(--amber); background: color-mix(in srgb, var(--amber) 15%, transparent); }
+.gut-g.normal { color: var(--green); background: color-mix(in srgb, var(--green) 15%, transparent); }
+.gut-g.loose, .gut-g.blood { color: var(--red); background: color-mix(in srgb, var(--red) 14%, transparent); }
+.gut-flags, .gut-notes-t { font-size: 13px; color: var(--muted); }
+.gut-notes-t { font-style: italic; }
+.gut-foods { font-size: 13px; color: var(--muted); padding: 6px 8px; border-radius: 10px; background: var(--card-2); margin-top: 2px; }
+.gut-foods b { color: var(--text); font-weight: 650; }
+
+/* Add-food sheet: Quick log as a tab, a calmer start screen */
+.ql-foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.same-y { margin: 4px 0 10px; }
+.same-y-l { font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 2px; }
+.same-y .same-y-names { -webkit-line-clamp: 1; font-size: 14.5px; }
+.create-link { margin-top: 10px; color: var(--accent); justify-content: center; display: flex; align-items: center; gap: 6px; }
+.create-link svg { width: 16px; height: 16px; }
+[data-more] { color: var(--accent); margin-top: 4px; }
+.gut-title { display: block; font-family: var(--serif); font-size: 22px; font-weight: 600; line-height: 1.1; }
+.gut-sub { display: block; font-size: 13px; color: var(--muted); margin-top: 3px; }
+.gut-sub b { color: var(--text); font-weight: 650; }
