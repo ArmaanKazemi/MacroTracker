@@ -46,6 +46,7 @@ async function mockOff(ctx) {
 }
 
 let passed = 0;
+const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 const location = () => page.url();
 async function step(name, fn) {
   process.stdout.write(`• ${name} … `);
@@ -539,7 +540,7 @@ await step('export food diary CSV: every food by day and meal, with day totals a
   await dl.saveAs(path);
   const text = (await readFile(path, 'utf8')).replace(/^﻿/, '');
   const lines = text.trim().split('\r\n');
-  assert.match(lines[0], /^Date,Meal,Food,Brand,Amount,Calories \(kcal\),Protein \(g\),Carbs \(g\),of which sugars \(g\),Fat \(g\),of which saturates \(g\),.*Vitamin D \(µg\).*,Water \(ml\)$/);
+  assert.match(lines[0], /^Date,Meal,Time,Food,Brand,Amount,Calories \(kcal\),Protein \(g\),Carbs \(g\),of which sugars \(g\),Fat \(g\),of which saturates \(g\),.*Vitamin D \(µg\).*,Water \(ml\)$/);
   const json = JSON.parse(await readFile(backupPath, 'utf8'));
   const days = new Set([...json.data.entries.map((e) => e.date), ...json.data.water.map((w) => w.date)]);
   assert.equal(lines.filter((l) => l.split(',')[1] === 'Day total').length, days.size, 'one total per day');
@@ -1599,6 +1600,56 @@ await step('goals are remembered per day: changing goals or tracked nutrients to
   assert.equal(h[1].goals.kcal, 1800);
   assert.deepEqual(errs, []);
   await c.close();
+});
+
+await step('meal times: now by default, editable, shown and ordered by time; quick log too', async () => {
+  await page.goto(BASE + '#/today');
+  await settle();
+  const now = await page.evaluate(async () => (await import('./js/store.js')).nowTime());
+  // Log a food: the time defaults to now; set it to 07:30
+  await page.locator('[data-meal="breakfast"] [data-add]').click();
+  await page.waitForTimeout(400);
+  await topSheet().locator('input[type=search]').fill('blueberries');
+  await page.waitForTimeout(600);
+  await topSheet().locator('.result', { hasText: 'Blueberries' }).first().locator('.item-main').click();
+  await page.waitForTimeout(450);
+  const t = topSheet().locator('[data-time]');
+  assert.ok(Math.abs(toMin(await t.inputValue()) - toMin(now)) <= 1, 'defaults to the current time');
+  await t.fill('07:30');
+  await topSheet().locator('[data-save]').click();
+  await page.waitForTimeout(500);
+  while (await page.locator('.sheet.open').count()) { await closeTop(); await page.waitForTimeout(300); }
+  await settle();
+  const item = page.locator('[data-meal="breakfast"] .item', { hasText: 'Blueberries' }).filter({ hasText: '07:30' });
+  assert.equal(await item.count(), 1);
+  assert.match(await item.locator('.item-meta').textContent(), /^07:30 · /);
+  // Edit the time on the logged entry
+  await item.click();
+  await page.waitForTimeout(450);
+  assert.equal(await topSheet().locator('[data-time]').inputValue(), '07:30');
+  await topSheet().locator('[data-time]').fill('06:15');
+  await topSheet().locator('[data-save]').click();
+  await settle();
+  const metas = await page.locator('[data-meal="breakfast"] .item .item-meta').allTextContents();
+  assert.match(metas[0], /^06:15 · /, 'earliest first within the meal');
+  // Quick log carries a time too
+  await page.locator('[data-meal="snacks"] [data-add]').click();
+  await page.waitForTimeout(400);
+  await topSheet().locator('[data-quicklog]').click();
+  await page.waitForTimeout(400);
+  assert.ok(Math.abs(toMin(await topSheet().locator('[data-time]').inputValue()) - toMin(now)) <= 1);
+  await topSheet().locator('[data-time]').fill('15:45');
+  await topSheet().locator('.ql-text').fill('apple 52kcal 0.3p 14c 0.2f');
+  await topSheet().locator('.ql-total').waitFor({ timeout: 4000 });
+  await topSheet().locator('[data-log]').click();
+  await settle();
+  const ql = await page.evaluate(async () => { const store = await import('./js/store.js'); const ui = await import('./js/ui.js'); return (await store.entriesFor(ui.todayKey())).find((e) => e.name === 'Apple'); });
+  assert.equal(ql.time, '15:45');
+  await page.evaluate(async () => {
+    const store = await import('./js/store.js'); const ui = await import('./js/ui.js');
+    for (const e of await store.entriesFor(ui.todayKey())) if (e.name === 'Apple' || e.time === '06:15') await store.deleteEntry(e.id);
+    window.dispatchEvent(new CustomEvent('data-changed'));
+  });
 });
 
 await step('no JavaScript errors', async () => {

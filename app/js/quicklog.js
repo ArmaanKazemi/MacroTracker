@@ -80,6 +80,7 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
       <label class="toggle" data-save-row hidden style="margin:0 0 6px;min-height:40px"><span class="small">Save typed foods to My foods</span><span class="switch"><input type="checkbox" data-save-typed><span></span></span></label>
       <div class="row" style="gap:8px">
         <select class="input" data-meal style="flex:1" aria-label="Meal">${MEALS.map((m) => `<option value="${m.key}">${m.label}</option>`).join('')}</select>
+        <input class="input num ql-time" type="time" data-time aria-label="Time eaten">
         <button class="btn go" type="button" data-log disabled style="flex:1.4">Log</button>
       </div>
     </div>`);
@@ -88,6 +89,7 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
   const rowsBox = $(body, '[data-rows]');
   const logBtn = $(foot, '[data-log]');
   $(foot, '[data-meal]').value = meal;
+  $(foot, '[data-time]').value = store.nowTime();
 
   // Manual changes survive re-parsing, keyed by what was typed.
   const overrides = new Map();
@@ -183,6 +185,7 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
 
   logBtn.onclick = async () => {
     const m = $(foot, '[data-meal]').value;
+    const time = $(foot, '[data-time]').value || store.nowTime();
     const saveTyped = $(foot, '[data-save-typed]').checked;
     const created = [];
     for (const row of items.filter((x) => x.food)) {
@@ -190,7 +193,7 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
       if (row.typed && saveTyped) {
         food = await store.saveFood({ ...food, servings: row.servingLabel ? [{ label: 'portion', amount: 100 }] : [], favourite: false, createdAt: Date.now() });
       }
-      created.push(await store.logFood(food, { date, meal: m, amount: row.amount, servingLabel: row.servingLabel || null, qty: row.qty || null }));
+      created.push(await store.logFood(food, { date, meal: m, amount: row.amount, servingLabel: row.servingLabel || null, qty: row.qty || null, time }));
     }
     changed();
     sheet.close();

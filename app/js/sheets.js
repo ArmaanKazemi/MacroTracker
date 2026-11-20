@@ -432,7 +432,10 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
         <button type="button" class="btn sm" data-edit-servings style="background:transparent;color:var(--muted);padding:0 4px" hidden>Edit servings</button>
       </div>
       <div class="preview num" data-preview></div>
-      <label class="field"><span>Meal</span><select class="input" data-meal>${MEALS.map((m) => `<option value="${m.key}">${m.label}</option>`).join('')}</select></label>
+      <div class="meal-time">
+        <label class="field"><span>Meal</span><select class="input" data-meal>${MEALS.map((m) => `<option value="${m.key}">${m.label}</option>`).join('')}</select></label>
+        <label class="field"><span>Time</span><input class="input num" type="time" data-time aria-label="Time eaten"></label>
+      </div>
       <div data-actions style="margin-top:4px"></div>
       <div class="list-h" style="display:flex;align-items:center;gap:8px">Micronutrients <span class="spacer"></span><span data-micro-count style="letter-spacing:0;text-transform:none;font-weight:600"></span></div>
       <div data-link></div>
@@ -445,6 +448,9 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
   const unitSel = $(body, '[data-unit]');
   $(body, '[data-meal]').value = curMeal;
   $(body, '[data-meal]').onchange = (e) => (curMeal = e.target.value);
+  // When it was eaten: now for new food; an entry keeps its own time (old ones had none).
+  const timeIn = $(body, '[data-time]');
+  timeIn.value = entry ? entry.time || '' : store.nowTime();
 
   function renderUnits() {
     unitSel.innerHTML = `<option value="unit">${unit}</option>` +
@@ -671,7 +677,7 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     const qty = sel === 'unit' ? null : Number(num);
     if (entry) {
       const { per100, estimated } = nutr();
-      Object.assign(entry, { amount: a, servingLabel, qty, meal: curMeal, per100, estimated, name: food.name });
+      Object.assign(entry, { amount: a, servingLabel, qty, meal: curMeal, per100, estimated, name: food.name, time: timeIn.value || entry.time || null });
       await store.saveEntry(entry);
       changed();
       sheet.close();
@@ -680,7 +686,7 @@ export function openFoodDetail(food, { date, meal, entry = null, onLogged } = {}
     }
     // Branded / generic results are stored so they appear in Recent and can be linked later.
     const saved = food.source === 'generic' || food.source === 'off' ? await store.persistFood(food) : food;
-    const e = await store.logFood(saved, { date, meal: curMeal, amount: a, servingLabel, qty });
+    const e = await store.logFood(saved, { date, meal: curMeal, amount: a, servingLabel, qty, time: timeIn.value || store.nowTime() });
     sheet.close();
     onLogged?.(saved, e);
   };
@@ -985,13 +991,17 @@ export function openRecipeLog(recipe, { date, meal, onLogged, onEdited }) {
       <p class="note" style="margin-top:0">Adjust amounts for this time only, or edit the saved meal.</p>
       <div data-items></div>
       <div class="preview num" data-total></div>
-      <label class="field"><span>Meal</span><select class="input" data-meal>${MEALS.map((m) => `<option value="${m.key}">${m.label}</option>`).join('')}</select></label>
+      <div class="meal-time">
+        <label class="field"><span>Meal</span><select class="input" data-meal>${MEALS.map((m) => `<option value="${m.key}">${m.label}</option>`).join('')}</select></label>
+        <label class="field"><span>Time</span><input class="input num" type="time" data-time aria-label="Time eaten"></label>
+      </div>
       <button class="btn sm block" type="button" data-edit>Edit saved meal</button>
     </div>`);
   const foot = el('<div class="btns"><button class="btn go" type="button" data-log>Log meal</button></div>');
   const s = openSheet({ title: recipe.name, body, foot, tall: true });
   $(body, '[data-meal]').value = meal;
   $(body, '[data-meal]').onchange = (e) => (curMeal = e.target.value);
+  $(body, '[data-time]').value = store.nowTime();
   const renderTotal = async () => {
     const t = await recipeTotals(recipe, amounts);
     $(body, '[data-total]').innerHTML = [['kcal', 'Kcal'], ['protein', 'Protein'], ['carbs', 'Carbs'], ['fat', 'Fat']]
@@ -1009,7 +1019,7 @@ export function openRecipeLog(recipe, { date, meal, onLogged, onEdited }) {
   renderTotal();
   $(body, '[data-edit]').onclick = () => { s.close(); openRecipeEditor(recipe, { onSaved: onEdited }); };
   $(foot, '[data-log]').onclick = async () => {
-    const created = await store.logRecipe(recipe, { date, meal: curMeal, amounts });
+    const created = await store.logRecipe(recipe, { date, meal: curMeal, amounts, time: $(body, '[data-time]').value || store.nowTime() });
     s.close();
     onLogged?.(created);
     toast(`Added ${recipe.name}`, { label: 'Undo', run: async () => { for (const e of created) await store.deleteEntry(e.id); changed(); } });
