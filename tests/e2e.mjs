@@ -1814,6 +1814,218 @@ await step('gut log: quick add from Today, weekly summary, foods before, trigger
   await c.close();
 });
 
+await step('planner & pantry: pantry badges and +/-, recipes with tags and pantry links, week planner with totals, prep tomorrow on Today in the evening, log as eaten with pantry deduction, shopping list with restock and text export', async () => {
+  const c = await browser.newContext({ ...iphone });
+  const n = new Date();
+  const ymd = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+  await c.clock.setFixedTime(new Date(`${ymd}T19:00:00`)); // an evening
+  const p = await c.newPage();
+  const errs = [];
+  p.on('pageerror', (e) => errs.push(e.message));
+  const top = () => p.locator('.sheet.open').last();
+  const tap = (loc) => loc.evaluate((x) => x.click());
+  await p.goto(BASE + '#/today');
+  await p.waitForTimeout(1500);
+  const before = await p.evaluate(async () => { const db = await import('./js/db.js'); return { entries: (await db.getAll('entries')).length, recipes: (await db.getAll('recipes')).length }; });
+
+  // Foods → Planner & Pantry → Pantry: add an item through the form (a supplement with a daily dose)
+  await p.goto(BASE + '#/foods');
+  await p.waitForTimeout(600);
+  await p.locator('[data-plan-entry]').click();
+  await p.waitForTimeout(700);
+  assert.match(p.url(), /#\/plan$/);
+  await p.locator('[data-ptab="pantry"]').click();
+  await p.waitForTimeout(500);
+  await p.locator('[data-new-pantry]').click();
+  await p.waitForTimeout(450);
+  await top().locator('[data-f="name"]').fill('Vitamin D3');
+  await top().locator('[data-loc="supplements"]').click();
+  assert.equal(await top().locator('[data-f="unit"]').inputValue(), 'capsules');
+  await top().locator('[data-f="qty"]').fill('12');
+  await top().locator('[data-f="low"]').fill('10');
+  await top().locator('[data-f="dailyDose"]').fill('1');
+  await top().locator('[data-save]').click();
+  await p.waitForTimeout(600);
+  // More items (fridge milk expiring soon, frozen chicken, cupboard oats)
+  await p.evaluate(async (ymd) => {
+    const store = await import('./js/store.js'); const ui = await import('./js/ui.js');
+    const list = await store.getPantry();
+    list.push(
+      { id: 'pi-oats', name: 'Oats', brand: 'Jordans', location: 'cupboard', qty: 400, unit: 'g', packSize: 1000, low: 200 },
+      { id: 'pi-milk', name: 'Milk', location: 'fridge', qty: 600, unit: 'ml', packSize: 2000, low: 500, expiry: ui.addDays(ymd, 2) },
+      { id: 'pi-chicken', name: 'Chicken breast', location: 'freezer', qty: 2, unit: 'items', perItem: 150, low: 1 },
+    );
+    await store.savePantry(list);
+    window.dispatchEvent(new CustomEvent('data-changed'));
+  }, ymd);
+  await p.waitForTimeout(700);
+  const row = (name) => p.locator('.pantry-row', { hasText: name });
+  assert.match(await row('Vitamin D3').textContent(), /12 capsules[\s\S]*12 days left[\s\S]*Reorder in 5 days/);
+  assert.match(await row('Milk').textContent(), /600 ml[\s\S]*Expires in 2 days/);
+  assert.doesNotMatch(await row('Oats').textContent(), /Low stock/);
+  // −/+ buttons: capsules step by 1, grams by 10; at the low level the badge appears
+  await tap(row('Vitamin D3').locator('[data-minus]'));
+  await p.waitForTimeout(400);
+  await tap(row('Vitamin D3').locator('[data-minus]'));
+  await p.waitForTimeout(400);
+  assert.match(await row('Vitamin D3').textContent(), /10 capsules[\s\S]*Low stock/);
+  await tap(row('Oats').locator('[data-plus]'));
+  await p.waitForTimeout(400);
+  assert.match(await row('Oats').locator('[data-q]').textContent(), /410 g/);
+
+  // Recipes: build one in the editor with a tag, a pantry-linked food and a prep note
+  await p.locator('[data-ptab="recipes"]').click();
+  await p.waitForTimeout(500);
+  await p.locator('[data-new-recipe]').click();
+  await p.waitForTimeout(450);
+  await top().locator('[data-name]').fill('Overnight oats');
+  await top().locator('[data-tag="breakfast"]').click();
+  await top().locator('[data-add]').click();
+  await p.waitForTimeout(450);
+  await top().locator('input[type=search]').fill('oats');
+  await p.waitForTimeout(700);
+  await top().locator('.result').first().click();
+  await p.waitForTimeout(500);
+  const ed = top();
+  await ed.locator('[data-pantry]').first().selectOption('pi-oats');
+  await ed.locator('[data-amt]').first().fill('80');
+  await ed.locator('[data-prep]').fill('Make overnight oats');
+  await p.waitForTimeout(400);
+  assert.match(await ed.locator('[data-total]').textContent(), /Kcal/);
+  assert.ok(await ed.locator('[data-micros-box]').count());
+  await ed.locator('[data-save]').click();
+  await p.waitForTimeout(700);
+  const oats = await p.evaluate(async () => (await (await import('./js/store.js')).getRecipes()).find((r) => r.name === 'Overnight oats'));
+  assert.deepEqual(oats.tags, ['breakfast']);
+  assert.equal(oats.prep, 'Make overnight oats');
+  assert.equal(oats.items[0].pantryId, 'pi-oats');
+  assert.equal(oats.items[0].amount, 80);
+  assert.match(await p.locator('[data-recipe]', { hasText: 'Overnight oats' }).textContent(), /kcal[\s\S]*Breakfast[\s\S]*Prep: Make overnight oats/);
+  // A second recipe with frozen chicken and milk; tag filter
+  await p.evaluate(async () => {
+    const store = await import('./js/store.js');
+    await store.saveRecipe({ name: 'Chicken & rice', tags: ['dinner'], items: [
+      { name: 'Chicken breast', unit: 'g', amount: 150, pantryId: 'pi-chicken', snapshot: { name: 'Chicken breast', unit: 'g', per100: { kcal: 106, protein: 24, carbs: 0, fat: 1 } } },
+      { name: 'Rice', unit: 'g', amount: 75, snapshot: { name: 'Rice', unit: 'g', per100: { kcal: 350, protein: 7, carbs: 78, fat: 1 } } },
+      { name: 'Milk', unit: 'ml', amount: 400, pantryId: 'pi-milk', snapshot: { name: 'Milk', unit: 'ml', per100: { kcal: 46, protein: 3.5, carbs: 4.8, fat: 1.7 } } },
+    ] });
+    window.dispatchEvent(new CustomEvent('data-changed'));
+  });
+  await p.waitForTimeout(700);
+  await p.locator('[data-rtag="dinner"]').click();
+  await p.waitForTimeout(500);
+  assert.equal(await p.locator('[data-recipe]').count(), 1);
+  assert.match(await p.locator('[data-recipe]').textContent(), /Chicken & rice[\s\S]*606 kcal/);
+
+  // Planner: pick into slots; totals against goals; Move to…
+  await p.locator('[data-ptab="planner"]').click();
+  await p.waitForTimeout(800);
+  const tomorrow = await p.evaluate(async (ymd) => (await import('./js/ui.js')).addDays(ymd, 1), ymd);
+  const thisWeek = await p.evaluate(async () => { const pl = await import('./js/planner.js'); const ui = await import('./js/ui.js'); return pl.weekDates(pl.mondayOf(ui.todayKey())); });
+  if (!thisWeek.includes(tomorrow)) { await p.locator('[data-wnext]').click(); await p.waitForTimeout(700); }
+  await tap(p.locator(`[data-slot="${tomorrow}|breakfast"]`));
+  await p.waitForTimeout(500);
+  assert.match(await top().locator('[data-pick]').first().textContent(), /Overnight oats/, 'breakfast-tagged recipes first');
+  await top().locator('[data-pick]', { hasText: 'Overnight oats' }).click();
+  await p.waitForTimeout(700);
+  await tap(p.locator(`[data-slot="${tomorrow}|lunch"]`));
+  await p.waitForTimeout(500);
+  await top().locator('[data-pick]', { hasText: 'Chicken & rice' }).click();
+  await p.waitForTimeout(700);
+  // Move tomorrow's chicken from lunch to dinner
+  await tap(p.locator(`[data-slot="${tomorrow}|lunch"]`));
+  await p.waitForTimeout(500);
+  await top().locator('[data-move]').click();
+  await top().locator(`[data-to="${tomorrow}|dinner"]`).click();
+  await p.waitForTimeout(700);
+  let plan = await p.evaluate(async () => (await import('./js/store.js')).getPlan());
+  assert.ok(plan[tomorrow].dinner?.recipeId && !plan[tomorrow].lunch, 'moved to dinner');
+  assert.match(await p.locator(`[data-slot="${tomorrow}|dinner"]`).textContent(), /Chicken & rice/);
+  const day = p.locator('.plan-day', { has: p.locator(`[data-slot="${tomorrow}|dinner"]`) });
+  assert.match(await day.locator('[data-tot]').textContent(), /\/2,200 kcal[\s\S]*P[\s\S]*\/160g/);
+  // Prep tonight for tomorrow: the recipe note and the frozen chicken
+  const prepCard = p.locator('.prep-card');
+  assert.match(await prepCard.textContent(), /Make overnight oats[\s\S]*Defrost Chicken breast/);
+  // Plan chicken for today's dinner too
+  await p.evaluate(async (ymd) => {
+    const store = await import('./js/store.js');
+    const plan = await store.getPlan();
+    const r = (await store.getRecipes()).find((x) => x.name === 'Chicken & rice');
+    plan[ymd] = { ...(plan[ymd] || {}), dinner: { recipeId: r.id, servings: 1 } };
+    await store.savePlan(plan);
+  }, ymd);
+
+  // Today (19:00): today's plan with Log as eaten, and tomorrow's prep
+  await p.goto(BASE + '#/today');
+  await p.waitForTimeout(1500);
+  const card = p.locator('.plan-today');
+  assert.ok(await card.isVisible());
+  assert.match(await card.textContent(), /Today's plan[\s\S]*Dinner[\s\S]*Chicken & rice[\s\S]*Prep tonight for tomorrow[\s\S]*Make overnight oats[\s\S]*Defrost Chicken breast/);
+  // Log as eaten: food log entry added, then asked before deducting from the pantry
+  await tap(card.locator('[data-eat="dinner"]'));
+  await p.waitForTimeout(800);
+  assert.match(await top().textContent(), /Take these out of the pantry\?[\s\S]*Chicken breast: 1 item[\s\S]*Milk: 400 ml/);
+  await top().locator('[data-yes]').click();
+  await p.waitForTimeout(700);
+  const after = await p.evaluate(async (ymd) => {
+    const store = await import('./js/store.js'); const db = await import('./js/db.js');
+    const pantry = await store.getPantry();
+    return { chicken: pantry.find((x) => x.id === 'pi-chicken').qty, milk: pantry.find((x) => x.id === 'pi-milk').qty, dinner: (await store.entriesFor(ymd)).filter((e) => e.meal === 'dinner').map((e) => e.name), eaten: (await store.getPlan())[ymd].dinner.eaten, entries: (await db.getAll('entries')).length };
+  }, ymd);
+  assert.equal(after.chicken, 1);
+  assert.equal(after.milk, 200);
+  assert.deepEqual(after.dinner.sort(), ['Chicken breast', 'Milk', 'Rice']);
+  assert.equal(after.eaten, true);
+  assert.equal(after.entries, before.entries + 3, 'only the logged recipe was added to the food log');
+  assert.match(await card.textContent(), /Eaten/);
+  // Before 5pm the prep list isn't shown on Today
+  await c.clock.setFixedTime(new Date(`${ymd}T16:00:00`));
+  await p.reload();
+  await p.waitForTimeout(1500);
+  assert.doesNotMatch(await p.locator('.plan-today').textContent(), /Prep tonight/);
+
+  // Shopping list: plan needs minus stock, low stock, manual items; tick, restock, export
+  await p.goto(BASE + '#/plan');
+  await p.waitForTimeout(600);
+  await p.locator('[data-ptab="shopping"]').click();
+  await p.waitForTimeout(900);
+  const line = (key) => p.locator(`[data-line="${key}"]`);
+  // Vitamin D at its low level; milk short for tomorrow's chicken (needs 400, have 200); chicken needed (1 left, 1 needed, low 1)
+  assert.match(await line('p:pi-milk').textContent(), /Milk: 1 pack \(2 L\)[\s\S]*need/);
+  assert.match(await line('p:pi-chicken').textContent(), /Chicken breast/);
+  assert.ok(await line(`p:${(await p.evaluate(async () => (await (await import('./js/store.js')).getPantry()).find((x) => x.name === 'Vitamin D3').id))}`).count());
+  assert.ok(await line('n:rice|g').count(), 'ingredients not in the pantry are listed too');
+  await p.locator('[data-mname]').fill('Whiteboard');
+  await p.locator('.shop-add button').click();
+  await p.waitForTimeout(600);
+  assert.equal(await p.locator('.shop-line', { hasText: 'Whiteboard' }).count(), 1);
+  await tap(line('p:pi-milk').locator('input'));
+  await p.waitForTimeout(300);
+  await tap(p.locator('.shop-line', { hasText: 'Whiteboard' }).locator('input'));
+  await p.waitForTimeout(300);
+  assert.match(await p.locator('[data-bought]').textContent(), /Add 2 bought items to pantry/);
+  // Export as plain text (ticked lines left out)
+  await tap(p.locator('[data-text]'));
+  await p.waitForTimeout(500);
+  const text = await top().locator('[data-text]').inputValue();
+  assert.match(text, /^Shopping list \(/);
+  assert.match(text, /FREEZER\n- Chicken breast/);
+  assert.match(text, /SUPPLEMENTS\n- Vitamin D3/);
+  assert.doesNotMatch(text, /Whiteboard|Milk:/);
+  await p.keyboard.press('Escape');
+  await p.locator('.sheet.open [data-close]').last().click().catch(() => {});
+  await p.waitForTimeout(400);
+  await tap(p.locator('[data-bought]'));
+  await p.waitForTimeout(800);
+  const restocked = await p.evaluate(async () => { const store = await import('./js/store.js'); return { milk: (await store.getPantry()).find((x) => x.id === 'pi-milk').qty, manual: (await store.getShopping()).manual.length }; });
+  assert.equal(restocked.milk, 2200, '200 ml + one 2 L pack');
+  assert.equal(restocked.manual, 0, 'bought manual items are cleared, not added to the pantry');
+  // Nothing else touched: recipes are the old ones plus the two new ones
+  assert.equal(await p.evaluate(async () => (await (await import('./js/db.js')).getAll('recipes')).length), before.recipes + 2);
+  assert.deepEqual(errs, []);
+  await c.close();
+});
+
 await step('no JavaScript errors', async () => {
   assert.deepEqual(errors, []);
 });

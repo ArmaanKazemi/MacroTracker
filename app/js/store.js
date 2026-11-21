@@ -368,6 +368,17 @@ export async function logRecipe(recipe, { date, meal, amounts, time = nowTime() 
   return created;
 }
 
+// ---------- planner & pantry ----------
+// Kept in kv (so they're in backups): the pantry list, the plan by date, and the
+// shopping list's manual items and ticks.
+export const getPantry = async () => (await db.get('kv', 'pantry')) || [];
+export const savePantry = (list) => db.put('kv', list, 'pantry');
+export const getPlan = async () => (await db.get('kv', 'plan')) || {};
+export const savePlan = (plan) => db.put('kv', plan, 'plan');
+export const getShopping = async () => ({ manual: [], ticked: {}, ...((await db.get('kv', 'shopping')) || {}) });
+export const saveShopping = (s) => db.put('kv', s, 'shopping');
+export const newId = (prefix = 'p') => `${prefix}-${db.uid()}`;
+
 // ---------- gut log ----------
 export const getGut = () => db.getAll('gut');
 export const gutBetween = (from, to) => db.byDateRange('gut', from, to);

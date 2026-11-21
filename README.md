@@ -37,6 +37,14 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
   - UK CoFID (McCance & Widdowson) generic foods, bundled so search works offline.
   - UK branded products from Open Food Facts, plus camera barcode scanning.
   - Missing micronutrients show as **no data**, never as zero. You can link a food to a similar CoFID food to estimate them.
+- **Planner & Pantry** (button at the top of Foods; *Today's plan* card on Today):
+  - **Pantry:** items with name, brand, location (fridge / freezer / cupboard / supplements), quantity and unit (g, ml, items, packs, capsules), pack size, low-stock level, optional expiry, optional weight of one item, and a linked food for nutrition. +/− buttons adjust stock (by 10 for g/ml, 1 otherwise). Badges: *Low stock*, *Expires in N days* (3 days or less), *Expired*. Supplements with a daily dose show days left and *Reorder in X days* (a week before running out).
+  - **Recipes:** your saved meals, now with tags (breakfast / lunch / dinner / pre-training), a *prep the night before* note, and ingredients linked to pantry items (picked automatically when the names match, or chosen per ingredient; *From pantry* adds one directly). Calories, macros and tracked micronutrients per serving come from Pithos's food data.
+  - **Weekly planner:** Monday–Sunday, breakfast / lunch / dinner plus an optional pre-training snack. Tap a slot to pick a recipe (ones tagged for that slot first), set servings, *Move to…* another slot, or drag with a mouse. Each day shows calories, protein, carbs and fat against that day's goals.
+  - **Prep tomorrow:** tomorrow's prep notes plus *Defrost …* for frozen ingredients, on the planner and on Today from 5pm.
+  - **Shopping list:** what the rest of the planned week needs minus pantry stock (rounded up to whole packs, topping back above the low-stock level), plus anything at its low-stock level, plus your own items (e.g. whiteboard). Grouped by location; tick items off; *Add bought items to pantry* updates stock (ingredients not in the pantry are added to the cupboard; your own items are just cleared). *Export as text* gives a plain list to copy or share.
+  - **Log as eaten:** on a planned slot (planner or Today) logs the recipe to the food log, then asks before taking its ingredients out of the pantry (showing exactly what).
+  - Stored with your other settings, so it's in the JSON backup; the food log, gut log and goals are untouched.
 - **Gut log** (row on Today under Water & supplements, and its own page): record bowel movements in a few taps.
   - Quick add: date and time (now by default), Bristol stool type 1–7 (picture tiles with a short description), urgency 0–3, straining, incomplete emptying, abdominal pain and bloating 0–10, pain relieved by it, blood, mucus, context tags (poor sleep, stress, exercise, travel, new or unusual food, other) and notes. Only the type is required: tap a type, tap Save.
   - Weekly summary (step back a week at a time): bowel movements per day, Bristol type chart with % hard (1–2), normal (3–5) and loose (6–7), average pain and bloating, days with urgency.
@@ -170,7 +178,8 @@ node ../tests/cofid-parser.test.mjs
 node ../tests/quickparse.test.mjs   # Quick log text parser
 node ../tests/diary.test.mjs        # food diary CSV
 node ../tests/gut.test.mjs          # Gut log maths
-node ../tests/e2e.mjs            # 47 end-to-end checks on an iPhone-sized viewport
+node ../tests/planner.test.mjs      # Planner & Pantry maths
+node ../tests/e2e.mjs            # 48 end-to-end checks on an iPhone-sized viewport
 ```
 
 The e2e suite covers:
