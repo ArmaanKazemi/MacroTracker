@@ -725,7 +725,7 @@ await step('upgrade from v1: old targets replaced, new nutrients filled into old
   await p.waitForTimeout(800);
   // Simulate data saved by v1: old UK targets, no dataVersion, entry without the new nutrient keys.
   await p.evaluate(async () => {
-    const db = await new Promise((r) => { const q = indexedDB.open('macrotracker', 1); q.onsuccess = () => r(q.result); });
+    const db = await new Promise((r) => { const q = indexedDB.open('macrotracker'); q.onsuccess = () => r(q.result); });
     const put = (store, v, k) => new Promise((r) => { const t = db.transaction(store, 'readwrite'); t.objectStore(store).put(v, k); t.oncomplete = r; });
     const old = { kcal: 2000, protein: 150, carbs: 200, fat: 70, water: 2500, micros: { fibre: 30, potassium: 3500, magnesium: 300, folate: 200, vitC: 40, vitA: 700, vitK: 70, iron: 8.7, zinc: 9.5, calcium: 700, vitD: 10 } };
     await put('kv', old, 'settings');
@@ -1650,6 +1650,168 @@ await step('meal times: now by default, editable, shown and ordered by time; qui
     for (const e of await store.entriesFor(ui.todayKey())) if (e.name === 'Apple' || e.time === '06:15') await store.deleteEntry(e.id);
     window.dispatchEvent(new CustomEvent('data-changed'));
   });
+});
+
+await step('database upgrade adds the gut store and keeps every existing entry', async () => {
+  const c = await browser.newContext({ ...iphone });
+  const p = await c.newPage();
+  await p.goto(BASE + 'manifest.webmanifest');
+  // An install from before the Gut log: database version 1 with a logged food
+  await p.evaluate(async () => {
+    const db = await new Promise((r) => {
+      const q = indexedDB.open('macrotracker', 1);
+      q.onupgradeneeded = () => {
+        const d = q.result;
+        d.createObjectStore('kv');
+        d.createObjectStore('foods', { keyPath: 'id' });
+        d.createObjectStore('recipes', { keyPath: 'id' });
+        d.createObjectStore('entries', { keyPath: 'id' }).createIndex('date', 'date');
+        d.createObjectStore('water', { keyPath: 'id' }).createIndex('date', 'date');
+      };
+      q.onsuccess = () => r(q.result);
+    });
+    const d = new Date(); const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    await new Promise((r) => { const t = db.transaction('entries', 'readwrite'); t.objectStore('entries').put({ id: 'e-keep', date: key, meal: 'lunch', name: 'Kept lunch', unit: 'g', amount: 100, per100: { kcal: 640, protein: 30, carbs: 70, fat: 20 }, ts: 1 }); t.oncomplete = r; });
+    db.close();
+  });
+  await p.goto(BASE + '#/today');
+  await p.waitForTimeout(1800);
+  assert.equal(Number((await p.locator('[data-eaten]').textContent()).replace(/,/g, '')), 640, 'old entry still counted');
+  assert.match(await p.locator('[data-meal="lunch"]').textContent(), /Kept lunch/);
+  const info = await p.evaluate(async () => { const db = await import('./js/db.js'); return { gut: (await db.getAll('gut')).length, entries: (await db.getAll('entries')).length }; });
+  assert.deepEqual(info, { gut: 0, entries: 1 });
+  await c.close();
+});
+
+await step('gut log: quick add from Today, weekly summary, foods before, triggers, blood banner, history filter, edit/delete, CSV, backup', async () => {
+  const c = await browser.newContext({ ...iphone, acceptDownloads: true });
+  const p = await c.newPage();
+  const errs = [];
+  p.on('pageerror', (e) => errs.push(e.message));
+  await p.goto(BASE + '#/today');
+  await p.waitForTimeout(1500);
+  const top = () => p.locator('.sheet.open').last();
+  // Quick add from Today: tap a type, tap Save (time defaults to now)
+  const card = p.locator('.gut-today');
+  assert.match(await card.textContent(), /Nothing logged today/);
+  await card.locator('[data-gut-add]').click();
+  await p.waitForTimeout(450);
+  assert.ok(await top().locator('[data-save]').isDisabled(), 'needs a type first');
+  const now = await p.evaluate(async () => (await import('./js/store.js')).nowTime());
+  assert.equal(await top().locator('[data-time]').inputValue(), now);
+  assert.equal(await top().locator('[data-bristol]').count(), 7);
+  assert.match(await top().locator('[data-bristol="4"]').textContent(), /Smooth snake/);
+  await top().locator('[data-bristol="4"]').click();
+  await top().locator('[data-save]').click();
+  await p.waitForTimeout(600);
+  assert.match(await card.textContent(), /1 today[\s\S]*type 4 \(normal\)/);
+
+  // Seed history: foods with times, loose/hard/normal entries over the past days
+  await p.evaluate(async () => {
+    const store = await import('./js/store.js'); const n = await import('./js/nutrients.js'); const ui = await import('./js/ui.js');
+    const d = (k) => ui.addDays(ui.todayKey(), -k);
+    const food = (id, k, time, name) => store.saveEntry({ id, date: d(k), meal: 'dinner', name, unit: 'g', amount: 100, per100: n.normNutrients({ kcal: 300 }), time, ts: 1 });
+    await food('f1', 3, '19:00', 'Chilli con carne'); await food('f2', 3, '19:00', 'Rice');
+    await food('f3', 5, '19:00', 'Chilli con carne'); await food('f4', 5, '19:00', 'Rice');
+    await food('f5', 7, '19:00', 'Rice'); await food('f6', 9, '19:00', 'Rice');
+    const gut = (id, k, time, bristol, extra = {}) => store.saveGut({ id, date: d(k), time, bristol, urgency: 0, pain: 0, bloating: 0, tags: [], ...extra });
+    await gut('g1', 2, '09:00', 7, { urgency: 3, pain: 7, bloating: 6 });
+    await gut('g2', 4, '09:00', 6, { urgency: 2, pain: 5, bloating: 4 });
+    await gut('g3', 6, '09:00', 4);
+    await gut('g4', 8, '09:00', 4);
+    await gut('g5', 40, '09:00', 1, { straining: true, notes: 'old one' });
+  });
+  await card.locator('.gut-link').click();
+  await p.waitForTimeout(900);
+  assert.match(p.url(), /#\/gut$/);
+  // Weekly summary (last 7 days: today's type 4, g1, g2, g3)
+  const w = p.locator('.gut-week');
+  assert.match(await w.locator('[data-wspan]').textContent(), /4 entries/);
+  assert.equal(await w.locator('[data-perday]').textContent(), '0.6');
+  assert.equal(await w.locator('[data-urg]').textContent(), '2/7');
+  assert.equal(await w.locator('[data-pain]').textContent(), '3');
+  assert.match(await w.locator('[data-split]').textContent(), /0%\s*Hard[\s\S]*50%\s*Normal[\s\S]*50%\s*Loose/);
+  // Possible triggers: chilli before both loose entries, never before normal ones
+  const trig = p.locator('.gut-table');
+  assert.match(await trig.locator('tbody tr').first().textContent(), /Chilli con carne\s*2\/2/);
+  // History: 30 days by default (the 40-day-old entry hidden), foods 6–48 h before a loose entry
+  assert.equal(await p.locator('.gut-row').count(), 5);
+  const g1 = p.locator('[data-gut-id="g1"]');
+  assert.match(await g1.locator('[data-foods]').textContent(), /Chilli con carne, Rice/);
+  assert.equal(await p.locator('[data-gut-id="g3"] [data-foods]').count(), 0, 'normal entries show no food list');
+  await p.locator('[data-range="all"]').evaluate((x) => x.click());
+  await p.waitForTimeout(300);
+  assert.equal(await p.locator('.gut-row').count(), 6);
+  await p.locator('[data-range="7"]').evaluate((x) => x.click());
+  await p.waitForTimeout(300);
+  assert.equal(await p.locator('.gut-row').count(), 4);
+  await p.locator('[data-range="custom"]').evaluate((x) => x.click());
+  await p.waitForTimeout(200);
+  const day = (k) => p.evaluate(async (k) => { const ui = await import('./js/ui.js'); return ui.addDays(ui.todayKey(), -k); }, k);
+  await p.locator('[data-from]').fill(await day(5));
+  await p.locator('[data-from]').dispatchEvent('change');
+  await p.locator('[data-to]').fill(await day(3));
+  await p.locator('[data-to]').dispatchEvent('change');
+  await p.waitForTimeout(300);
+  assert.deepEqual(await p.locator('.gut-row').evaluateAll((r) => r.map((x) => x.dataset.gutId)), ['g2']);
+  // No blood yet: no banner. Log one with blood: the banner shows in the sheet and on the page
+  assert.ok(await p.locator('[data-blood]').isHidden());
+  await p.locator('.meal-top [data-gut-add]').click();
+  await p.waitForTimeout(450);
+  await top().locator('[data-bristol="6"]').click();
+  await top().locator('[data-urgency="2"]').click();
+  await top().locator('[data-yn="blood"]').click();
+  assert.ok(await top().locator('[data-blood-banner]').isVisible());
+  assert.equal((await top().locator('[data-blood-banner]').textContent()).trim(), 'Blood in stool: contact your GP.');
+  await top().locator('[data-yn="mucus"]').click();
+  await top().locator('[data-tag="stress"]').click();
+  await top().locator('[data-pain]').fill('6');
+  await top().locator('[data-bloat]').fill('3');
+  await top().locator('[data-notes]').fill('after a takeaway');
+  await top().locator('[data-save]').click();
+  await p.waitForTimeout(700);
+  assert.ok(await p.locator('[data-blood]').isVisible());
+  assert.match(await p.locator('[data-blood]').textContent(), /Blood in stool: contact your GP\./);
+  const saved = await p.evaluate(async () => (await (await import('./js/store.js')).getGut()).find((g) => g.blood));
+  assert.equal(saved.bristol, 6);
+  assert.equal(saved.urgency, 2);
+  assert.equal(saved.mucus, true);
+  assert.deepEqual(saved.tags, ['stress']);
+  assert.equal(saved.pain, 6);
+  assert.equal(saved.bloating, 3);
+  assert.equal(saved.notes, 'after a takeaway');
+  // Edit: change its type; then delete it (with Undo)
+  await p.locator('[data-range="all"]').evaluate((x) => x.click());
+  await p.waitForTimeout(300);
+  await p.locator(`[data-gut-id="${saved.id}"]`).evaluate((x) => x.click());
+  await p.waitForTimeout(450);
+  assert.equal(await top().locator('[data-bristol="6"]').getAttribute('aria-checked'), 'true');
+  await top().locator('[data-bristol="5"]').click();
+  await top().locator('[data-save]').click();
+  await p.waitForTimeout(600);
+  assert.equal((await p.evaluate(async (id) => (await (await import('./js/db.js')).get('gut', id)), saved.id)).bristol, 5);
+  // CSV export of every entry
+  const [dl] = await Promise.all([p.waitForEvent('download'), p.locator('[data-csv]').evaluate((x) => x.click())]);
+  assert.match(dl.suggestedFilename(), /^pithos-gut-log-\d{4}-\d{2}-\d{2}\.csv$/);
+  const path = join(await mkdtemp(join(tmpdir(), 'gut-')), dl.suggestedFilename());
+  await dl.saveAs(path);
+  const lines = (await readFile(path, 'utf8')).replace(/^﻿/, '').trim().split('\r\n');
+  assert.match(lines[0], /^Date,Time,Bristol type,Category,/);
+  assert.equal(lines.length, 1 + 7);
+  assert.ok(lines.some((l) => /,5,normal,2,Strong,.*,Yes,Yes,Stress,after a takeaway$/.test(l)));
+  // Backup includes the gut log
+  const backup = await p.evaluate(async () => (await import('./js/db.js')).exportAll());
+  assert.equal(backup.data.gut.length, 7);
+  // Delete with swipe-less fallback: from the edit sheet
+  await p.locator(`[data-gut-id="${saved.id}"]`).evaluate((x) => x.click());
+  await p.waitForTimeout(450);
+  await top().locator('[data-del]').click();
+  await p.waitForTimeout(400);
+  await top().locator('[data-yes]').click();
+  await p.waitForTimeout(600);
+  assert.equal(await p.locator(`[data-gut-id="${saved.id}"]`).count(), 0);
+  assert.deepEqual(errs, []);
+  await c.close();
 });
 
 await step('no JavaScript errors', async () => {

@@ -1,7 +1,8 @@
 // Tiny promise wrapper around IndexedDB. All user data lives here.
 const DB_NAME = 'macrotracker';
-const DB_VERSION = 1;
-export const STORES = ['kv', 'foods', 'recipes', 'entries', 'water'];
+// v2 adds the 'gut' store (Gut log). Upgrades only ever add stores; existing data is untouched.
+const DB_VERSION = 2;
+export const STORES = ['kv', 'foods', 'recipes', 'entries', 'water', 'gut'];
 
 let dbp = null;
 
@@ -20,8 +21,15 @@ function open() {
       if (!db.objectStoreNames.contains('water')) {
         db.createObjectStore('water', { keyPath: 'id' }).createIndex('date', 'date');
       }
+      if (!db.objectStoreNames.contains('gut')) {
+        db.createObjectStore('gut', { keyPath: 'id' }).createIndex('date', 'date');
+      }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      // Another window upgrading the database: let it, and reopen next time.
+      req.result.onversionchange = () => { req.result.close(); dbp = null; };
+      resolve(req.result);
+    };
     req.onerror = () => reject(req.error);
   });
   return dbp;

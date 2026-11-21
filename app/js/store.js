@@ -368,6 +368,17 @@ export async function logRecipe(recipe, { date, meal, amounts, time = nowTime() 
   return created;
 }
 
+// ---------- gut log ----------
+export const getGut = () => db.getAll('gut');
+export const gutBetween = (from, to) => db.byDateRange('gut', from, to);
+export async function saveGut(e) {
+  if (!e.id) e.id = 'g-' + db.uid();
+  if (!e.createdAt) e.createdAt = Date.now();
+  await db.put('gut', e);
+  return e;
+}
+export const deleteGut = (id) => db.del('gut', id);
+
 // ---------- water ----------
 export const waterFor = (date) => db.byDate('water', date);
 export async function addWater(date, ml) {

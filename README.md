@@ -37,6 +37,14 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
   - UK CoFID (McCance & Widdowson) generic foods, bundled so search works offline.
   - UK branded products from Open Food Facts, plus camera barcode scanning.
   - Missing micronutrients show as **no data**, never as zero. You can link a food to a similar CoFID food to estimate them.
+- **Gut log** (row on Today under Water & supplements, and its own page): record bowel movements in a few taps.
+  - Quick add: date and time (now by default), Bristol stool type 1–7 (picture tiles with a short description), urgency 0–3, straining, incomplete emptying, abdominal pain and bloating 0–10, pain relieved by it, blood, mucus, context tags (poor sleep, stress, exercise, travel, new or unusual food, other) and notes. Only the type is required: tap a type, tap Save.
+  - Weekly summary (step back a week at a time): bowel movements per day, Bristol type chart with % hard (1–2), normal (3–5) and loose (6–7), average pain and bloating, days with urgency.
+  - History with a 7 days / 30 days / All / custom dates filter. Tap an entry to edit it, swipe to delete. Hard and loose entries list the foods logged 6–48 hours before (using each food's logged time, or its date if it has none).
+  - **Possible triggers:** foods ranked by how much more often they came 6–48 h before loose stools than before normal ones. A pattern to look into, not a diagnosis.
+  - Logging blood shows a banner: *Blood in stool: contact your GP.* (in the entry, on Today and on the Gut log page, for 30 days).
+  - **Export CSV** of every gut entry. The gut log is in the JSON backup too. Stored in its own on-device store (added by a database upgrade that leaves existing data untouched).
+- **Adding food:** the add-food sheet has five tabs: Search, Quick log (type everything you had, right there), My foods, Meals and Scan. Search starts with *Same as yesterday* (one row), your 6 most recent foods (Show more for the rest) and a link to create a custom food.
 - **Meal times:** every food you log gets a time, set to the current time by default and changeable with the **Time** field next to Meal (food sheet, Quick log and saved meals). Tap a logged food to change its time. Times show next to each food on Today and meal pages, foods in a meal are listed in the order you ate them, and the food diary export has a Time column. Foods logged before this update have no time.
 - **Logging:** by g, ml or custom serving sizes ("1 scoop = 25 g"). Add a serving from any food's sheet with **Add serving size**, and change or delete one with **Edit servings**. Changes save as you type, and deleting has Undo.
 - **My foods and saved meals.** My foods holds everything you've created, scanned or saved; tap the star on a food to pin it to the top. Foods log in one tap. Saved meals also log in one tap, or you can adjust the amounts before logging.
@@ -161,7 +169,8 @@ cd tools && npm install          # xlsx + playwright
 node ../tests/cofid-parser.test.mjs
 node ../tests/quickparse.test.mjs   # Quick log text parser
 node ../tests/diary.test.mjs        # food diary CSV
-node ../tests/e2e.mjs            # 45 end-to-end checks on an iPhone-sized viewport
+node ../tests/gut.test.mjs          # Gut log maths
+node ../tests/e2e.mjs            # 47 end-to-end checks on an iPhone-sized viewport
 ```
 
 The e2e suite covers:

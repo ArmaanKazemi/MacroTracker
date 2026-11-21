@@ -8,7 +8,7 @@ const shownGroups = () => { const on = store.trackedKeys(); return MICRO_GROUPS.
 const shownKeys = () => [...store.trackedKeys()];
 import * as fooddb from './fooddb.js';
 import * as store from './store.js';
-import { openQuickLog } from './quicklog.js';
+import { quickLogPanel } from './quicklog.js';
 
 export const changed = () => window.dispatchEvent(new Event('data-changed'));
 
@@ -70,9 +70,8 @@ export async function sameAsYesterday({ date, meal }) {
   const kcal = totals(prev).kcal.value;
   const card = el(`
     <div class="same-y">
-      <div class="list-h" style="margin-top:4px">Same as yesterday?</div>
       <div class="result same-y-row" role="button" tabindex="0">
-        <div class="item-main"><div class="same-y-names">${prev.map((e) => esc(e.name)).join(', ')}</div>
+        <div class="item-main"><div class="same-y-l">Same as yesterday</div><div class="same-y-names">${prev.map((e) => esc(e.name)).join(', ')}</div>
           <div class="macros-line"><b>${fmt(kcal, 'kcal')}</b> kcal · ${prev.length} ${prev.length === 1 ? 'item' : 'items'}</div></div>
         <button class="iconbtn accent" type="button" data-copy aria-label="Log the same ${mealLabel(meal).toLowerCase()} as yesterday">${icons.plus}</button>
       </div>
@@ -102,6 +101,7 @@ export function openAddFood({ date, meal }) {
       <div class="search">${icons.search}<input class="input" type="search" placeholder="Search foods" enterkeyhint="search" autocomplete="off" aria-label="Search foods"></div>
       <div class="seg" role="tablist" style="margin-top:10px">
         <button role="tab" data-tab="search">Search</button>
+        <button role="tab" data-tab="type" data-quicklog>Quick log</button>
         <button role="tab" data-tab="mine">My foods</button>
         <button role="tab" data-tab="meals">Meals</button>
         <button role="tab" data-tab="scan">Scan</button>
@@ -163,9 +163,16 @@ export function openAddFood({ date, meal }) {
     stopScan?.();
     stopScan = null;
     $$(body, '[data-tab]').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === tab));
-    input.parentElement.style.display = tab === 'scan' ? 'none' : '';
+    input.parentElement.style.display = tab === 'scan' || tab === 'type' ? 'none' : '';
     list.innerHTML = '';
     if (tab === 'search') return renderSearch();
+    if (tab === 'type') {
+      // Quick log, right in the sheet: type everything you had and log it in one go.
+      const { body: qb, foot: qf } = quickLogPanel({ date, meal, onLogged: () => sheet.close() });
+      qf.classList.add('ql-foot');
+      list.append(qb, qf);
+      return;
+    }
     if (tab === 'mine') {
       // Everything you've made, scanned or saved; starred foods pinned to the top.
       const foods = (await store.getFoods()).filter(store.isMine).sort(store.byMine);
@@ -218,19 +225,27 @@ export function openAddFood({ date, meal }) {
   async function renderSearch() {
     await fooddb.load();
     if (!q.trim()) {
-      const ql = el(`<button class="ql-open" type="button" data-quicklog>${icons.edit}<span><b>Quick log</b><small>Type everything you had: “200g chicken, 2 eggs, wrap 450kcal 35p”</small></span></button>`);
-      ql.onclick = () => openQuickLog({ date, meal, onLogged: () => sheet.close() });
-      list.appendChild(ql);
       const same = await sameAsYesterday({ date, meal });
       if (same) list.appendChild(same);
-      const recent = (await store.getFoods()).filter((f) => f.lastUsed).sort((a, b) => b.lastUsed - a.lastUsed).slice(0, 12);
+      const recent = (await store.getFoods()).filter((f) => f.lastUsed).sort((a, b) => b.lastUsed - a.lastUsed).slice(0, 15);
       if (recent.length) {
         list.appendChild(el('<div class="list-h">Recent</div>'));
-        for (const f of recent) { const r = foodRow(f, { quick: true }); bindRow(r, f); list.appendChild(r); }
+        const box = el('<div></div>');
+        list.appendChild(box);
+        const show = (n) => {
+          box.innerHTML = '';
+          for (const f of recent.slice(0, n)) { const r = foodRow(f, { quick: true }); bindRow(r, f); box.appendChild(r); }
+          if (recent.length > n) {
+            const more = el(`<button class="btn link sm block" type="button" data-more>Show ${recent.length - n} more</button>`);
+            more.onclick = () => show(recent.length);
+            box.appendChild(more);
+          }
+        };
+        show(6);
       } else {
-        list.appendChild(el('<p class="empty">Search generic foods (works offline) and UK branded products.</p>'));
+        list.appendChild(el('<p class="empty">Search generic foods (works offline) and UK branded products, or use Quick log to type what you had.</p>'));
       }
-      const nb = el(`<button class="btn sm block" type="button" style="margin-top:14px">${icons.plus} Create custom food</button>`);
+      const nb = el(`<button class="btn link sm block create-link" type="button">${icons.plus} Create custom food</button>`);
       nb.onclick = () => openFoodForm(null, { onSaved: (f) => openDetail(f), logging: true });
       list.appendChild(nb);
       return;

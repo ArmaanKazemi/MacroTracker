@@ -59,7 +59,12 @@ function resolveAmount(item, food) {
   return { ...d, note: known ? (food.lastAmount ? 'your usual amount' : null) : 'no amount given — check it' };
 }
 
-export function openQuickLog({ date, meal, onLogged }) {
+/**
+ * Quick log panel: the typing box, the matched foods and the meal / time / Log row.
+ * Used as a tab in the add-food sheet; openQuickLog shows it in a sheet of its own.
+ * Returns { body, foot }.
+ */
+export function quickLogPanel({ date, meal, onLogged }) {
   const body = el(`
     <div class="ql">
       <p class="note" style="margin-top:0">Type everything you had, one food per line or separated by commas. Use the mic on your keyboard to speak it.</p>
@@ -84,7 +89,6 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
         <button class="btn go" type="button" data-log disabled style="flex:1.4">Log</button>
       </div>
     </div>`);
-  const sheet = openSheet({ title: 'Quick log', body, foot, tall: true });
   const text = $(body, '.ql-text');
   const rowsBox = $(body, '[data-rows]');
   const logBtn = $(foot, '[data-log]');
@@ -196,11 +200,18 @@ chicken wrap 450kcal 35p 40c 12f sodium 800mg"></textarea>
       created.push(await store.logFood(food, { date, meal: m, amount: row.amount, servingLabel: row.servingLabel || null, qty: row.qty || null, time }));
     }
     changed();
-    sheet.close();
     onLogged?.();
     const label = MEALS.find((x) => x.key === m)?.label || m;
     toast(`Logged ${created.length} ${created.length === 1 ? 'item' : 'items'} to ${label}`, { label: 'Undo', run: async () => { for (const e of created) await store.deleteEntry(e.id); changed(); } });
   };
+  return { body, foot };
+}
+
+export function openQuickLog({ date, meal, onLogged }) {
+  let sheet = null;
+  const { body, foot } = quickLogPanel({ date, meal, onLogged: () => { sheet?.close(); onLogged?.(); } });
+  sheet = openSheet({ title: 'Quick log', body, foot, tall: true });
+  return sheet;
 }
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
