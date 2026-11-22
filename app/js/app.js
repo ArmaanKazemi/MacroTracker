@@ -8,13 +8,14 @@ import { mountMeal } from './meal.js';
 import { mountTracked } from './tracked.js';
 import { mountTrends } from './trends.js';
 import { mountGut } from './gutview.js';
+import { mountPlan } from './plannerview.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.19.0';
+window.APP_VERSION = '2.20.0';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), foodsTab: 'mine' };
-const routes = { today: mountToday, nutrients: mountNutrients, foods: mountFoods, settings: mountSettings, meal: mountMeal, tracked: mountTracked, trends: mountTrends, gut: mountGut };
+const routes = { today: mountToday, nutrients: mountNutrients, foods: mountFoods, settings: mountSettings, meal: mountMeal, tracked: mountTracked, trends: mountTrends, gut: mountGut, plan: mountPlan };
 let current = null;
 let currentName = '';
 let enterTimer = 0;
@@ -44,7 +45,7 @@ function route() {
     if (returning) { view.classList.remove('view-enter'); restoreY = scrollMemory.today || 0; }
     window.scrollTo(0, 0);
   }
-  const tab = key === 'meal' || key === 'gut' ? 'today' : key;
+  const tab = key === 'meal' || key === 'gut' ? 'today' : key === 'plan' ? 'foods' : key;
   $$(document, '.tabbar a').forEach((a) => (a.dataset.tab === tab ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   moveTabIndicator();
   syncThemeColor();

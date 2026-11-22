@@ -9,6 +9,7 @@ import * as health from './health.js';
 import { laurels, mealIcons, hydriaSvg, HYDRIA_H, playSpill } from './art.js';
 import { supplementsCard } from './supplements.js';
 import { gutTodayCard } from './gutview.js';
+import { planTodayCard } from './plannerview.js';
 
 // Open arc gauge: 250° sweep, open at the bottom.
 const CX = 150, CY = 142, R = 116, SWEEP = 125;
@@ -150,6 +151,9 @@ export function mountToday(view, state) {
   // Then the Gut log row, then Apple Health.
   const gut = gutTodayCard(() => state.date);
   view.append(dailyHead, daily, gut.el, healthCard);
+  // Today's plan (planned meals, and in the evening tomorrow's prep) sits above the meals.
+  const planCard = planTodayCard(() => state.date);
+  mealsBox.before(planCard.el);
   for (const m of MEALS) {
     const card = el(`
       <section class="card meal" data-meal="${m.key}" aria-label="${m.label}">
@@ -241,6 +245,7 @@ export function mountToday(view, state) {
   async function refresh() {
     refreshHealth();
     gut.refresh();
+    planCard.refresh();
     $(hero, '[data-datebar]').replaceChildren(dateSwitcher(state.date, (d) => { state.date = d; refresh(); }, { future: true, tapToday: true }), el(`<a class="iconbtn gear" href="#/settings" aria-label="Settings" data-settings>${icons.settings}</a>`));
     const [settings, entries, waterList] = await Promise.all([store.settingsFor(state.date), store.entriesFor(state.date), store.waterFor(state.date)]); // that day's goals
     await fooddb.load();

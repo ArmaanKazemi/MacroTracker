@@ -188,6 +188,7 @@ export function mountFoods(view, state) {
   view.innerHTML = '';
   let tab = state.foodsTab === 'meals' ? 'meals' : 'mine';
   view.append(el('<div class="topbar"><h1 class="title">Foods</h1></div>'));
+  view.append(el(`<a class="plan-entry" href="#/plan" data-plan-entry><span><b>Planner &amp; Pantry</b><small>Plan the week, track what\'s at home, build the shopping list</small></span>${icons.next}</a>`));
   const seg = el(`<div class="seg" role="tablist"><button role="tab" data-t="mine">My foods</button><button role="tab" data-t="meals">Saved meals</button></div>`);
   const actions = el(`<div class="btns" style="margin:0 0 12px"><button class="btn sm" type="button" data-nf>${icons.plus} New food</button><button class="btn sm" type="button" data-nm>${icons.plus} New meal</button></div>`);
   const card = el('<section class="card"></section>');

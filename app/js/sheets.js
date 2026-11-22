@@ -1,7 +1,8 @@
 // Bottom-sheet flows: add food, food detail / log / edit entry, link to CoFID,
 // custom food form, saved meals (recipes), barcode scanning.
 import { el, esc, $, $$, icons, openSheet, toast, confirmSheet, round1, swipeToDelete, addDays } from './ui.js';
-import { MEALS, MICROS, MICRO_GROUPS, SUBS, scale, fmt, normNutrients, macroKcal, totals } from './nutrients.js';
+import { MEALS, MICROS, MICRO_GROUPS, SUBS, ALL_KEYS, scale, fmt, normNutrients, macroKcal, totals } from './nutrients.js';
+import { RECIPE_TAGS } from './planner.js';
 
 // Micronutrient groups limited to the nutrients being tracked (Settings → Tracked nutrients).
 const shownGroups = () => { const on = store.trackedKeys(); return MICRO_GROUPS.map((g) => ({ ...g, items: g.items.filter((m) => on.has(m.key)) })).filter((g) => g.items.length); };
@@ -932,41 +933,74 @@ export function openFoodPicker(onPick) {
 
 export function openRecipeEditor(recipe, { onSaved } = {}) {
   const editing = !!recipe?.id;
-  const r = recipe ? JSON.parse(JSON.stringify(recipe)) : { name: '', items: [] };
+  const r = recipe ? JSON.parse(JSON.stringify(recipe)) : { name: '', items: [], tags: [], prep: '' };
+  r.tags = r.tags || [];
+  let pantry = [];
   const body = el(`
     <div>
-      <label class="field"><span>Meal name</span><input class="input" data-name value="${esc(r.name)}" placeholder="e.g. Yoghurt bowl"></label>
-      <div class="list-h">Foods</div>
+      <label class="field"><span>Recipe name</span><input class="input" data-name value="${esc(r.name)}" placeholder="e.g. Overnight oats"></label>
+      <div class="chips" data-tags style="margin-top:6px">${RECIPE_TAGS.map((t) => `<button type="button" class="chip" data-tag="${t.key}" aria-pressed="false">${t.label}</button>`).join('')}</div>
+      <div class="list-h">Ingredients</div>
       <div data-items></div>
-      <button class="btn sm block" type="button" data-add style="margin-top:8px">${icons.plus} Add food</button>
+      <div class="btns" style="margin-top:8px"><button class="btn sm" type="button" data-add>${icons.plus} Add food</button><button class="btn sm" type="button" data-add-pantry>${icons.plus} From pantry</button></div>
+      <label class="field" style="margin-top:12px"><span>Prep the night before <i class="unit">(optional)</i></span><input class="input" data-prep value="${esc(r.prep || '')}" placeholder="e.g. Make overnight oats, soak dates"></label>
+      <p class="note" style="margin-top:0">Shown on the planner and on Today the evening before. Frozen pantry ingredients get a "Defrost" reminder automatically.</p>
       <div class="preview num" data-total></div>
+      <details class="info-more" data-micros-box><summary>Micronutrients per serving</summary><div data-micros></div></details>
     </div>`);
-  const foot = el(`<div class="btns">${editing ? '<button class="btn danger" type="button" data-del>Delete</button>' : ''}<button class="btn go" type="button" data-save>Save meal</button></div>`);
-  const s = openSheet({ title: editing ? 'Edit saved meal' : 'New saved meal', body, foot, tall: true });
+  const foot = el(`<div class="btns">${editing ? '<button class="btn danger" type="button" data-del>Delete</button>' : ''}<button class="btn go" type="button" data-save>Save recipe</button></div>`);
+  const s = openSheet({ title: editing ? 'Edit recipe' : 'New recipe', body, foot, tall: true });
+
+  const paintTags = () => $$(body, '[data-tag]').forEach((b) => b.setAttribute('aria-pressed', String(r.tags.includes(b.dataset.tag))));
+  $$(body, '[data-tag]').forEach((b) => (b.onclick = () => { const t = b.dataset.tag; r.tags = r.tags.includes(t) ? r.tags.filter((x) => x !== t) : [...r.tags, t]; paintTags(); }));
+  paintTags();
 
   const renderTotal = async () => {
-    const t = await recipeTotals(r);
+    const t = await recipeNutrients(r);
     $(body, '[data-total]').innerHTML = [['kcal', 'Kcal'], ['protein', 'Protein'], ['carbs', 'Carbs'], ['fat', 'Fat']]
-      .map(([k, l]) => `<div><div class="stat-v">${fmt(t[k], k === 'kcal' ? 'kcal' : '')}</div><div class="stat-l">${l}</div></div>`).join('');
+      .map(([k, l]) => `<div><div class="stat-v">${fmt(t[k].value, k === 'kcal' ? 'kcal' : '')}</div><div class="stat-l">${l}</div></div>`).join('');
+    const n = r.items.length;
+    const anyMissing = shownKeys().some((k) => t[k].missing && t[k].missing < n);
+    $(body, '[data-micros]').innerHTML = shownGroups().map((g) => `<div class="sub-h">${g.label}</div>` + g.items.map((m) => `<div class="kv kv-sub"><span>${m.label}</span><b class="num">${n && t[m.key].missing === n ? '<span class="pill na">No data</span>' : `${fmt(t[m.key].value)} ${m.unit}${t[m.key].missing ? '<sup class="muted">*</sup>' : ''}`}</b></div>`).join('')).join('')
+      + (anyMissing ? '<p class="note">* Some ingredients have no data for this, so the real total may be higher.</p>' : '');
   };
+  const pantryOptions = (sel) => `<option value="">Not in pantry</option>${pantry.map((p) => `<option value="${p.id}"${p.id === sel ? ' selected' : ''}>${esc(p.name)}${p.brand ? ` (${esc(p.brand)})` : ''} · ${esc(p.unit)}</option>`).join('')}`;
   const renderItems = () => {
     const box = $(body, '[data-items]');
-    box.innerHTML = r.items.length ? '' : '<p class="empty">Add the foods in this meal and their usual amounts.</p>';
+    box.innerHTML = r.items.length ? '' : '<p class="empty">Add the ingredients for one serving and their amounts.</p>';
     r.items.forEach((it, i) => {
-      const row = el(`<div class="row" style="gap:8px;padding:8px 0;border-top:1px solid var(--line)">
-        <div class="item-main"><div class="item-name">${esc(it.name)}</div></div>
-        <input class="input num" type="number" inputmode="decimal" step="any" min="0" value="${it.amount}" aria-label="Amount for ${esc(it.name)}" style="width:86px;text-align:right">
-        <span class="muted small" style="width:20px">${esc(it.unit || 'g')}</span>
-        <button class="iconbtn" type="button" aria-label="Remove ${esc(it.name)}">${icons.close}</button></div>`);
-      $(row, 'input').oninput = (e) => { it.amount = Number(e.target.value); renderTotal(); };
-      $(row, 'button').onclick = () => { r.items.splice(i, 1); renderItems(); };
+      const pi = pantry.find((p) => p.id === it.pantryId);
+      const needsQty = pi && pi.unit !== (it.unit || 'g') && !(Number(pi.perItem) > 0);
+      const row = el(`<div class="rec-item">
+        <div class="row" style="gap:8px">
+          <div class="item-main"><div class="item-name">${esc(it.name)}</div></div>
+          <input class="input num" type="number" inputmode="decimal" step="any" min="0" value="${it.amount}" data-amt aria-label="Amount for ${esc(it.name)}" style="width:86px;text-align:right">
+          <span class="muted small" style="width:20px">${esc(it.unit || 'g')}</span>
+          <button class="iconbtn" type="button" data-rm aria-label="Remove ${esc(it.name)}">${icons.close}</button>
+        </div>
+        <div class="rec-pantry"><select class="input" data-pantry aria-label="Pantry item for ${esc(it.name)}">${pantryOptions(it.pantryId)}</select>
+          ${needsQty ? `<label class="rec-uses">uses <input class="input num" type="number" inputmode="decimal" step="any" min="0" value="${it.pantryQty ?? ''}" data-uses aria-label="Pantry amount used"> ${esc(pi.unit)}</label>` : ''}</div>
+      </div>`);
+      $(row, '[data-amt]').oninput = (e) => { it.amount = Number(e.target.value); renderTotal(); };
+      $(row, '[data-rm]').onclick = () => { r.items.splice(i, 1); renderItems(); };
+      $(row, '[data-pantry]').onchange = (e) => { it.pantryId = e.target.value || null; if (!it.pantryId) delete it.pantryQty; renderItems(); };
+      const uses = $(row, '[data-uses]');
+      if (uses) uses.oninput = (e) => { it.pantryQty = Number(e.target.value) || null; };
       box.appendChild(row);
     });
     renderTotal();
   };
+  // The pantry item whose name best matches a food, to link it automatically.
+  const matchPantry = (name) => {
+    let best = null, score = 0;
+    for (const p of pantry) { const sc = fooddb.relevance(p.name, name); if (sc > score) { score = sc; best = p; } }
+    return score >= 10 ? best : null;
+  };
+  store.getPantry().then((list) => { pantry = list; renderItems(); });
   renderItems();
   $(body, '[data-add]').onclick = () => openFoodPicker((food) => {
     const d = store.defaultAmount(food);
+    const p = matchPantry(food.name);
     r.items.push({
       foodId: food.id || null,
       genericId: food.source === 'generic' ? food.genericId : null,
@@ -974,27 +1008,66 @@ export function openRecipeEditor(recipe, { onSaved } = {}) {
       unit: food.unit || 'g',
       amount: d.amount,
       snapshot: food.id ? null : { ...food },
+      pantryId: p?.id || null,
     });
     renderItems();
   });
+  $(body, '[data-add-pantry]').onclick = () => {
+    if (!pantry.length) return toast('Your pantry is empty. Add items in Planner & Pantry.');
+    const list = el(`<div>${pantry.map((p) => `<button class="result" type="button" data-pid="${p.id}"><div class="item-main"><div class="item-name">${esc(p.name)}${p.brand ? ` <span class="muted small">${esc(p.brand)}</span>` : ''}</div><div class="macros-line">${esc(p.location)} · ${p.food ? 'nutrition linked' : 'no nutrition linked'}</div></div></button>`).join('')}</div>`);
+    const ps = openSheet({ title: 'From pantry', body: list, tall: true });
+    $$(list, '[data-pid]').forEach((b) => (b.onclick = () => {
+      const p = pantry.find((x) => x.id === b.dataset.pid);
+      const f = p.food || null;
+      const unit = f?.unit || (p.unit === 'ml' ? 'ml' : 'g');
+      r.items.push({
+        foodId: f?.id || null,
+        genericId: f?.source === 'generic' ? f.genericId : null,
+        name: f?.name || p.name,
+        unit,
+        amount: 100,
+        snapshot: f ? (f.id ? null : { ...f }) : { name: p.name, unit, per100: null, source: 'custom' },
+        pantryId: p.id,
+      });
+      ps.close();
+      renderItems();
+    }));
+  };
   $(foot, '[data-save]').onclick = async () => {
     r.name = $(body, '[data-name]').value.trim();
-    if (!r.name) return toast('Give the meal a name');
-    if (!r.items.length) return toast('Add at least one food');
+    r.prep = $(body, '[data-prep]').value.trim();
+    if (!r.name) return toast('Give the recipe a name');
+    if (!r.items.length) return toast('Add at least one ingredient');
     const saved = await store.saveRecipe(r);
     changed();
     s.close();
-    toast('Meal saved');
+    toast('Recipe saved');
     onSaved?.(saved);
   };
   const del = $(foot, '[data-del]');
   if (del) del.onclick = async () => {
-    if (!(await confirmSheet(`Delete saved meal “${r.name}”?`))) return;
+    if (!(await confirmSheet(`Delete recipe “${r.name}”?`))) return;
     await store.deleteRecipe(r.id);
     changed();
     s.close();
     onSaved?.(null);
   };
+}
+
+/** Every nutrient for one serving of a recipe (or `servings`): { key: { value, missing } }, like totals(). */
+export async function recipeNutrients(r, servings = 1) {
+  await fooddb.load();
+  const out = Object.fromEntries(ALL_KEYS.map((k) => [k, { value: 0, missing: 0 }]));
+  for (const it of r.items || []) {
+    const food = await store.itemFood(it);
+    const per100 = !food || food.per100 === null ? null : store.resolve(food).per100;
+    const n = per100 ? scale(per100, (Number(it.amount) || 0) * servings) : null;
+    for (const k of ALL_KEYS) {
+      if (!n || n[k] === null || n[k] === undefined) out[k].missing++;
+      else out[k].value += n[k];
+    }
+  }
+  return out;
 }
 
 /** Log a saved meal, with the option to tweak amounts first. */

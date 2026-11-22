@@ -176,7 +176,7 @@ export function confirmSheet(message, okLabel = 'Delete') {
     let answered = false;
     const s = openSheet({
       title: 'Are you sure?',
-      body: `<p class="muted" style="margin:4px 0 8px">${esc(message)}</p>`,
+      body: `<p class="muted" style="margin:4px 0 8px;white-space:pre-line">${esc(message)}</p>`,
       foot: `<div class="btns"><button class="btn" data-no>Cancel</button><button class="btn danger" data-yes>${esc(okLabel)}</button></div>`,
       onClose: () => { if (!answered) resolve(false); },
     });

@@ -261,7 +261,7 @@ button { cursor: pointer; }
 .seg { display: flex; background: var(--card-2); border: 0; border-radius: 999px; padding: 4px; gap: 2px; margin-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
 .seg::-webkit-scrollbar { display: none; }
 .seg button { flex: 1; min-height: 38px; border: 0; background: transparent; border-radius: 999px; font-weight: 650; font-size: 14px; color: var(--muted); white-space: nowrap; padding: 0 10px; transition: background 0.2s, color 0.2s, box-shadow 0.2s; }
-.seg button[aria-selected="true"] { background: var(--text); color: var(--bg); box-shadow: 0 2px 6px -2px rgba(30, 20, 10, 0.3); }
+.seg button[aria-selected="true"], .seg button[aria-checked="true"] { background: var(--text); color: var(--bg); box-shadow: 0 2px 6px -2px rgba(30, 20, 10, 0.3); }
 .sheet .seg button { padding: 0 6px; font-size: 13.5px; }
 
 /* ---------- Buttons & forms ---------- */
@@ -838,3 +838,64 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .gut-title { display: block; font-family: var(--serif); font-size: 22px; font-weight: 600; line-height: 1.1; }
 .gut-sub { display: block; font-size: 13px; color: var(--muted); margin-top: 3px; }
 .gut-sub b { color: var(--text); font-weight: 650; }
+
+/* ---------- Planner & Pantry ---------- */
+.plan-entry { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; padding: 14px 16px; border-radius: 20px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--text); text-decoration: none; }
+.plan-entry span { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.plan-entry b { font-family: var(--serif); font-size: 21px; font-weight: 600; }
+.plan-entry small { font-size: 13px; color: var(--muted); }
+.plan-entry svg { width: 18px; height: 18px; color: var(--dim); }
+.plan-week .iconbtn svg { width: 16px; height: 16px; }
+.plan-day { padding: 14px; }
+.plan-day.today { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.plan-day-h { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 15.5px; }
+.plan-slots { display: grid; gap: 6px; }
+.plan-slot { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 8px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--card-2); color: var(--text); text-align: left; }
+.plan-slot.empty { background: transparent; border-style: dashed; color: var(--muted); }
+.plan-slot.opt { justify-content: center; gap: 6px; font-size: 13.5px; font-weight: 600; min-height: 38px; }
+.plan-slot.opt svg { width: 15px; height: 15px; }
+.plan-slot.eaten { opacity: 0.75; }
+.plan-slot.dragging { opacity: 0.4; }
+.plan-slot.drop { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.plan-slot-l { flex: none; width: 92px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.plan-slot-v { flex: 1; min-width: 0; font-weight: 600; font-size: 14.5px; }
+.plan-slot-v i { font-weight: 500; color: var(--dim); }
+.plan-tot { margin-top: 10px; font-size: 13px; color: var(--muted); }
+.plan-tot b { color: var(--text); }
+.plan-tot .c-red b { color: var(--red); }
+.prep-card, .plan-today { padding: 14px 16px; }
+.prep-line { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; }
+.prep-line b { display: block; font-size: 14.5px; }
+.prep-line small { display: block; font-size: 12.5px; color: var(--muted); }
+.prep-dot { flex: none; width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: var(--accent); }
+.prep-dot.auto { background: var(--blue); }
+.plan-today-row { display: flex; align-items: center; gap: 10px; min-height: 46px; border-top: 1px solid var(--line); }
+.plan-today-row:first-of-type { border-top: 0; }
+.plan-today-n { flex: 1; min-width: 0; font-weight: 600; font-size: 14.5px; }
+.plan-today .btn.link { color: var(--accent); display: inline-flex; align-items: center; gap: 2px; text-decoration: none; }
+.plan-today .btn.link svg { width: 14px; height: 14px; }
+.slot-cur { padding: 4px 0 6px; }
+.slot-cur .iconbtn { width: 36px; height: 36px; font-size: 18px; font-weight: 700; }
+.move-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.move-grid .chip { min-height: 36px; font-size: 12.5px; }
+.rec-item { padding: 8px 0; border-top: 1px solid var(--line); }
+.rec-pantry { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.rec-pantry select { min-height: 38px; font-size: 13.5px; }
+.rec-uses { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.rec-uses .input { width: 70px; min-height: 38px; }
+[data-tags] .chip[aria-pressed="true"], .chips [data-rtag][aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.pantry-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); background: var(--card); }
+.swipe:first-child .pantry-row { border-top: 0; }
+.pantry-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; border: 0; background: transparent; color: var(--text); text-align: left; padding: 0; }
+.pantry-sub { font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pantry-row .iconbtn { width: 40px; height: 40px; font-size: 20px; font-weight: 700; }
+.shop-add .input { flex: 1; }
+.shop-line { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.shop-line:first-child { border-top: 0; }
+.shop-line input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+.shop-line > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.shop-line b { font-size: 14.5px; font-weight: 600; }
+.shop-line small { font-size: 12.5px; color: var(--muted); }
+.shop-line.done b { text-decoration: line-through; color: var(--muted); }
+.shop-line .iconbtn { width: 34px; height: 34px; }
+.shop-text { min-height: 300px; font-family: ui-monospace, Menlo, monospace; font-size: 13.5px; padding-top: 10px; }
