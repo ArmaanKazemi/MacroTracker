@@ -57,6 +57,9 @@ async function step(name, fn) {
 
 const ctx = await browser.newContext({ ...iphone, acceptDownloads: true });
 await ctx.addInitScript(() => { window.__opened = []; window.__fuelOpenURL = (u) => window.__opened.push(u); });
+// The checks below were written for Search opening first; the default tab (Quick log) and
+// remembering the last tab are tested in their own fresh context.
+await ctx.addInitScript(() => { try { if (!localStorage.getItem('pithos-add-tab')) localStorage.setItem('pithos-add-tab', 'search'); } catch { /* about:blank */ } });
 await mockOff(ctx);
 const page = await ctx.newPage();
 const errors = [];
@@ -67,6 +70,11 @@ const settle = () => page.waitForTimeout(1100); // let count-up animations finis
 const num = async (sel) => Number((await page.locator(sel).first().textContent()).replace(/[^\d.-]/g, ''));
 const eaten = () => num('[data-eaten]');
 const topSheet = () => page.locator('.sheet.open').last();
+// The add-food sheet opens on the tab used last; tests that search switch to Search first.
+const toSearch = async () => {
+  const t = page.locator('.sheet.open [data-tab="search"]').last();
+  if (await t.waitFor({ timeout: 1500 }).then(() => true, () => false)) { await t.click(); await page.waitForTimeout(150); }
+};
 async function closeTop() { await topSheet().locator('[data-close]').click(); await page.waitForTimeout(450); }
 
 await page.goto(BASE);
@@ -108,7 +116,7 @@ await step('one-tap log a favourite serving (1 scoop = 96 kcal)', async () => {
 
 await step('search CoFID/generic food offline-capable and log by grams', async () => {
   await page.locator('[data-meal="breakfast"] [data-add]').click();
-  await topSheet().locator('input[type=search]').fill('raspberries');
+  await toSearch(); await topSheet().locator('input[type=search]').fill('raspberries');
   await page.waitForTimeout(300);
   await topSheet().locator('.result', { hasText: 'Raspberries, raw' }).first().click();
   await page.waitForTimeout(450);
@@ -125,7 +133,7 @@ await step('search CoFID/generic food offline-capable and log by grams', async (
 
 await step('branded search via Open Food Facts shows "no data" micros and logs a serving', async () => {
   await page.locator('[data-meal="snacks"] [data-add]').click();
-  await topSheet().locator('input[type=search]').fill('protein bar');
+  await toSearch(); await topSheet().locator('input[type=search]').fill('protein bar');
   await topSheet().locator('.result', { hasText: 'Test Protein Bar' }).waitFor({ timeout: 4000 });
   await topSheet().locator('.result', { hasText: 'Test Protein Bar' }).click();
   await page.waitForTimeout(450);
@@ -146,7 +154,7 @@ await step('link branded food to similar CoFID food fills estimates (and updates
   await page.waitForTimeout(450);
   await topSheet().locator('[data-pick]').click();
   await page.waitForTimeout(450);
-  await topSheet().locator('input[type=search]').fill('peanuts');
+  await toSearch(); await topSheet().locator('input[type=search]').fill('peanuts');
   await page.waitForTimeout(200);
   await topSheet().locator('.result').first().click();
   await page.waitForTimeout(500);
@@ -342,7 +350,7 @@ await step('saved meal: create, one-tap log, and tweak amounts before logging', 
   for (const [q, name] of [['fage', 'Fage'], ['granola', "Lizi's"], ['rasp', 'Raspberries']]) {
     await topSheet().locator('[data-add]').click();
     await page.waitForTimeout(450);
-    await topSheet().locator('input[type=search]').fill(q);
+    await toSearch(); await topSheet().locator('input[type=search]').fill(q);
     await page.waitForTimeout(250);
     await topSheet().locator('.result', { hasText: name }).first().click();
     await page.waitForTimeout(450);
@@ -587,7 +595,7 @@ await step('works offline after first load (service worker)', async () => {
   await settle();
   assert.ok((await eaten()) > 2000);
   await page.locator('[data-meal="snacks"] [data-add]').click();
-  await topSheet().locator('input[type=search]').fill('banana');
+  await toSearch(); await topSheet().locator('input[type=search]').fill('banana');
   await page.waitForTimeout(400);
   assert.ok((await topSheet().locator('.result', { hasText: 'Bananas' }).count()) >= 1, 'generic search offline');
   assert.match(await topSheet().textContent(), /offline/i);
@@ -761,9 +769,9 @@ await step('one-off custom food: logged but not saved to My foods (choice rememb
   await settle();
   const before = await eaten();
   await page.locator('[data-meal="dinner"] [data-add]').click();
-  await topSheet().locator('input[type=search]').fill('wedding cake');
+  await toSearch(); await topSheet().locator('input[type=search]').fill('wedding cake');
   await page.waitForTimeout(300);
-  await topSheet().locator('button', { hasText: 'Create custom food' }).click();
+  await toSearch(); await topSheet().locator('button', { hasText: 'Create custom food' }).click();
   await page.waitForTimeout(450);
   const f = topSheet();
   assert.ok(await f.locator('[data-keep]').isChecked(), 'saves by default');
@@ -798,7 +806,7 @@ await step('one-off custom food: logged but not saved to My foods (choice rememb
   // the switch remembers "off" next time; the Foods screen form never shows it
   await page.locator('[data-fab]').click();
   await page.waitForTimeout(450);
-  await topSheet().locator('button', { hasText: 'Create custom food' }).click();
+  await toSearch(); await topSheet().locator('button', { hasText: 'Create custom food' }).click();
   await page.waitForTimeout(450);
   assert.ok(!(await topSheet().locator('[data-keep]').isChecked()));
   await closeTop();
@@ -817,9 +825,9 @@ await step('sugars and saturates: entered on custom foods, shown under carbs and
   const sub = async (k) => Number((await page.locator(`[data-sub="${k}"] [data-v]`).textContent()).replace(/,/g, ''));
   const [sug0, sat0] = [await sub('sugars'), await sub('satfat')];
   await page.locator('[data-meal="snacks"] [data-add]').click();
-  await topSheet().locator('input[type=search]').fill('fudge');
+  await toSearch(); await topSheet().locator('input[type=search]').fill('fudge');
   await page.waitForTimeout(300);
-  await topSheet().locator('button', { hasText: 'Create custom food' }).click();
+  await toSearch(); await topSheet().locator('button', { hasText: 'Create custom food' }).click();
   await page.waitForTimeout(450);
   const f = topSheet();
   await f.locator('[data-n="kcal"]').fill('450');
@@ -849,7 +857,7 @@ await step('serving sizes can be added and deleted on a generic food (with undo)
   await page.goto(BASE + '#/today');
   await settle();
   await page.locator('[data-meal="lunch"] [data-add]').click();
-  await topSheet().locator('input[type=search]').fill('lentils');
+  await toSearch(); await topSheet().locator('input[type=search]').fill('lentils');
   await page.waitForTimeout(300);
   await topSheet().locator('.result').first().click();
   await page.waitForTimeout(450);
@@ -997,19 +1005,19 @@ await step('branded search falls back to the classic OFF search, and offers Try 
   await settle();
   await page.locator('[data-meal="lunch"] [data-add]').click();
   // one list ranked by relevance, no generic/branded sections
-  await topSheet().locator('input[type=search]').fill('protein bar');
+  await toSearch(); await topSheet().locator('input[type=search]').fill('protein bar');
   await topSheet().locator('[data-results] .result', { hasText: 'Test Protein Bar' }).waitFor({ timeout: 5000 });
   assert.equal(await topSheet().locator('[data-list] .list-h').count(), 0, 'no category headings');
   assert.match(await topSheet().locator('[data-results] .result').first().textContent(), /Test Protein Bar/, 'best match first');
-  await topSheet().locator('input[type=search]').fill('raspberries');
+  await toSearch(); await topSheet().locator('input[type=search]').fill('raspberries');
   await page.waitForTimeout(300);
   assert.match(await topSheet().locator('[data-results] .result').first().textContent(), /Raspberries, raw/, 'your saved food ranks first');
   // new service unreachable for this query -> classic search.pl answers
-  await topSheet().locator('input[type=search]').fill('test bar');
+  await toSearch(); await topSheet().locator('input[type=search]').fill('test bar');
   await topSheet().locator('.result', { hasText: 'Test Protein Bar' }).waitFor({ timeout: 5000 });
   // both down -> friendly message and a retry button that works once OFF is back
   await page.route('https://world.openfoodfacts.org/**', (r) => r.abort());
-  await topSheet().locator('input[type=search]').fill('granola bar');
+  await toSearch(); await topSheet().locator('input[type=search]').fill('granola bar');
   await topSheet().locator('[data-off-retry]').waitFor({ timeout: 5000 });
   assert.match(await topSheet().locator('[data-off]').textContent(), /didn't load/);
   await page.unroute('https://world.openfoodfacts.org/**');
@@ -1609,7 +1617,7 @@ await step('meal times: now by default, editable, shown and ordered by time; qui
   // Log a food: the time defaults to now; set it to 07:30
   await page.locator('[data-meal="breakfast"] [data-add]').click();
   await page.waitForTimeout(400);
-  await topSheet().locator('input[type=search]').fill('blueberries');
+  await toSearch(); await topSheet().locator('input[type=search]').fill('blueberries');
   await page.waitForTimeout(600);
   await topSheet().locator('.result', { hasText: 'Blueberries' }).first().locator('.item-main').click();
   await page.waitForTimeout(450);
@@ -2023,6 +2031,43 @@ await step('planner & pantry: pantry badges and +/-, recipes with tags and pantr
   // Nothing else touched: recipes are the old ones plus the two new ones
   assert.equal(await p.evaluate(async () => (await (await import('./js/db.js')).getAll('recipes')).length), before.recipes + 2);
   assert.deepEqual(errs, []);
+  await c.close();
+});
+
+await step('add-food sheet: Quick log is first and opens by default; then it opens on the tab used last (not Scan)', async () => {
+  const c = await browser.newContext({ ...iphone });
+  const p = await c.newPage();
+  await p.goto(BASE + '#/today');
+  await p.waitForTimeout(1500);
+  const top = () => p.locator('.sheet.open').last();
+  const open = async () => { await p.locator('[data-meal="lunch"] [data-add]').click(); await p.waitForTimeout(500); };
+  const close = async () => { await top().locator('[data-close]').click(); await p.waitForTimeout(450); };
+  const selected = () => top().locator('[data-tab][aria-selected="true"]').getAttribute('data-tab');
+  await open();
+  assert.deepEqual(await top().locator('[data-tab]').evaluateAll((b) => b.map((x) => x.textContent.trim())), ['Quick log', 'Search', 'My foods', 'Meals', 'Scan']);
+  assert.equal(await selected(), 'type', 'Quick log the first time');
+  assert.ok(await top().locator('.ql-text').isVisible(), 'the typing box is right there, no tap needed');
+  assert.ok(await top().locator('input[type=search]').isHidden());
+  await top().locator('[data-tab="search"]').click();
+  await p.waitForTimeout(300);
+  await close();
+  await open();
+  assert.equal(await selected(), 'search', 'remembers Search');
+  await top().locator('[data-tab="mine"]').click();
+  await p.waitForTimeout(300);
+  await close();
+  await open();
+  assert.equal(await selected(), 'mine', 'remembers My foods');
+  await top().locator('[data-tab="scan"]').click();
+  await p.waitForTimeout(300);
+  await close();
+  await open();
+  assert.equal(await selected(), 'mine', 'Scan is not remembered, so the camera never starts on its own');
+  await top().locator('[data-tab="type"]').click();
+  await p.waitForTimeout(300);
+  await close();
+  await open();
+  assert.equal(await selected(), 'type');
   await c.close();
 });
 

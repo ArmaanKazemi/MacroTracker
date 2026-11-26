@@ -90,8 +90,14 @@ export async function sameAsYesterday({ date, meal }) {
   return card;
 }
 
+const ADD_TAB_KEY = 'pithos-add-tab';
+
 export function openAddFood({ date, meal }) {
-  let tab = 'search';
+  // Opens on the tab you used last (Quick log the first time). Scan isn't remembered,
+  // so the camera never starts by itself.
+  let tab = 'type';
+  try { const last = localStorage.getItem(ADD_TAB_KEY); if (['type', 'search', 'mine', 'meals'].includes(last)) tab = last; } catch { /* private mode */ }
+  const rememberTab = () => { try { if (tab !== 'scan') localStorage.setItem(ADD_TAB_KEY, tab); } catch { /* private mode */ } };
   let q = '';
   let offCtrl = null;
   let offTimer = null;
@@ -101,8 +107,8 @@ export function openAddFood({ date, meal }) {
     <div>
       <div class="search">${icons.search}<input class="input" type="search" placeholder="Search foods" enterkeyhint="search" autocomplete="off" aria-label="Search foods"></div>
       <div class="seg" role="tablist" style="margin-top:10px">
-        <button role="tab" data-tab="search">Search</button>
         <button role="tab" data-tab="type" data-quicklog>Quick log</button>
+        <button role="tab" data-tab="search">Search</button>
         <button role="tab" data-tab="mine">My foods</button>
         <button role="tab" data-tab="meals">Meals</button>
         <button role="tab" data-tab="scan">Scan</button>
@@ -382,8 +388,8 @@ export function openAddFood({ date, meal }) {
         }));
   }
 
-  $$(body, '[data-tab]').forEach((b) => (b.onclick = () => { tab = b.dataset.tab; render(); }));
-  input.oninput = () => { q = input.value; if (tab === 'scan') tab = 'search'; render(); };
+  $$(body, '[data-tab]').forEach((b) => (b.onclick = () => { tab = b.dataset.tab; rememberTab(); render(); }));
+  input.oninput = () => { q = input.value; if (tab === 'scan') { tab = 'search'; rememberTab(); } render(); };
   window.addEventListener('data-changed', function onChange() {
     if (sheet.closed) return window.removeEventListener('data-changed', onChange);
     if (tab === 'mine' || tab === 'meals' || (tab === 'search' && !q)) render();
