@@ -52,7 +52,7 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
   - **Possible triggers:** foods ranked by how much more often they came 6–48 h before loose stools than before normal ones. A pattern to look into, not a diagnosis.
   - Logging blood shows a banner: *Blood in stool: contact your GP.* (in the entry, on Today and on the Gut log page, for 30 days).
   - **Export CSV** of every gut entry. The gut log is in the JSON backup too. Stored in its own on-device store (added by a database upgrade that leaves existing data untouched).
-- **Adding food:** the add-food sheet has five tabs: Search, Quick log (type everything you had, right there), My foods, Meals and Scan. Search starts with *Same as yesterday* (one row), your 6 most recent foods (Show more for the rest) and a link to create a custom food.
+- **Adding food:** the add-food sheet has five tabs: **Quick log** (type everything you had, right there), Search, My foods, Meals and Scan. It opens on Quick log the first time, then on whichever tab you used last (except Scan, so the camera never starts by itself). Search starts with *Same as yesterday* (one row), your 6 most recent foods (Show more for the rest) and a link to create a custom food.
 - **Meal times:** every food you log gets a time, set to the current time by default and changeable with the **Time** field next to Meal (food sheet, Quick log and saved meals). Tap a logged food to change its time. Times show next to each food on Today and meal pages, foods in a meal are listed in the order you ate them, and the food diary export has a Time column. Foods logged before this update have no time.
 - **Logging:** by g, ml or custom serving sizes ("1 scoop = 25 g"). Add a serving from any food's sheet with **Add serving size**, and change or delete one with **Edit servings**. Changes save as you type, and deleting has Undo.
 - **My foods and saved meals.** My foods holds everything you've created, scanned or saved; tap the star on a food to pin it to the top. Foods log in one tap. Saved meals also log in one tap, or you can adjust the amounts before logging.
@@ -179,7 +179,7 @@ node ../tests/quickparse.test.mjs   # Quick log text parser
 node ../tests/diary.test.mjs        # food diary CSV
 node ../tests/gut.test.mjs          # Gut log maths
 node ../tests/planner.test.mjs      # Planner & Pantry maths
-node ../tests/e2e.mjs            # 48 end-to-end checks on an iPhone-sized viewport
+node ../tests/e2e.mjs            # 49 end-to-end checks on an iPhone-sized viewport
 ```
 
 The e2e suite covers:

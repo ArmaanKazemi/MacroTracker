@@ -11,7 +11,7 @@ import { mountGut } from './gutview.js';
 import { mountPlan } from './plannerview.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.20.0';
+window.APP_VERSION = '2.20.1';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), foodsTab: 'mine' };
