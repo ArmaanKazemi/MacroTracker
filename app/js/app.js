@@ -11,7 +11,7 @@ import { mountGut } from './gutview.js';
 import { mountPlan } from './plannerview.js';
 import { openAddFood } from './sheets.js';
 
-window.APP_VERSION = '2.20.1';
+window.APP_VERSION = '2.21.0';
 
 const view = document.getElementById('view');
 const state = { date: todayKey(), foodsTab: 'mine' };
@@ -78,7 +78,7 @@ export function applyTheme(theme) {
   syncThemeColor();
 }
 
-/** Tint the browser / status-bar area to the page colour (the top of every screen is plain parchment). */
+/** Tint the browser / status-bar area to the page colour (the top of every screen is plain cream). */
 function syncThemeColor() {
   const color = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
   if (color) document.querySelector('meta[name="theme-color"]').setAttribute('content', color);

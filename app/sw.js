@@ -1,6 +1,6 @@
 // Service worker: precache the app shell + food database so everything works offline.
 // Bump VERSION whenever you change any app file so phones pick up the update.
-const VERSION = 'pithos-v2.20.1';
+const VERSION = 'pithos-v2.21.0';
 
 const SHELL = [
   './',
@@ -25,17 +25,19 @@ const SHELL = [
   'js/supplements.js',
   'js/nutrients.js',
   'js/scanner.js',
+  'js/score.js',
   'js/sheets.js',
   'js/store.js',
   'js/today.js',
   'js/ui.js',
   'js/views.js',
   'data/starter.json',
-  'fonts/cormorant-garamond-latin-500-normal.woff2',
-  'fonts/cormorant-garamond-latin-600-normal.woff2',
-  'fonts/cormorant-garamond-latin-700-normal.woff2',
-  'fonts/cinzel-latin-500-normal.woff2',
-  'fonts/cinzel-latin-700-normal.woff2',
+  'fonts/geist-sans-latin-300-normal.woff2',
+  'fonts/geist-sans-latin-400-normal.woff2',
+  'fonts/geist-sans-latin-500-normal.woff2',
+  'fonts/geist-sans-latin-600-normal.woff2',
+  'fonts/geist-mono-latin-400-normal.woff2',
+  'fonts/geist-mono-latin-500-normal.woff2',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/apple-touch-icon.png',

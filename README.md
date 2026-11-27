@@ -4,11 +4,11 @@
 
 A dark, athletic-looking nutrition tracker that runs entirely in your browser. You can install it to your iPhone home screen and it works offline. There's no backend, no account and no AI. All your data stays on your phone in IndexedDB.
 
-- **Today:** a calorie ring (eaten / goal / remaining), protein, carb and fat bars (with *of which sugars* under carbs and *of which saturates* under fat), four meal sections, water & supplements and a date switcher. The switcher goes into future days too, so you can log ahead (e.g. tomorrow); tap the date to jump back to today.
+- **Today:** a **daily score** card (the average % of your targets met today, out of 100: each nutrient counts up to 100% of its target; going past an upper limit, the sodium limit, or 110% of the calorie, carb or fat goal costs points), a **kcal remaining** card (eaten / goal / % of goal), a **nutrient status** card (a segmented bar with how many nutrients are optimal, good, low or over, then chips for "on target" and "room to improve"; tap any to open Nutrients), protein, carb and fat bars (with *of which sugars* under carbs and *of which saturates* under fat), four meal sections, water & supplements and a date switcher. The switcher goes into future days too, so you can log ahead (e.g. tomorrow); tap the date to jump back to today.
 - **Meals:** tap a meal's name on Today to open its page: every food in it, total calories against the recommended range, and nutrition (protein, carbs with sugars and fibre, fat with saturates, sodium, potassium, and all vitamins and minerals) against that meal's share of your daily goals. Remove foods there with ✕ or a swipe (with Undo). The chevron on a meal card collapses its list; that's remembered.
 - **Quick log:** in the add-food sheet, tap **Quick log** and type everything you had, one food per line or separated by commas, e.g. `200g chicken breast, 2 eggs, 1 scoop impact whey` or `chicken wrap 450kcal 35p 40c 12f sodium 800mg`. Your saved foods are matched first, then CoFID. Amounts can be grams/ml, counts ("2 eggs", "half a banana") or your serving names ("1 scoop"). You can give your own values: kcal, protein/p, carbs/c, fat/f, sugar, sat fat, fibre, sodium (mg), salt (g, converted to sodium) and any vitamin or mineral. Values are for the amount you write: `greek yoghurt 150g 99kcal 15p` logs 150 g. Check the list, change a match or an amount, then **Log all** (Undo available). No AI, works offline, free.
 - **Water & supplements:** one card on Today; swipe sideways (or tap the tabs) between the water jar and your supplements. Supplements are compact two-column pills. Add each supplement with its dose and, optionally, what one dose contains (e.g. `vitamin d 25µg, epa+dha 500mg`). Tap a pill to tick it off for the day; anything it contains counts towards your nutrient totals (and Apple Health), without adding calories or "no data" warnings. If a supplement does have calories or macros, a **Supplements** line under the meals shows what it adds, so the meals plus that line always equal *Eaten*. Tap **Edit**, then a pill, to change or delete it.
-- **Water:** the jar fills as you drink. Once you beat your goal, a few drops roll over the rim and down the sides, and a pool forms at the base. The drops replay each time you drink more; the pool just stays.
+- **Water:** the glass fills as you drink. Once you beat your goal, a few drops roll over the rim and down the sides, and a pool forms at the base. The drops replay each time you drink more; the pool just stays.
 - **Same as yesterday?** When you add food to a meal, yesterday's version of that meal is offered at the top. One tap copies it all (Undo available). It also appears on an empty meal's page.
 - **Nutrients:** the vitamins, minerals, fibre and fats you track, each with a daily target and an optional upper limit. It always opens on **Day** (a single day). **Weekly average** (Monday to Sunday, over the days you logged) has a week switcher and a Mon–Sun strip under each bar. Each has *Low / % / Met* flags.
 - **Trends** (its own tab): a summary of how you're eating over time.
@@ -65,7 +65,7 @@ A dark, athletic-looking nutrition tracker that runs entirely in your browser. Y
 - **Deleting:** swipe left on any food or saved meal (Foods screen, or the lists in the add-food sheet) to delete it. A long swipe deletes immediately; a short one reveals a **Delete** button. **Undo** appears for a few seconds. Foods you've already logged stay in your history.
 - **Apple Health:** send your daily nutrition and water to Apple Health through an Apple Shortcut. See below.
 
-Design: "modern classical". Warm ivory paper, ink and terracotta, with serif numerals (Cormorant Garamond) and Roman inscription capitals (Cinzel). The Today screen has an open arc gauge framed by laurels, Greek-key section rules, line-art meal icons and a hydria (water jar) that fills as you drink. There's an optional **Marble night** dark theme (Settings → Appearance). Colours: olive = on track, ochre = close to the goal, deep red = over the goal (or a micronutrient that is low). Fonts are bundled under the SIL Open Font License (see `app/fonts/`).
+Design: calm and organic, like a wellness magazine. Warm cream pages with borderless, softly shadowed cards; deep moss-green hero cards with a warm haze and film grain; a glowing lime accent for progress rings and "optimal". Big numbers are light-weight Geist; small labels are uppercase Geist Mono. Status colours: lime = optimal (100% of target or more), sage = good (60–99%), soft orange = low or getting close to a limit, muted rose = way off or over. There's an optional dark theme in the same palette (Settings → Appearance). All colours are tokens at the top of `app/css/app.css`, and every text/background pair passes WCAG AA in both themes. Fonts are bundled under the SIL Open Font License (see `app/fonts/`).
 
 ## Deploying to GitHub Pages
 
@@ -157,10 +157,10 @@ If the workflow can't fetch the spreadsheet (for example, if gov.uk changes its 
 app/                    ← the static site (this folder is what gets deployed)
   index.html, manifest.webmanifest, sw.js
   css/app.css
-  js/  app.js (router) · today.js · views.js · sheets.js · store.js · db.js · fooddb.js · nutrients.js · ui.js · scanner.js
+  js/  app.js (router) · today.js · score.js · views.js · sheets.js · store.js · db.js · fooddb.js · nutrients.js · ui.js · scanner.js
   data/starter.json     ← bundled starter foods (cofid.json is generated)
   vendor/zxing.min.js   ← barcode decoder for iOS (Apache-2.0)
-  fonts/                ← Cormorant Garamond + Cinzel (SIL OFL)
+  fonts/                ← Geist + Geist Mono (SIL OFL)
   icons/
 tools/                  ← build-cofid.mjs (xlsx → json), starter-foods.mjs, make-icons.mjs
 tests/                  ← e2e.mjs (Playwright), cofid-parser.test.mjs, serve.mjs
@@ -179,7 +179,8 @@ node ../tests/quickparse.test.mjs   # Quick log text parser
 node ../tests/diary.test.mjs        # food diary CSV
 node ../tests/gut.test.mjs          # Gut log maths
 node ../tests/planner.test.mjs      # Planner & Pantry maths
-node ../tests/e2e.mjs            # 49 end-to-end checks on an iPhone-sized viewport
+node ../tests/score.test.mjs        # Today's daily score
+node ../tests/e2e.mjs            # 50 end-to-end checks on an iPhone-sized viewport
 ```
 
 The e2e suite covers:

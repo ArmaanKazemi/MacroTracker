@@ -297,7 +297,7 @@ export function mountSettings(view) {
   const look = el(`
     <section class="card">
       <div class="eyebrow">Appearance</div>
-      <div class="seg" role="tablist" style="margin:12px 0 2px"><button role="tab" data-theme="system">Automatic</button><button role="tab" data-theme="light">Parchment</button><button role="tab" data-theme="dark">Marble night</button></div>
+      <div class="seg" role="tablist" style="margin:12px 0 2px"><button role="tab" data-theme="system">Automatic</button><button role="tab" data-theme="light">Light</button><button role="tab" data-theme="dark">Dark</button></div>
     </section>`);
   const healthBox = el(`
     <section class="card">
