@@ -6,28 +6,20 @@ import * as fooddb from './fooddb.js';
 import { openAddFood, openFoodDetail, changed } from './sheets.js';
 import { openSheet } from './ui.js';
 import * as health from './health.js';
-import { laurels, mealIcons, hydriaSvg, HYDRIA_H, playSpill } from './art.js';
+import { mealIcons, hydriaSvg, HYDRIA_H, playSpill } from './art.js';
 import { supplementsCard } from './supplements.js';
 import { gutTodayCard } from './gutview.js';
 import { planTodayCard } from './plannerview.js';
+import { dayScore } from './score.js';
 
-// Open arc gauge: 250° sweep, open at the bottom.
-const CX = 150, CY = 142, R = 116, SWEEP = 125;
-const pt = (deg) => [CX + R * Math.sin((deg * Math.PI) / 180), CY - R * Math.cos((deg * Math.PI) / 180)];
-const [AX, AY] = pt(-SWEEP);
-const [BX, BY] = pt(SWEEP);
-const ARC = `M${AX.toFixed(1)} ${AY.toFixed(1)} A${R} ${R} 0 1 1 ${BX.toFixed(1)} ${BY.toFixed(1)}`;
-const TICKS = Array.from({ length: 26 }, (_, i) => {
-  const a = -SWEEP + (i * 2 * SWEEP) / 25;
-  const r1 = R + 13, r2 = R + (i % 5 === 0 ? 20 : 17);
-  const s1 = [CX + r1 * Math.sin((a * Math.PI) / 180), CY - r1 * Math.cos((a * Math.PI) / 180)];
-  const s2 = [CX + r2 * Math.sin((a * Math.PI) / 180), CY - r2 * Math.cos((a * Math.PI) / 180)];
-  return `<line style="--k:${i}" x1="${s1[0].toFixed(1)}" y1="${s1[1].toFixed(1)}" x2="${s2[0].toFixed(1)}" y2="${s2[1].toFixed(1)}"/>`;
-}).join('');
+// Score ring: a full circle drawn from the top, with a faint dotted halo.
+const RING = 'M110 18 a92 92 0 1 1 -0.01 0';
+const statusIcon = { optimal: '<svg viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg>', good: '<svg viewBox="0 0 12 12"><path d="M3 6h6"/></svg>', low: '<svg viewBox="0 0 12 12"><path d="M6 2.5v7M3 6.5l3 3 3-3"/></svg>', over: '<svg viewBox="0 0 12 12"><path d="M6 9.5v-7M3 5.5l3-3 3 3"/></svg>' };
+const STATUS_LABEL = { optimal: 'Optimal', good: 'Good', low: 'Low', over: 'Over' };
 
 // Suggested share of the calorie goal per meal.
 
-const sectionHead = (label) => el(`<div class="section-h"><span>${label}</span><i class="meander" aria-hidden="true"></i></div>`);
+const sectionHead = (label) => el(`<div class="section-h"><span>${label}</span></div>`);
 
 // Which meal cards are collapsed (remembered on this device).
 const COLLAPSE_KEY = 'pithos-collapsed';
@@ -50,28 +42,48 @@ export function mountToday(view, state) {
   view.innerHTML = '';
 
   const hero = el(`
-    <section class="hero" aria-label="Calories">
+    <section class="hero" aria-label="Daily score and calories">
       <div class="datebar" data-datebar></div>
-      <div class="gauge">
-        <div class="side"><div class="side-l">Eaten</div><div class="side-v num" data-eaten>0</div><div class="side-u">kcal</div></div>
-        <div class="arc-wrap">
-          <svg class="arc" viewBox="0 0 300 250" aria-hidden="true">
-            <g class="ticks">${TICKS}</g>
-            <path class="arc-track" d="${ARC}"/>
-            <path class="arc-bar c-green" d="${ARC}" pathLength="100" stroke-dasharray="100 100" stroke-dashoffset="100"/>
+      <a class="score-card grain" href="#/nutrients" aria-label="Daily score: open nutrients">
+        <div class="score-ring">
+          <svg viewBox="0 0 220 220" aria-hidden="true">
+            <circle class="ring-halo" cx="110" cy="110" r="104" pathLength="100"/>
+            <path class="ring-track" d="${RING}"/>
+            <path class="ring-bar" d="${RING}" pathLength="100" stroke-dasharray="100 100" stroke-dashoffset="100"/>
           </svg>
-          <div class="arc-center">
-            <div class="eyebrow" data-remaining-label>Remaining</div>
-            <div class="big num" data-remaining>0</div>
-            <div class="arc-goal num">Goal <span data-goal>0</span> kcal</div>
+          <div class="ring-center">
+            <div class="eyebrow">Daily score</div>
+            <div class="score-big num" data-score>0</div>
+            <div class="score-sub">out of 100</div>
           </div>
-          <div class="arc-laurels">${laurels()}</div>
         </div>
-        <div class="side"><div class="side-l">Of goal</div><div class="side-v num" data-pct>0%</div><div class="side-u">&nbsp;</div></div>
+        <div class="glass-row">
+          <div class="glass-text"><span class="eyebrow">Nutrients</span><span data-score-line>Nothing logged yet</span></div>
+          <span class="round-arrow" aria-hidden="true">${icons.next}</span>
+        </div>
+      </a>
+      <div class="kcal-card">
+        <div class="kcal-top">
+          <div>
+            <div class="eyebrow" data-remaining-label>Remaining</div>
+            <div class="kcal-big num" data-remaining>0</div>
+          </div>
+          <div class="kcal-unit">kcal</div>
+        </div>
+        <div class="kcal-bar"><i class="arc-bar c-green"></i></div>
+        <div class="kcal-meta num"><span>Eaten <b data-eaten>0</b></span><span>Goal <b data-goal>0</b></span><span><b data-pct>0%</b> of goal</span></div>
       </div>
     </section>`);
   view.appendChild(hero);
 
+  const statusCard = el(`
+    <section class="card status-card" aria-label="Nutrient status">
+      <div class="status-head"><span class="eyebrow">Nutrient status</span><span class="muted small num" data-total></span></div>
+      <div class="seg-bar" aria-hidden="true"><i class="s-optimal"></i><i class="s-good"></i><i class="s-low"></i><i class="s-over"></i></div>
+      <div class="status-counts">${['optimal', 'good', 'low', 'over'].map((k) => `<div><b class="num" data-n="${k}">0</b><span><i class="dot s-${k}"></i>${STATUS_LABEL[k]}</span></div>`).join('')}</div>
+      <div class="chip-group" data-on hidden><div class="chip-h" data-on-h></div><div class="nchips" data-on-list></div></div>
+      <div class="chip-group" data-off hidden><div class="chip-h" data-off-h></div><div class="nchips" data-off-list></div></div>
+    </section>`);
   const macroCard = el(`<section class="macro-grid" aria-label="Macros">${MACROS.map((m) => `
     <div class="macro" data-macro="${m.key}">
       <div class="macro-name">${m.label}</div>
@@ -80,6 +92,7 @@ export function mountToday(view, state) {
       ${SUBS.filter((s) => s.parent === m.key).map((s) => `<div class="macro-sub" data-sub="${s.key}"><div class="ms-l">${s.of}</div><div class="ms-v num"><b data-v>0</b>/<span data-g>0</span>g</div></div>`).join('')}
     </div>`).join('')}</section>`);
   view.appendChild(macroCard);
+  view.appendChild(statusCard);
 
   // Water and supplements share one card: swipe (or tap the tabs) between the two pages.
   const dailyHead = sectionHead('Water & supplements');
@@ -251,21 +264,47 @@ export function mountToday(view, state) {
     await fooddb.load();
     const t = totals(entries);
 
-    // Hero
+    // Calories (pale lime card)
     const eaten = t.kcal.value;
     const goal = settings.kcal;
     const remaining = goal - eaten;
     const st = goal && eaten > goal ? 'red' : 'green'; // green until the goal is passed
     const bar = $(hero, '.arc-bar');
     bar.setAttribute('class', `arc-bar c-${st}`);
-    bar.style.strokeDashoffset = 100 * (1 - Math.min(1, goal ? eaten / goal : 0));
-    bar.style.opacity = eaten > 0 ? 1 : 0; // a zero-length dash would still draw a round cap
+    bar.style.transform = `scaleX(${Math.min(1, goal ? eaten / goal : 0)})`;
     animateNumber($(hero, '[data-remaining]'), Math.abs(remaining));
-    $(hero, '[data-remaining]').className = `big num${remaining < 0 ? ' c-red' : ''}`;
+    $(hero, '[data-remaining]').className = `kcal-big num${remaining < 0 ? ' c-red' : ''}`;
     $(hero, '[data-remaining-label]').textContent = remaining < 0 ? 'Over' : 'Remaining';
     animateNumber($(hero, '[data-eaten]'), eaten);
     animateNumber($(hero, '[data-goal]'), goal);
     animateNumber($(hero, '[data-pct]'), goal ? (eaten / goal) * 100 : 0, (v) => `${Math.round(v)}%`);
+
+    // Daily score (olive card) and nutrient status
+    const sc = dayScore(t, entries, settings, state.date);
+    const score = entries.length ? sc.score : 0;
+    animateNumber($(hero, '[data-score]'), score, (v) => String(Math.round(v)));
+    $(hero, '.ring-bar').style.strokeDashoffset = 100 - score;
+    $(hero, '.ring-bar').style.opacity = score > 0 ? 1 : 0;
+    const on = sc.items.filter((i) => i.status === 'optimal');
+    const off = sc.items.filter((i) => i.status !== 'optimal');
+    $(hero, '[data-score-line]').textContent = entries.length
+      ? `${on.length} on target · ${off.length} with room to improve`
+      : 'Nothing logged yet';
+    $(statusCard, '[data-total]').textContent = `${sc.items.length} tracked`;
+    $$(statusCard, '.seg-bar i').forEach((i) => {
+      const k = i.className.slice(2);
+      i.style.flexGrow = entries.length ? sc.counts[k] : 0;
+    });
+    statusCard.classList.toggle('empty-day', !entries.length);
+    for (const k of Object.keys(sc.counts)) $(statusCard, `[data-n="${k}"]`).textContent = entries.length ? sc.counts[k] : 0;
+    const chip = (i) => `<a class="nchip s-${i.status}" href="#/nutrients" title="${STATUS_LABEL[i.status]}"><i class="nchip-ic">${statusIcon[i.status]}</i>${esc(i.label)} <b class="num">${Math.round(i.pct)}${i.limit ? '%' : ''}</b></a>`;
+    const showOn = entries.length && on.length, showOff = entries.length && off.length;
+    $(statusCard, '[data-on]').hidden = !showOn;
+    $(statusCard, '[data-off]').hidden = !showOff;
+    $(statusCard, '[data-on-h]').textContent = `${on.length} ${on.length === 1 ? 'nutrient' : 'nutrients'} on target`;
+    $(statusCard, '[data-off-h]').textContent = `${off.length} with room to improve`;
+    $(statusCard, '[data-on-list]').innerHTML = on.map(chip).join('');
+    $(statusCard, '[data-off-list]').innerHTML = off.map(chip).join('');
 
     // Macros
     for (const m of MACROS) {

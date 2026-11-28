@@ -2071,6 +2071,58 @@ await step('add-food sheet: Quick log is first and opens by default; then it ope
   await c.close();
 });
 
+await step('Today: daily score ring, kcal card, nutrient status bar and chips match the day score; no sideways scrolling', async () => {
+  const c = await browser.newContext({ ...iphone });
+  const p = await c.newPage();
+  p.on('pageerror', (e) => errors.push(e.message));
+  await p.goto(BASE);
+  await p.waitForSelector('.hero .score-card');
+  await p.waitForTimeout(1100);
+  // Nothing logged: score 0, no chips
+  assert.equal(await p.locator('[data-score]').textContent(), '0');
+  assert.equal(await p.locator('[data-score-line]').textContent(), 'Nothing logged yet');
+  assert.ok(await p.locator('[data-on]').isHidden());
+  assert.ok(await p.locator('[data-off]').isHidden());
+  // Log two foods, then compare what's shown with the pure day score
+  await p.evaluate(async () => {
+    const store = await import('./js/store.js');
+    const db = await import('./js/db.js');
+    const { todayKey } = await import('./js/ui.js');
+    const foods = await db.getAll('foods');
+    await store.logFood(foods[0], { date: todayKey(), meal: 'breakfast', amount: 250 });
+    await store.logFood(foods[1], { date: todayKey(), meal: 'lunch', amount: 150 });
+  });
+  await p.reload();
+  await p.waitForSelector('.hero .score-card');
+  await p.waitForTimeout(1600);
+  const want = await p.evaluate(async () => {
+    const store = await import('./js/store.js');
+    const { totals } = await import('./js/nutrients.js');
+    const { dayScore } = await import('./js/score.js');
+    const { todayKey } = await import('./js/ui.js');
+    const d = todayKey();
+    const entries = await store.entriesFor(d);
+    return dayScore(totals(entries), entries, await store.settingsFor(d), d);
+  });
+  assert.ok(want.score > 0 && want.score <= 100);
+  assert.equal(Number(await p.locator('[data-score]').textContent()), want.score);
+  assert.equal(Number(await p.locator('.ring-bar').evaluate((x) => x.style.strokeDashoffset)), 100 - want.score);
+  for (const k of ['optimal', 'good', 'low', 'over']) assert.equal(Number(await p.locator(`[data-n="${k}"]`).textContent()), want.counts[k], k);
+  assert.equal(await p.locator('.seg-bar i').count(), 4);
+  assert.equal(await p.locator('[data-on-list] .nchip').count(), want.counts.optimal);
+  assert.equal(await p.locator('[data-off-list] .nchip').count(), want.items.length - want.counts.optimal);
+  assert.equal(await p.locator('[data-score-line]').textContent(), `${want.counts.optimal} on target · ${want.items.length - want.counts.optimal} with room to improve`);
+  // The kcal card still shows remaining / eaten / goal
+  assert.equal(await p.locator('[data-remaining-label]').textContent(), 'Remaining');
+  assert.ok(Number((await p.locator('[data-eaten]').textContent()).replace(/\D/g, '')) > 0);
+  // No sideways scrolling at phone width
+  assert.equal(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  // The score card and the chips open Nutrients
+  await p.locator('.score-card').click();
+  await p.waitForFunction(() => location.hash === '#/nutrients');
+  await c.close();
+});
+
 await step('no JavaScript errors', async () => {
   assert.deepEqual(errors, []);
 });
